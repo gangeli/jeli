@@ -1,0 +1,171 @@
+<project name="lib" default="dist" basedir=".">
+	<description>
+		Build file for lib
+	</description>
+
+	<property name="src" location="src"/>
+	<property name="lib" location="etc"/>
+	<property name="build" location="bin"/>
+	<property name="dist" location="dist"/>
+
+	<property name="test" location="test"/>
+	<property name="test-src" location="test/src"/>
+	<property name="test-build" location="test/bin"/>
+	<property name="test-raw" location="test/raw"/>
+	<property name="test-out" location="test/result.xml"/>
+
+	<path id="classpath.build">
+		<pathelement location="${lib}/mysql.jar"/>
+		<pathelement location="${lib}/sqlite.jar"/>
+		<pathelement location="${lib}/postgresql.jar"/>
+		<pathelement location="${lib}/jchart2d.jar"/>
+		<pathelement location="${lib}/RXTXcomm.jar"/>
+		<pathelement location="${lib}/scala-compiler.jar"/>
+		<pathelement location="${lib}/scala-library.jar"/>
+	</path>
+	<path id="classpath.test">
+			<path refid="classpath.build"/>
+			<pathelement location="${lib}/junit.jar"/>
+			<pathelement location="${build}"/>
+			<pathelement location="${test-build}"/>
+	</path>
+		
+	<taskdef resource="scala/tools/ant/antlib.xml">
+		<classpath>
+			<pathelement location="${lib}/scala-compiler.jar"/>
+			<pathelement location="${scala-library.jar}"/>
+		</classpath>
+	</taskdef>
+
+
+
+	<target name="init">
+		<tstamp/>
+		<mkdir dir="${build}"/>
+	</target>
+
+	<target name="init-test">
+		<mkdir dir="${test-build}"/>
+		<mkdir dir="${test-raw}"/>
+	</target>
+
+	<target name="init-scala">
+		<!--Scala Properties-->
+		<property name="scala-library.jar" 
+			value="${lib}/scala-library.jar"/>
+		<path id="scala.classpath">
+			<pathelement location="${scala-library.jar}"/>
+			<pathelement location="${build}"/>
+		</path>
+	</target>
+
+
+
+	<target name="build" depends="init,init-scala"
+			description="Compile all files">
+		<javac srcdir="${src}" destdir="${build}">
+			<classpath refid="classpath.build"/>
+		</javac>
+		<scalac srcdir="${src}" destdir="${build}" 
+				classpathref="classpath.build">
+			<include name="**/*.scala"/>
+		</scalac>
+		<copy todir="${build}/aux">
+			<fileset dir="${src}/aux"/>
+		</copy>
+		<chmod perm="755">
+			<fileset dir="${build}/aux">
+				<include name="**/*.rb"/>
+			</fileset>
+		</chmod>
+	</target>
+	
+	<target name="build-test" depends="init-test,build"
+			description="Compile test files">
+		<javac srcdir="${test-src}" destdir="${test-build}">
+			<classpath refid="classpath.test"/>
+		</javac>
+	</target>
+
+
+
+	<target name="dist" depends="build"
+			description="Package all files">
+		<mkdir dir="${dist}"/>
+		<!--Package Everything-->
+		<jar jarfile="${dist}/lib.jar">
+			<fileset dir="${build}"/>
+			<fileset dir="${src}"/>
+			<zipfileset src="${lib}/junit.jar"/>
+			<zipfileset src="${lib}/mysql.jar"/>
+			<zipfileset src="${lib}/sqlite.jar"/>
+			<zipfileset src="${lib}/postgresql.jar"/>
+			<zipfileset src="${lib}/jchart2d.jar"/>
+			<zipfileset src="${lib}/RXTXcomm.jar"/>
+		</jar>
+		<!--Package Database-->
+		<jar jarfile="${dist}/database.jar">
+			<fileset dir="${build}">
+				<include name="org/goobs/database/*.class"/>
+				<include name="org/goobs/utils/Utils.class"/>
+				<include name="org/goobs/utils/MetaClass*.class"/>
+				<include name="org/goobs/utils/Decodable.class"/>
+				<include name="org/goobs/io/Console.class"/>
+				<include name="org/goobs/io/TextConsole.class"/>
+			</fileset>
+			<fileset dir="${src}">
+				<include name="org/goobs/database/*.java"/>
+				<include name="org/goobs/utils/Utils.java"/>
+				<include name="org/goobs/utils/MetaClass.java"/>
+				<include name="org/goobs/utils/Decodable.java"/>
+				<include name="org/goobs/tests/DatabaseTest.java"/>
+				<include name="org/goobs/io/Console.java"/>
+				<include name="org/goobs/io/TextConsole.java"/>
+			</fileset>
+			<zipfileset src="${lib}/mysql.jar"/>
+			<zipfileset src="${lib}/sqlite.jar"/>
+			<zipfileset src="${lib}/postgresql.jar"/>
+		</jar>
+	</target>
+
+	<!--
+	<target name="test" depends="build"
+			description="Execute unit tests">
+		<junit>
+			<classpath refid="classpath.test"/>
+			<formatter type="brief" usefile="false"/>
+			<test name='org.goobs.tests.DatabaseTest'/>
+		</junit>
+	</target>
+	-->
+
+	<target name="test" depends="dist,build-test"
+			description="Execute unit tests">
+		<junit printsummary="true" failureproperty="junit.failure">
+			<classpath refid="classpath.test"/>
+			<batchtest todir="test/raw">
+				<fileset dir="${test-build}">
+					<exclude name='**/*$*.class'/> <!--nested classes-->
+					<!--TODO experimental classes' tests-->
+					<exclude name='**/ReliableChannelTest.class'/>
+				</fileset>
+				<formatter type="xml"/>
+			</batchtest>
+		</junit>
+		<junitreport todir="test">
+			<fileset dir="test/raw"/>
+			<report todir="${test-out}"/>
+		</junitreport>
+		<fail if="junit.failure" message="Unit test(s) failed.  See reports!"/>
+	</target>
+
+	<target name="clean"
+			description="clean up">
+		<delete dir="${build}"/>
+		<delete dir="${dist}"/>
+		<delete dir="${test-build}"/>
+		<delete dir="${test-raw}"/>
+		<delete dir="${test-out}"/>
+	</target>
+
+</project>
