@@ -20,7 +20,7 @@ public final class Log {
 		private int numLinesSkipped = 0;
 		private int numSameLinesPrinted = 1;
 		
-		boolean isPrinting = true;
+		private boolean isPrinting = true;
 		
 		private LogInfo(int depth, boolean isPrinting){
 			this.depth = depth;
@@ -134,6 +134,9 @@ public final class Log {
 		startTrack(name);
 	}
 	
+	public static final void start_track(String name){ startTrack(name); }
+	public static final void end_track(){ endTrack(); }
+
 	public static final void startTrack(String name) {
 		if(currentInfo != null){
 			levels.push(currentInfo);

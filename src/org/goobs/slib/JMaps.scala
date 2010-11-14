@@ -6,6 +6,8 @@ import org.goobs.functional.Function
 import org.goobs.functional.Function2
 import org.goobs.functional.Function3
 
+import scala.collection.mutable.ListBuffer
+
 object JMaps {
 	def toFn[A,O]( fn:A=>O ):Function[A,O] = {
 		new Function[A,O](){
@@ -34,5 +36,42 @@ object JMaps {
 				}
 			}
 		}
+	}
+
+	def toLst[E]( lst:List[E] ):java.util.List[E] = {
+		val rtn:java.util.List[E] = new java.util.LinkedList[E]
+		lst.foreach( (term:E) => {
+			rtn.add(term);
+		})
+		return rtn;
+	}
+	def toList[E]( lst:List[E] ):java.util.List[E] = toLst(lst)
+	
+	def toLst[E]( lst:Array[E] ):java.util.List[E] = {
+		val rtn:java.util.List[E] = new java.util.LinkedList[E]
+		lst.foreach( (term:E) => {
+			rtn.add(term);
+		})
+		return rtn;
+	}
+	def toList[E]( lst:Array[E] ):java.util.List[E] = toLst(lst)
+
+	def fromLst[E]( lst:java.util.List[E]):List[E] = {
+		val ret = new ListBuffer[E]()
+		val iter:java.util.Iterator[E] = lst.iterator
+		while(iter.hasNext){
+			ret += iter.next
+		}
+		return ret.toList
+	}
+	def fromList[E]( lst:java.util.List[E]):List[E] = fromLst(lst)
+	
+	def lst2array[E]( lst:java.util.List[E]):Array[E] = {
+		val ret = new ListBuffer[E]()
+		val iter:java.util.Iterator[E] = lst.iterator
+		while(iter.hasNext){
+			ret += iter.next
+		}
+		return ret.toArray
 	}
 }

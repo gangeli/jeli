@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface Parent{
-	String name();
+	String localField();
 	/**
 	 * References the target database name
 	 */

@@ -5,21 +5,18 @@ import org.goobs.database.PrimaryKey;
 
 
 public abstract class Datum extends DatabaseObject{
-	@PrimaryKey(name="id")
-	protected int id;
-	
-	public int getID(){ return id; }
+	public abstract int getID();
 	
 	@Override
 	public boolean equals(Object o){
 		if(o instanceof Datum){
-			return ((Datum) o).id == this.id;
+			return ((Datum) o).getID() == this.getID();
 		}else{
 			return false;
 		}
 	}
 	@Override
-	public int hashCode(){ return id; }
+	public int hashCode(){ return getID(); }
 	@Override
-	public String toString(){ return "Datum-"+id; }
+	public String toString(){ return "Datum-"+getID(); }
 }

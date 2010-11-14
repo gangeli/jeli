@@ -105,5 +105,5 @@ public abstract class Dataset <D extends Datum>{
 			get(testedIndex)
 			);
 	}
-	
+
 }

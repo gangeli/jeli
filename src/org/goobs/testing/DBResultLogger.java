@@ -45,9 +45,9 @@ public class DBResultLogger extends ResultLogger{
 	private static final class Param extends DatabaseObject{
 		@PrimaryKey(name="pid", autoIncrement=true)
 		private int pid;
-		@Parent(name="rid", parentField = "rid")
+		@Parent(localField="rid", parentField = "rid")
 		private Run rid;
-		@Key(name="key", length=63)
+		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
 		private String key;
 		@Key(name="value", length=127)
 		private String value;
@@ -62,9 +62,9 @@ public class DBResultLogger extends ResultLogger{
 	private static final class Option extends DatabaseObject{
 		@PrimaryKey(name="oid", autoIncrement=true)
 		private int oid;
-		@Parent(name="rid", parentField = "rid")
+		@Parent(localField="rid", parentField = "rid")
 		private Run rid;
-		@Key(name="key", length=63)
+		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
 		private String key;
 		@Key(name="value", length=127)
 		private String value;
@@ -82,12 +82,11 @@ public class DBResultLogger extends ResultLogger{
 	private static final class GlobalResult extends DatabaseObject{
 		@PrimaryKey(name="gid", autoIncrement=true)
 		private int gid;
-		@Key(name="key", length=63)
-		@Index(type=Index.Type.HASH)
+		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
 		private String key;
 		@Key(name="value", length=127)
 		private String value;
-		@Parent(name="rid", parentField = "rid")
+		@Parent(localField="rid", parentField = "rid")
 		private Run rid;
 		private GlobalResult(Run run, String key, String value){
 			this.rid = run;
@@ -119,12 +118,11 @@ public class DBResultLogger extends ResultLogger{
 	private static final class LocalResult extends DatabaseObject{
 		@PrimaryKey(name="lid", autoIncrement=true)
 		private int lid;
-		@Key(name="key", length=63)
-		@Index(type=Index.Type.HASH)
+		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
 		private String key;
 		@Key(name="value", length=127)
 		private String value;
-		@Parent(name="eid", parentField = "eid")
+		@Parent(localField="eid", parentField = "eid")
 		private Instance eid;
 		private LocalResult(Instance instance, String key, String value){
 			this.eid = instance;

@@ -109,4 +109,6 @@ public class StatCalc {
 		return Math.sqrt(squareSum / count - mean * mean);
 	}
 
+	public double getStdev(){ return getStandardDeviation(); }
+
 } // end of class StatCalc

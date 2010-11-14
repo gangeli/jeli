@@ -31,14 +31,14 @@ public final class Execution {
 	
 	private static final String SCALA_PATH = "scalaPath";
 	private static final String[] IGNORED_JARS = {
-		"junit-4.8.2.jar",
-		"mysql-connector-java-3.1.14-bin.jar",
-		"sqlite-jdbc-3.6.14.jar",
-		"jchart2d-3.1.0.jar",
+		"junit.jar",
+		"mysql.jar",
+		"sqlite.jar",
+		"postgresql.jar",
+		"jchart2d.jar",
 		"RXTXcomm.jar",
 		"scala-library.jar",
 		"scala-compiler.jar",
-		"jline.jar",
 	};
 	
 
@@ -474,6 +474,9 @@ public final class Execution {
 	public static final void setDataDatabase(Database d){
 		dataDB = d;
 	}
+	public static final Database getDataDatabase(){
+		return dataDB;
+	}
 	
 	public static final ResultLogger getLogger(){
 		if(logger == null){  throw Log.fail("Execution database logger was never initialized (database options were not set?)"); }
@@ -496,17 +499,16 @@ public final class Execution {
 		initDatabase(visibleClasses, options, optionFields);
 		Log.endTrack();
 		//(logging)
-		Log.startTrack("main");
 		try {
+			Log.startTrack("main");
 			toRun.run();
+			Log.endTrack(); //ends main
+			Log.startTrack("flushing");
+			if(logger != null){ logger.save(); }
 		} catch (Exception e) {
-			Log.endTrack();
 			e.printStackTrace();
 		}
-		Log.endTrack();
-		Log.startTrack("flushing");
-		if(logger != null){ logger.save(); }
-		Log.endTrack();
+		Log.endTrack(); //ends main (if exception); flush (if normal)
 	}
 	
 	public static final void exec(Runnable toRun){

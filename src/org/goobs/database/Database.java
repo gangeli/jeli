@@ -3,6 +3,7 @@ package org.goobs.database;
 import java.io.File;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigInteger;
@@ -14,6 +15,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -558,7 +560,7 @@ public final class Database implements Decodable{
 					fieldName = ((PrimaryKey) ann).name();
 					query.append("\n\t");
 					query.append( fieldName ).append(" ");
-					if( !type(type,f, -1).equalsIgnoreCase("INTEGER") ){ throw new DatabaseException("Primary key must be an integer"); }
+					if( !typeJava2sql(type,f, -1).equalsIgnoreCase("INTEGER") ){ throw new DatabaseException("Primary key must be an integer"); }
 					if(type == SQLITE){
 						query.append(" INTEGER PRIMARY KEY");	//I hate sqlite
 					}else{
@@ -568,10 +570,10 @@ public final class Database implements Decodable{
 				}else if(ann instanceof Parent){
 					if(entered) throw new DatabaseException("Multiple keys for field: " + f + " in class " + toCreate);
 					if(printComma) query.append(",");
-					fieldName = ((Parent) ann).name();
+					fieldName = ((Parent) ann).localField();
 					query.append("\n\t");
 					query.append( fieldName ).append(" ");
-					query.append(type(type,f, -1));
+					query.append(typeJava2sql(type,f, -1));
 					foreignKeys.add(f);
 					entered = true;
 				}else if(ann instanceof Key){
@@ -580,7 +582,7 @@ public final class Database implements Decodable{
 					fieldName = ((Key) ann).name();
 					query.append("\n\t");
 					query.append( fieldName ).append(" ");
-					query.append(type(type,f, ((Key) ann).length()));
+					query.append(typeJava2sql(type,f, ((Key) ann).length()));
 					//(r-tree index requires not null)
 					if(f.getAnnotation(Index.class) != null 
 							&& f.getAnnotation(Index.class).type() == Index.Type.RTREE){
@@ -624,7 +626,7 @@ public final class Database implements Decodable{
 					throw new DatabaseException("Target type of foreign key has no @Table annotation: " + f.getType());
 				}
 				StringBuilder fkQuery = new StringBuilder();
-				String local = key.name();
+				String local = key.localField();
 				String target = key.parentField();
 				//(build query)
 				fkQuery.append("ALTER TABLE ").append(table).append(" ADD FOREIGN KEY (")
@@ -774,7 +776,7 @@ public final class Database implements Decodable{
 						psmt = info.keySearch.get(x);
 					}
 				}else if(x.getAnnotation(Parent.class) != null){
-					if(x.getAnnotation(Parent.class).name().equalsIgnoreCase(key)){
+					if(x.getAnnotation(Parent.class).localField().equalsIgnoreCase(key)){
 						psmt = info.keySearch.get(x);
 					}
 				}
@@ -814,7 +816,7 @@ public final class Database implements Decodable{
 						psmt = info.keySearch.get(x);
 					}
 				}else if(x.getAnnotation(Parent.class) != null){
-					if(x.getAnnotation(Parent.class).name().equalsIgnoreCase(key)){
+					if(x.getAnnotation(Parent.class).localField().equalsIgnoreCase(key)){
 						psmt = info.keySearch.get(x);
 					}
 				}
@@ -873,8 +875,8 @@ public final class Database implements Decodable{
 					//(foreign key)
 					if(ann.annotationType() == Parent.class){
 						Parent key = (Parent) ann;
-						keys.put(key.name(), f);
-						foreignKeys.add(key.name());
+						keys.put(key.localField(), f);
+						foreignKeys.add(key.localField());
 						hasKey = true;
 					}
 					//(index)
@@ -1212,10 +1214,12 @@ public final class Database implements Decodable{
 			stmt.setString(slot, (String) obj);
 		}else if(obj instanceof Decodable){
 			stmt.setString(slot, ((Decodable) obj).encode());
-		}else if(obj instanceof Enum){
+		}else if(obj != null && isEnum(obj.getClass())){
 			stmt.setString(slot, obj.toString());
 		}else if(obj instanceof Date){
 			stmt.setObject(slot, new java.sql.Timestamp(((Date) obj).getTime()));
+		}else if(obj != null && obj.getClass().isArray()){
+			stmt.setString(slot, Arrays.toString((Object[]) obj));
 		}else{
 			stmt.setObject(slot, obj);
 		}
@@ -1234,7 +1238,6 @@ public final class Database implements Decodable{
 		return fieldList;
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private static final Object db2obj(Class<?> type, Object o){
 		if(type == long.class || type == Long.class){				//long
 			return ((Number) o).longValue();
@@ -1267,11 +1270,30 @@ public final class Database implements Decodable{
 				throw new DatabaseException("Cannot decode Decodable; no empty constructor: " + type.getName());
 			}
 			return d.decode(o.toString(), null);
-		}else if(Enum.class.isAssignableFrom(type)){				//enumerable
+		}else if(isEnum(type)){				//enumerable
 			if(o == null){ return null; }
-			return Enum.valueOf((Class<? extends Enum>) type, o.toString());
+			return str2enum(type, o.toString());
 		}else if(java.util.Date.class.isAssignableFrom(type)){		//date
-			return new java.util.Date( ((java.sql.Timestamp) o).getTime() );
+			if(o == null){ return null; }
+			if(o instanceof java.sql.Timestamp){
+				return new java.util.Date( ((java.sql.Timestamp) o).getTime() );
+			} else if(o instanceof java.sql.Date){
+				return new java.util.Date( ((java.sql.Date) o).getTime() );
+			}else{
+				throw new DatabaseException("Unknown SQL 'date' type: " + o.getClass());
+			}
+		}else if(type.isArray()){									//array
+			if(o == null){ return null; }
+			String[] strings = Utils.decodeArray(o.toString());
+			if(isEnum(type.getComponentType())){
+				Object[] rtn = (Object[]) Array.newInstance(type.getComponentType(), strings.length);
+				for(int i=0; i<rtn.length; i++){
+					rtn[i] = str2enum(type.getComponentType(), strings[i]);
+				}
+				return rtn;
+			}else{
+				return strings;
+			}
 		}else{														//else
 			return o;
 		}
@@ -1389,12 +1411,49 @@ public final class Database implements Decodable{
 				(Number.class.isAssignableFrom(type)) || 
 				(Date.class.isAssignableFrom(type)) || 
 				(String.class.isAssignableFrom(type)) ||
-				(Enum.class.isAssignableFrom(type));
+				isEnum(type) ||
+				type.isArray();
 		return !n;
 	}
 	
+	private static final boolean isEnum(Class<?> clazz){
+		if(clazz == null){ return false; }
+		return Enum.class.isAssignableFrom(clazz) ||
+			scala.Enumeration.Value.class.isAssignableFrom(clazz);
+	}
 	
-	private static final String type(int databaseType, Field f, int length){
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private static final Object str2enum(Class<?> clazz, String val){
+		if(Enum.class.isAssignableFrom(clazz)){
+			return Enum.valueOf((Class <? extends Enum>) clazz, val);
+		}else if(scala.Enumeration.Value.class.isAssignableFrom(clazz)){
+			try {
+				return ((scala.Enumeration) clazz.getEnclosingClass().newInstance()).valueOf(val);
+			} catch (InstantiationException e) {
+				throw new DatabaseException(e);
+			} catch (IllegalAccessException e) {
+				throw new DatabaseException(e);
+			}
+//			try {
+//				return clazz.getEnclosingClass().getMethod("valueOf").invoke(null,val);
+//			} catch (IllegalArgumentException e) {
+//				throw new DatabaseException(e);
+//			} catch (SecurityException e) {
+//				throw new DatabaseException(e);
+//			} catch (IllegalAccessException e) {
+//				throw new DatabaseException(e);
+//			} catch (InvocationTargetException e) {
+//				throw new DatabaseException(e);
+//			} catch (NoSuchMethodException e) {
+//				throw new DatabaseException(e);
+//			}
+		}else{
+			throw new DatabaseException("Cannot convert to enum for class: " + clazz);
+		}
+	}
+	
+	
+	private static final String typeJava2sql(int databaseType, Field f, int length){
 		Class <?> clazz = f.getType();
 		if(f.getAnnotation(Parent.class) != null){
 			return "INTEGER";
@@ -1409,14 +1468,29 @@ public final class Database implements Decodable{
 		}else if(clazz == int.class || Integer.class.isAssignableFrom(clazz)){
 			return "INTEGER";
 		}else if(clazz == long.class || Long.class.isAssignableFrom(clazz)){
-				return "NUMERIC(20)";
+			return "NUMERIC(20)";
 		}else if(clazz == double.class || Double.class.isAssignableFrom(clazz)){
 			return "FLOAT8";
 		}else if(clazz == float.class || Float.class.isAssignableFrom(clazz)){
 			return "FLOAT4";
 		}else if(Date.class.isAssignableFrom(clazz)){
-			return "TIMESTAMP";
-		}else if(String.class.isAssignableFrom(clazz) || Enum.class.isAssignableFrom(clazz)){
+			switch(databaseType){
+			case MYSQL:
+				return "DATETIME";
+			case PSQL:
+			case SQLITE:
+				return "TIMESTAMP";
+			default:
+				throw new DatabaseException("Unknown Database type: " + databaseType);
+			}
+		}else if(String.class.isAssignableFrom(clazz) || isEnum(clazz)){
+			if(length < 0){
+				return "TEXT";
+			}else{
+				return "VARCHAR(" + length + ")";
+			}
+		}else if(clazz.isArray() && String.class.isAssignableFrom(clazz.getComponentType()) ||
+				isEnum(clazz.getComponentType())){
 			if(length < 0){
 				return "TEXT";
 			}else{
@@ -1442,7 +1516,7 @@ public final class Database implements Decodable{
 		}else if(f.getAnnotation(PrimaryKey.class) != null){
 			return f.getAnnotation(PrimaryKey.class).name();
 		}else if(f.getAnnotation(Parent.class) != null){
-			return f.getAnnotation(Parent.class).name();
+			return f.getAnnotation(Parent.class).localField();
 		}else{
 			throw new DatabaseException("Field does not have a key on it: " + f);
 		}

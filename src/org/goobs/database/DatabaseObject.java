@@ -111,10 +111,10 @@ public abstract class DatabaseObject {
 			throw new DatabaseException("Primary key does not exist for class (needed for foreign key lookup): " + this.getClass());
 		}
 		//(others)
+		if(parentClass.getAnnotation(Table.class) == null){ throw new DatabaseException("No @Table annotation for parent of foreign key: " + parentClass); }
 		String parentTable = parentClass.getAnnotation(Table.class).name();
+		if(childClass.getAnnotation(Table.class) == null){ throw new DatabaseException("No @Table annotation for child of foreign key: " + childClass); }
 		String childTable = childClass.getAnnotation(Table.class).name();
-//		String toFillTable = parentCentric ? parentTable : childTable;
-//		String valueTable = parentCentric ? childTable : parentTable;
 		//--Build Query
 		StringBuilder b = new StringBuilder();
 		b.append("SELECT ").append(parentCentric ? "child" : "parent").append(".* FROM ")
@@ -163,7 +163,7 @@ public abstract class DatabaseObject {
 				Class<?> parentClass = f.getType();
 				Class<?> childClass = this.getClass();
 				String parentKey = fkey.parentField();
-				String childKey = fkey.name();
+				String childKey = fkey.localField();
 				refreshLink(f, parentClass, childClass, parentKey, childKey, false, false);
 			}
 			Child link = f.getAnnotation(Child.class);

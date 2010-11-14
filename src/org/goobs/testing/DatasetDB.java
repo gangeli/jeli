@@ -32,6 +32,7 @@ public class DatasetDB <D extends Datum> extends Dataset<D>{
 		}
 		rtn.setReadOnly(true);
 		if(cache != null){ cache[id] = rtn; }
+		rtn.refreshLinks();
 		return rtn;
 	}
 	

@@ -1,6 +1,7 @@
 package org.goobs.utils;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -318,7 +319,7 @@ public class Utils {
 		String[] rtn = new String[terms.size()];
 		int i=0;
 		for(StringBuilder b : terms){
-			rtn[i] = b.toString();
+			rtn[i] = b.toString().trim();
 			i += 1;
 		}
 		return rtn;
@@ -444,10 +445,11 @@ public class Utils {
 				return null;
 			}
 		}else if(clazz.isArray()){
+			if(value == null){ return null; }
 			Class <?> subType = clazz.getComponentType();
 			// (case: array)
 			String[] strings = Utils.decodeArray(value);
-			Object[] array = new Object[strings.length];
+			Object[] array = (Object[]) Array.newInstance(clazz.getComponentType(), strings.length);
 			for(int i=0; i<strings.length; i++){
 				array[i] = cast(strings[i], subType);
 			}
@@ -509,6 +511,21 @@ public class Utils {
 			}
 		}
 		return -1;
+	}
+
+	public static final <E> String join(String glue, E... array){
+		int k = array.length;
+		if(k == 0){ return ""; }
+		StringBuilder out = new StringBuilder();
+		out.append(array[0].toString());
+		for(int x=1; x < k; x++){
+			out.append(glue).append(array[x].toString());
+		}
+		return out.toString();
+	}
+
+	public static final <E> String join(E[] array, String glue){
+		return join(glue,array);
 	}
 	
 	public static final byte[] obj2bytes(Serializable obj){
