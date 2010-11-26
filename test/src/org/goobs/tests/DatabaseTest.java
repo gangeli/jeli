@@ -235,6 +235,10 @@ public class DatabaseTest{
 		public SomeEnum fieldEnum;
 		@Key(name="fieldEnum2")						//no index, no length
 		public SomeEnum fieldEnum2;
+		@Key(name="fieldEnumArray")
+		public SomeEnum[] fieldEnumArray;
+		@Key(name="fieldStringArray")
+		public String[] fieldStringArray;
 		@Override
 		public boolean equals(Object o){ return (o instanceof TableEnums) && ((TableEnums) o).fieldEnum == fieldEnum; }
 	}
@@ -342,7 +346,7 @@ public class DatabaseTest{
 		public TableFKRef1[] sub1;
 		@Child(localField="id", childField="pid")
 		public TableFKRef2 sub2;
-		@Parent(name="parent", parentField="id")
+		@Parent(localField="parent", parentField="id")
 		public TableFKBase parent;
 		@Child(localField="id", childField="parent")
 		public TableFKBase child;
@@ -351,7 +355,7 @@ public class DatabaseTest{
 	public static final class TableFKRef1 extends DatabaseObject{
 		@PrimaryKey(name="id")
 		public int id;
-		@Parent(name="pid", parentField="id")
+		@Parent(localField="pid", parentField="id")
 		public TableFKBase pid;
 		@Child(localField="id", childField="pid")
 		public TableFKRef1_1[] sub1;
@@ -364,7 +368,7 @@ public class DatabaseTest{
 	public static final class TableFKRef1_1 extends DatabaseObject{
 		@PrimaryKey(name="id")
 		public int id;
-		@Parent(name="pid", parentField="id")
+		@Parent(localField="pid", parentField="id")
 		public TableFKRef1 pid;
 		@Key(name="val")
 		public String val;
@@ -375,7 +379,7 @@ public class DatabaseTest{
 	public static final class TableFKRef2 extends DatabaseObject{
 		@PrimaryKey(name="id")
 		public int id;
-		@Parent(name="pid", parentField="id")
+		@Parent(localField="pid", parentField="id")
 		public TableFKBase pid;
 		@Key(name="val")
 		public String val;
@@ -469,7 +473,7 @@ public class DatabaseTest{
 						assertTrue( Utils.contains(names, ((PrimaryKey) ann).name().trim().toLowerCase()) );
 					}else if(ann instanceof Parent){
 						num += 1;
-						assertTrue( Utils.contains(names, ((Parent) ann).name().trim().toLowerCase()) );
+						assertTrue( Utils.contains(names, ((Parent) ann).localField().trim().toLowerCase()) );
 					}else if(ann instanceof Key){
 						num += 1;
 						assertTrue( Utils.contains(names, ((Key) ann).name().trim().toLowerCase()) );
@@ -608,6 +612,7 @@ public class DatabaseTest{
 	/*
 	 * NOTE: times are accurate to the nearest second
 	 */
+	@SuppressWarnings("deprecation")
 	@Test
 	public void fieldsDate(){
 		for(Database d : eachType()){
@@ -623,6 +628,20 @@ public class DatabaseTest{
 			f = d.getObjectById(TableDate.class, f.id);
 			assertNotNull(f);
 			//(check)
+			assertTrue(f.id != 0);
+			assertNotNull("Date null for db: " + d, f.fieldDate);
+			assertTrue("Should return java.util.Date", 
+					f.fieldDate.getClass().equals(java.util.Date.class));
+			assertTrue("Timestamps must be within a second of each other: " + f.fieldDate + " and " + date,
+					Math.abs( f.fieldDate.getTime() - date.getTime() ) < 1000);
+			//(check weird dates)
+			date = new Date(1929,10,29,0,0);	//hope this date does better than the market and doesn't crash
+			f = d.emptyObject(TableDate.class);
+			f.fieldDate = date;
+			f.flush();
+			//(load)
+			f = d.getObjectById(TableDate.class, f.id);
+			assertNotNull(f);
 			assertTrue(f.id != 0);
 			assertNotNull("Date null for db: " + d, f.fieldDate);
 			assertTrue("Should return java.util.Date", 
@@ -795,7 +814,7 @@ public class DatabaseTest{
 						assertTrue( Utils.contains(names, ((PrimaryKey) ann).name().trim().toLowerCase()) );
 					}else if(ann instanceof Parent){
 						num += 1;
-						assertTrue( Utils.contains(names, ((Parent) ann).name().trim().toLowerCase()) );
+						assertTrue( Utils.contains(names, ((Parent) ann).localField().trim().toLowerCase()) );
 					}else if(ann instanceof Key){
 						num += 1;
 						assertTrue( Utils.contains(names, ((Key) ann).name().trim().toLowerCase()) );
@@ -1228,7 +1247,7 @@ public class DatabaseTest{
 		for(Database d : eachType()){
 			assertTrue(d.isConnected());
 			d.clear();
-			d.ensureTable(TableIndices.class);
+			d.ensureTable(TableEnums.class);
 			//--Basic Test
 			for(SomeEnum e : SomeEnum.values()){
 				TableEnums x = d.emptyObject(TableEnums.class);
@@ -1259,6 +1278,32 @@ public class DatabaseTest{
 				assertTrue(x.isInDatabase());
 				assertTrue(x.fieldEnum == e);
 			}
+			//--Enum Array
+			for(int length = 0; length < 5; length++){
+				TableEnums x = d.emptyObject(TableEnums.class);
+				x.fieldEnumArray = new SomeEnum[length];
+				for(int i=0; i<length; i++){
+					x.fieldEnumArray[i] = SomeEnum.values()[new Random().nextInt(SomeEnum.values().length)];
+				}
+				x.flush();
+				assertTrue(x.isInDatabase());
+				SomeEnum[] expected = x.fieldEnumArray;
+				x = d.getObjectById(TableEnums.class, x.id);
+				assertNotNull(x);
+				assertArrayEquals(expected, x.fieldEnumArray);
+			}
+			//--Enum Array vs String Array
+			TableEnums x = d.emptyObject(TableEnums.class);
+			x.fieldEnumArray = new SomeEnum[]{SomeEnum.ValueA, SomeEnum.ValueB};
+			x.fieldStringArray = new String[]{SomeEnum.ValueB.toString(), SomeEnum.ValueC.toString()};
+			SomeEnum[] expEnum = x.fieldEnumArray;
+			String[] expStr = x.fieldStringArray;
+			x.flush();
+			assertTrue(x.isInDatabase());
+			x = d.getObjectById(TableEnums.class, x.id);
+			assertNotNull(x);
+			assertArrayEquals(expEnum, x.fieldEnumArray);
+			assertArrayEquals(expStr, x.fieldStringArray);
 			//--Disconnect
 			d.disconnect();
 		}
@@ -1497,6 +1542,34 @@ public class DatabaseTest{
 			
 			//--Cleanup
 			d.disconnect();
+		}
+	}
+	
+	@Test
+	public void testRefreshLinks(){
+		for(Database d : eachType()){
+			assertTrue(d.isConnected());
+			//--Basic Setup
+			TableFKBase parent = d.emptyObject(TableFKBase.class);
+			TableFKRef1 child1 = d.emptyObject(TableFKRef1.class);
+			TableFKRef1 child2 = d.emptyObject(TableFKRef1.class);
+			parent.sub1 = new TableFKRef1[]{ child1, child2 };
+			parent.deepFlush();
+			parent = d.getObjectById(TableFKBase.class, parent.id);
+			child1 = d.getObjectById(TableFKRef1.class, child1.id);
+			child2 = d.getObjectById(TableFKRef1.class, child2.id);
+			assertNotNull(parent);
+			assertNotNull(child1);
+			assertNotNull(child2);
+			//--Basic Refresh
+			parent.refreshLinks();
+			assertNotNull(parent.sub1);
+			assertEquals(2,parent.sub1.length);
+			assertEquals(parent.sub1[0].id, child1.id);
+			assertEquals(parent.sub1[1].id, child2.id);
+			//--Strict Equality
+			assertEquals(parent, parent.sub1[0].pid);
+			assertEquals(parent, parent.sub1[1].pid);
 		}
 	}
 

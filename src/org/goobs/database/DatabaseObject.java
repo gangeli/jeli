@@ -75,6 +75,33 @@ public abstract class DatabaseObject {
 	public void setReadOnly(boolean readOnly){ setFlag(FLAG_READ_ONLY, readOnly); }
 	
 	
+	private <C extends DatabaseObject, P extends DatabaseObject>
+			void backLink(P parent, C child, String childKey){
+//		System.out.println(parent + "  --  " + child + "   on   " + childKey);
+		//(if no child, no need to back link)
+		if(child == null){ return; }
+		//(for each child field...)
+		for(Field f : child.getClass().getDeclaredFields()){
+			//(if the field is a parent field, and matches the other side of the link)
+			Parent p = f.getAnnotation(Parent.class);
+			if(p != null && p.localField().equals(childKey)){
+				try {
+					//(set child's parent to parent)
+					boolean access = f.isAccessible();
+					if(!access){ f.setAccessible(true); }
+					f.set(child, parent);
+					if(!access){ f.setAccessible(false); }
+//					System.out.println("   In class: " + child.getClass() + " set field: " + f);
+				} catch (IllegalArgumentException e) {
+					throw new DatabaseException(e);
+				} catch (IllegalAccessException e) {
+					throw new DatabaseException(e);
+				}
+			}
+		}
+		
+	}
+	
 	@SuppressWarnings("unchecked")
 	private <Me extends DatabaseObject, Other extends DatabaseObject> 
 			void refreshLink(
@@ -135,16 +162,25 @@ public abstract class DatabaseObject {
 		if(!accessible) toFill.setAccessible(true);
 		try {
 			if(isArray){
+				if(!parentCentric){ throw new IllegalArgumentException("Object cannot have multiple parents"); }
+				//(get objects)
 				Iterator<Other> iter = database.getObjects(other, b.toString());
 				LinkedList<Other> lst = new LinkedList<Other>();
 				while(iter.hasNext()){
-					lst.add(iter.next());
+					Other term = iter.next();
+					backLink(this,term,childKey);
+					lst.add(term);
 				}
 				Other[] rtn = lst.toArray((Other[]) Array.newInstance(other, lst.size()));
 				if(rtn == null) throw new DatabaseException("No objects match query: " + b.toString());
+				//(set)
 				toFill.set(this, rtn);
 			}else{
-				Object rtn = database.getFirstObject((Class<? extends Other>) other, b.toString());
+				Other rtn = null;
+				if(database.hasTable(other)){
+					rtn = database.getFirstObject((Class<? extends Other>) other, b.toString());
+				}
+				backLink(this,rtn,childKey);
 				toFill.set(this, rtn);
 			}
 		} catch (IllegalArgumentException e) {
@@ -160,6 +196,7 @@ public abstract class DatabaseObject {
 		for(Field f : this.getClass().getDeclaredFields()){
 			Parent fkey = f.getAnnotation(Parent.class);
 			if(fkey != null){
+				//(fill objects)
 				Class<?> parentClass = f.getType();
 				Class<?> childClass = this.getClass();
 				String parentKey = fkey.parentField();

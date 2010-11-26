@@ -388,6 +388,15 @@ public final class Database implements Decodable{
 		return false;
 	}
 	
+	public <E extends DatabaseObject> boolean hasTable(Class<E> clazz){
+		try {
+			return hasTable(clazz.getAnnotation(Table.class).name());
+		} catch (RuntimeException e) {
+			if(e instanceof DatabaseException){ throw e; }
+			throw new DatabaseException("Could not find table with class: " + clazz);
+		}
+	}
+	
 	/**
 	 * Returns a downcased list of each of the table columns.
 	 * Note: the downcasing is for psql behavior consistency.
