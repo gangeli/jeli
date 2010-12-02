@@ -5,8 +5,6 @@ import java.util.NoSuchElementException;
 
 import org.goobs.utils.Pair;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 public abstract class Dataset <D extends Datum>{
 
 	/**
@@ -67,7 +65,7 @@ public abstract class Dataset <D extends Datum>{
 			}
 			@Override
 			public void remove() {
-				throw new NotImplementedException();
+				throw new IllegalArgumentException("Cannot remove from dataset iterator");
 			}
 			
 		};
