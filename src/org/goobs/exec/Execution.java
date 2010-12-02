@@ -32,14 +32,17 @@ public final class Execution {
 	private static final String SCALA_PATH = "scalaPath";
 	private static final String[] IGNORED_JARS = {
 		"junit.jar",
-		"mysql.jar",
-		"sqlite.jar",
-		"postgresql.jar",
-		"jchart2d.jar",
-		"RXTXcomm.jar",
 		"scala-library.jar",
 		"scala-compiler.jar",
 	};
+	private static final Class[] BOOTSTRAP_CLASSES = {
+		Execution.class,
+		Log.class,
+	};
+
+	@Option(name="ignoreClasspath", 
+		gloss="Do not try to load options from this classpath element")
+	private static String[] ignoredClasspath = new String[0];
 	
 
 	@Option(name="execName", gloss="Assigns a name for this particular run")
@@ -158,8 +161,8 @@ public final class Execution {
 		} catch (ClassNotFoundException e) {
 			throw Log.internal("Could not load class at path: " + path);
 		} catch (NoClassDefFoundError ex) {
-			ex.printStackTrace();
-			throw Log.internal("Could not load class at path: " + path);
+			Log.debug("Class at path " + path + " is unloadable");
+			return null;
 		}
 	}
 	
@@ -226,6 +229,10 @@ public final class Execution {
 			if(entry.equals(".") || entry.trim().length() == 0){
 				continue;
 			}
+			if(Utils.indexOf(ignoredClasspath, entry) >= 0){
+				Log.debug("Ignoring options in classpath element: " + entry);
+				continue;
+			}
 			File f = new File(entry);
 			if (f.isDirectory()) {
 				// --Case: Files
@@ -278,8 +285,17 @@ public final class Execution {
 		return classes.toArray(new Class<?>[classes.size()]);
 	}
 
+	protected static final Map<String,Field> fillOptions(
+			Class<?>[] classes, 
+			Map<String,String> options ){
+		return fillOptions(classes, options, true);
+	}
+
 	@SuppressWarnings("rawtypes")
-	protected static final Map<String,Field> fillOptions(Class<?>[] classes, Map<String,String> options) {
+	protected static final Map<String,Field> fillOptions(
+			Class<?>[] classes, 
+			Map<String,String> options, 
+			boolean ensureAllOptions  ) {
 
 		//--Get Fillable Options
 		Map<String, Field> canFill = new HashMap<String,Field>();
@@ -353,7 +369,7 @@ public final class Execution {
 			if(target != null){
 				// (case: declared option)
 				fillField(target, value);
-			}else{
+			}else if(ensureAllOptions){
 				// (case: undeclared option)
 				// split the key
 				int lastDotIndex = rawKey.lastIndexOf('.');
@@ -411,12 +427,21 @@ public final class Execution {
 		//--Add Options
 		for(String key : optionFields.keySet()){
 			Field f = optionFields.get(key.toLowerCase());
+			//(try to save the declared option)
 			String value = options.get(key);
 			if(value == null){
+				//(if no declared option, get field value)
 				try {
 					boolean accessSave = true;
 					if(!f.isAccessible()){ accessSave = false; f.setAccessible(true); } 
-					value = "" + f.get(null);
+					Object v = f.get(null);
+					if(v == null){
+						value = "<null>";
+					}else if(v.getClass().isArray()){
+						value = Arrays.toString((Object[]) v);
+					}else{
+						value = v.toString();
+					}
 					if(!accessSave){ f.setAccessible(false); }
 				} catch (IllegalArgumentException e) {
 					Log.fail(e);
@@ -493,10 +518,11 @@ public final class Execution {
 	public static final void exec(Runnable toRun, String[] args) {
 		//(options and parameters)
 		Log.startTrack("init");
-		Map<String,String> options = parseOptions(args);
-		Class<?>[] visibleClasses = getVisibleClasses(options);
-		Map<String,Field> optionFields = fillOptions(visibleClasses, options);
-		initDatabase(visibleClasses, options, optionFields);
+		Map<String,String> options = parseOptions(args); //get options
+		fillOptions(BOOTSTRAP_CLASSES, options, false); //bootstrap
+		Class<?>[] visibleClasses = getVisibleClasses(options); //get classes
+		Map<String,Field> optionFields = fillOptions(visibleClasses, options); //fill for real
+		initDatabase(visibleClasses, options, optionFields); //database
 		Log.endTrack();
 		//(logging)
 		try {
