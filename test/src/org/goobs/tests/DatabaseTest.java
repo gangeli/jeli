@@ -938,6 +938,9 @@ public class DatabaseTest{
 				"SELECT * FROM " + TableStandardFields.class.getAnnotation(Table.class).name());
 			int count = 0;
 			assertTrue(x != null);
+			d.getObjectById(TableStandardFields.class, 1); //don't have to use iterator right away
+			d.getObjects(TableStandardFields.class, 
+				"SELECT * FROM " + TableStandardFields.class.getAnnotation(Table.class).name());
 			while(x.hasNext()){
 				f = x.next();
 				assertTrue(f != null);

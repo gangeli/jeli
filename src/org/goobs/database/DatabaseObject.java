@@ -192,7 +192,7 @@ public abstract class DatabaseObject {
 		if(!accessible) toFill.setAccessible(false);
 	}
 	
-	public void refreshLinks(){
+	public <D extends DatabaseObject> D refreshLinks(){
 		for(Field f : this.getClass().getDeclaredFields()){
 			Parent fkey = f.getAnnotation(Parent.class);
 			if(fkey != null){
@@ -215,6 +215,7 @@ public abstract class DatabaseObject {
 				refreshLink(f, parentClass, childClass, parentKey, childKey, true, isArray);
 			}
 		}
+		return (D) this;
 	}
 	
 	@SuppressWarnings("unchecked")

@@ -36,9 +36,11 @@ public class ScoreCalc <T> {
 	
 	
 	public double precision(){
+		if(guessTotal == 0){ throw new IllegalStateException("No data points for precision!"); }
 		return ((double) guessCorrect) / ((double) guessTotal);
 	}
 	public double recall(){
+		if(goldTotal == 0){ throw new IllegalStateException("No data points for recall!"); }
 		return ((double) goldCorrect) / ((double) goldTotal);
 	}
 	public double FMeasure(double B){

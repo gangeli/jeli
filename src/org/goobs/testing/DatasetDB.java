@@ -3,8 +3,7 @@ package org.goobs.testing;
 import org.goobs.database.Database;
 
 /**
- * CONSTRAINTS TO USING THIS CLASS:
- * 		~The database must have a primary key that's dense (e.g. max(key) = count(key))
+ * IMPORTANT: The database must have a primary key that's dense (e.g. max(key) = count(key))
  */
 public class DatasetDB <D extends Datum> extends Dataset<D>{
 	

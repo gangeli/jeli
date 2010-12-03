@@ -85,6 +85,7 @@ public final class Database implements Decodable{
 		private DBClassInfo<E> info;
 		private Class<E> classType;
 		private E next = null;
+		private boolean done = false;
 		
 		private ResultSetIterator(ResultSet rs, Class<E> classType){
 			this.rs = rs;
@@ -102,6 +103,7 @@ public final class Database implements Decodable{
 		}
 		@Override
 		public boolean hasNext() {
+			if(done){ return false; }
 			try {
 				if(next == null){
 					if(rs.next()){
@@ -113,6 +115,7 @@ public final class Database implements Decodable{
 						return true;
 					}else{
 						rs.close();
+						done = true;
 						return false;
 					}
 				}else{
@@ -702,6 +705,7 @@ public final class Database implements Decodable{
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public <E extends DatabaseObject> Iterator <E> getObjects(Class<E> classType, String query){
 		ResultSet results = query(query, true);
+		lastStatement = null; //don't auto-clean
 		return new ResultSetIterator(results, classType);
 	}
 	
@@ -746,6 +750,7 @@ public final class Database implements Decodable{
 		query.append(";");
 		//--Query
 		ResultSet results = query(query.toString(), true);
+		lastStatement = null; //don't auto-clean
 		return new ResultSetIterator<E>(results, classType);
 	}
 	

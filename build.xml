@@ -19,7 +19,6 @@
 		<pathelement location="${lib}/sqlite.jar"/>
 		<pathelement location="${lib}/postgresql.jar"/>
 		<pathelement location="${lib}/jchart2d.jar"/>
-		<pathelement location="${lib}/RXTXcomm.jar"/>
 		<pathelement location="${lib}/scala-compiler.jar"/>
 		<pathelement location="${lib}/scala-library.jar"/>
 	</path>
@@ -96,12 +95,13 @@
 		<jar jarfile="${dist}/lib.jar">
 			<fileset dir="${build}"/>
 			<fileset dir="${src}"/>
+			<!--
 			<zipfileset src="${lib}/junit.jar"/>
 			<zipfileset src="${lib}/mysql.jar"/>
 			<zipfileset src="${lib}/sqlite.jar"/>
 			<zipfileset src="${lib}/postgresql.jar"/>
 			<zipfileset src="${lib}/jchart2d.jar"/>
-			<zipfileset src="${lib}/RXTXcomm.jar"/>
+			-->
 		</jar>
 		<!--Package Database-->
 		<jar jarfile="${dist}/database.jar">
