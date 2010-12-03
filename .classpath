@@ -3,11 +3,12 @@
 	<classpathentry kind="src" path="test/src"/>
 	<classpathentry excluding="org/goobs/slib|org/goobs/slib/JMaps.scala" kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/java-6-openjdk"/>
-	<classpathentry kind="lib" path="/usr/share/java/RXTXcomm.jar"/>
-	<classpathentry kind="lib" path="etc/jchart2d-3.1.0.jar"/>
-	<classpathentry kind="lib" path="etc/junit-4.8.2.jar"/>
-	<classpathentry kind="lib" path="etc/mysql-connector-java-3.1.14-bin.jar"/>
-	<classpathentry kind="lib" path="etc/postgresql-9.0-801.jdbc3.jar"/>
-	<classpathentry kind="lib" path="etc/sqlite-jdbc-3.6.14.jar"/>
+	<classpathentry kind="lib" path="/home/gabor/workspace/lib/etc/junit.jar"/>
+	<classpathentry kind="lib" path="/home/gabor/workspace/lib/etc/mysql.jar"/>
+	<classpathentry kind="lib" path="/home/gabor/workspace/lib/etc/postgresql.jar"/>
+	<classpathentry kind="lib" path="/home/gabor/workspace/lib/etc/scala-compiler.jar"/>
+	<classpathentry kind="lib" path="/home/gabor/workspace/lib/etc/scala-library.jar"/>
+	<classpathentry kind="lib" path="/home/gabor/workspace/lib/etc/sqlite.jar"/>
+	<classpathentry kind="lib" path="etc/jchart2d.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -1,15 +1,43 @@
 package org.goobs.utils;
-import org.goobs.foreign.Counter;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class StatCalc {
 
+	private class Counter{
+		private Map<Double,Double> map = new HashMap<Double,Double>();
+		private void incrementCount(double var, double incr){
+			Double count = map.get(var);
+			if(count == null){ count = 0.0; }
+			count += incr;
+			map.put(var,count);
+		}
+		private double argMax(){
+			double max = Double.NEGATIVE_INFINITY;
+			double argmax = Double.NaN;
+			for(Double var : map.keySet()){
+				if(map.get(var) > max){
+					max = map.get(var);
+					argmax = var;
+				}
+			}
+			return argmax;
+		}
+		private double getCount(double var){
+			Double count = map.get(var);
+			if(count == null){ return 0.0; }
+			return count;
+		}
+	}
+	
 	private int count; // Number of numbers that have been entered.
 	private double sum; // The sum of all the items that have been entered.
 	private double squareSum; // The sum of the squares of all the items.
 	private double min = Double.POSITIVE_INFINITY;
-	private double max = Double.NEGATIVE_INFINITY;
-
-	private Counter<Double> modeCounter = null;
+	private double max = Double.NEGATIVE_INFINITY;	
+	
+	private Counter modeCounter = null;
 
 	public StatCalc trackMode(){
 		setTrackMode(true);
@@ -18,7 +46,7 @@ public class StatCalc {
 
 	public void setTrackMode(boolean trackMode){
 		if(trackMode){
-			this.modeCounter = new Counter<Double>();
+			this.modeCounter = new Counter();
 		}else{
 			this.modeCounter = null;
 		}
