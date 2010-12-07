@@ -372,10 +372,10 @@ public class MetaClass {
 	 * @return An instance of the class
 	 */
 	@SuppressWarnings("unchecked")
-	public <E> E createInstance(Class<E> type, Object... params) {
+	public <E,F extends E> F createInstance(Class<E> type, Object... params) {
 		Object obj = createInstance(params);
 		if (type.isInstance(obj)) {
-			return (E) obj;
+			return (F) obj;
 		} else {
 			throw new ClassCreationException("Cannot cast " + classname
 					+ " into " + type.getName());

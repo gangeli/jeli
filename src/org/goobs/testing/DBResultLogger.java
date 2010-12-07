@@ -8,7 +8,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.goobs.database.*;
-import org.goobs.exec.Log;
+import static org.goobs.exec.Log.*;
+import org.goobs.exec.ExitCode;
 import org.goobs.utils.SparseList;
 
 public class DBResultLogger extends ResultLogger{
@@ -49,7 +50,7 @@ public class DBResultLogger extends ResultLogger{
 		private Run rid;
 		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
 		private String key;
-		@Key(name="value", length=127)
+		@Key(name="value", length=255)
 		private String value;
 		public Param(Run result, String key, String value){
 			this.rid = result;
@@ -66,9 +67,9 @@ public class DBResultLogger extends ResultLogger{
 		private Run rid;
 		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
 		private String key;
-		@Key(name="value", length=127)
+		@Key(name="value", length=255)
 		private String value;
-		@Key(name="location", length=127)
+		@Key(name="location", length=255)
 		private String location;
 		public Option(Run result, String key, String value, String location){
 			this.rid = result;
@@ -162,11 +163,19 @@ public class DBResultLogger extends ResultLogger{
 	 */
 	
 	public void logOption(String name, String value, String location){
-		db.emptyObject(Option.class, run, name, value, location).flush();
+		try{
+			db.emptyObject(Option.class, run, name, value, location).flush();
+		} catch (DatabaseException e){
+			warn("DB_LOGGER", "Could not log option: " + name + " (" + e.getMessage() + ")");
+		}
 	}
 	
 	public void logParameter(String name, String value){
-		db.emptyObject(Param.class, run, name, value).flush();
+		try{
+			db.emptyObject(Param.class, run, name, value).flush();
+		} catch (DatabaseException e){
+			warn("DB_LOGGER", "Could not log param: " + name + " (" + e.getMessage() + ")");
+		}
 	}
 	
 	/*
@@ -196,7 +205,7 @@ public class DBResultLogger extends ResultLogger{
 		enforceSimple();
 		//(add instance)
 		Instance i = db.emptyObject(Instance.class, index, guess, gold);
-		if(instances.get(index) != null){ Log.fail("Duplicate example index: " + index); }
+		if(instances.get(index) != null){ fail("Duplicate example index: " + index); }
 		offer(i);
 		instances.set(index, i);
 	}
@@ -253,6 +262,8 @@ public class DBResultLogger extends ResultLogger{
 		flushingLock.unlock();
 		//(mark as done)
 		this.run.complete();
+		//(remind user of run)
+		log("THIS IS RUN #" + this.run.rid);
 	}
 
 	@Override
@@ -283,7 +294,7 @@ public class DBResultLogger extends ResultLogger{
 		rtn.run.parent = this.run.rid;
 		rtn.run.flush();
 		if( elems.put(index,rtn) != null){
-			Log.warn("DATABASE_LOGGER", "Clobbering logger in group " + name + " with index " + index);
+			warn("DATABASE_LOGGER", "Clobbering logger in group " + name + " with index " + index);
 		}
 		return rtn;
 	}

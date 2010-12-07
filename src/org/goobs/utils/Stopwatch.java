@@ -57,9 +57,13 @@ public class Stopwatch {
 		int day = (int) rest;
 		//--Make String
 		StringBuilder b = new StringBuilder();
-		if(day > 0) b.append(day).append(" days, ");
-		if(hr > 0) b.append(hr).append(" hours, ");
-		if(min > 0) b.append(min).append(":");
+		if(day > 0) b.append(day).append(day > 1 ? " days, " : " day, ");
+		if(hr > 0) b.append(hr).append(hr > 1 ? " hours, " : " hour, ");
+		if(min > 0) {
+			if(min < 10){ b.append("0"); } 
+			b.append(min).append(":");
+		}
+		if(min > 0 && sec < 10){ b.append("0"); }
 		b.append(sec).append(".").append(mili);
 		if(min > 0) b.append(" minutes");
 		else b.append(" seconds");

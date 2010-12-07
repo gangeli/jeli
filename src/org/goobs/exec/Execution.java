@@ -27,6 +27,10 @@ import org.goobs.testing.ResultLogger;
 import org.goobs.utils.Marker;
 import org.goobs.utils.Utils;
 
+/*
+ *	TODO casting to native arrays (in Utils.cast)
+*/
+
 public final class Execution {	
 	
 	private static final String SCALA_PATH = "scalaPath";
@@ -41,7 +45,7 @@ public final class Execution {
 	};
 
 	@Option(name="ignoreClasspath", 
-		gloss="Do not try to load options from this classpath element")
+		gloss="Do not try to load options from anything matching these")
 	private static String[] ignoredClasspath = new String[0];
 	
 
@@ -226,13 +230,20 @@ public final class Execution {
 		// --Fill Options
 		// (get classes)
 		for (String entry : cp) {
+			//(should skip?)
 			if(entry.equals(".") || entry.trim().length() == 0){
 				continue;
 			}
-			if(Utils.indexOf(ignoredClasspath, entry) >= 0){
-				Log.debug("Ignoring options in classpath element: " + entry);
-				continue;
+			boolean isIgnored = false;
+			for(String pattern : ignoredClasspath){
+				if(entry.matches(pattern)){ 
+					Log.debug("Ignoring options in classpath element: " + entry);
+					isIgnored = true;
+					break;
+				}
 			}
+			if(isIgnored){ continue; }
+			//(no, don't skip)
 			File f = new File(entry);
 			if (f.isDirectory()) {
 				// --Case: Files

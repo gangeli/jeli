@@ -5,7 +5,7 @@ import java.util.NoSuchElementException;
 
 import org.goobs.utils.Pair;
 
-public abstract class Dataset <D extends Datum>{
+public abstract class Dataset <D extends Datum> implements java.io.Serializable{
 
 	/**
 	 * Number of examples in the dataset.

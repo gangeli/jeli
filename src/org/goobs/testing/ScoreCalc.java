@@ -1,8 +1,11 @@
 package org.goobs.testing;
 
-import static org.goobs.exec.Log.*;
+import java.util.Comparator;
+import java.util.ArrayList;
 
+import static org.goobs.exec.Log.*;
 import org.goobs.utils.StatCalc;
+import org.goobs.utils.Pair;
 
 public class ScoreCalc <T> {
 	private static enum State{
@@ -12,6 +15,7 @@ public class ScoreCalc <T> {
 	}
 	
 	private State state = State.NONE;
+	private boolean streaming = true;
 	
 	private int exCount;
 	
@@ -35,9 +39,22 @@ public class ScoreCalc <T> {
 	private double pearsonMeanGuess = Double.NaN; 
 	private double pearsonMeanGold = Double.NaN;
 	private double pearsonSumCoproduct = 0.0;
+	// [[continuous]]
+	private ArrayList<Double> guesses = null;
+	private ArrayList<Double> golds = null;
 	
 	public ScoreCalc(){
 		
+	}
+
+	public ScoreCalc setStreaming(boolean shouldStream){
+		if(!shouldStream && this.streaming && exCount > 0){
+			throw new IllegalStateException("Already started recording!");
+		}
+		this.streaming = shouldStream;
+		this.guesses = new ArrayList<Double>();
+		this.golds = new ArrayList<Double>();
+		return this;
 	}
 	
 	public void enterDiscrete(T guess, T gold){
@@ -81,6 +98,11 @@ public class ScoreCalc <T> {
 			pearsonMeanGuess += deltaGuess / exPlus1;
 			pearsonMeanGold += deltaGold / exPlus1;
 		}
+		//--Non-streaming (e.g. Spearman)
+		if(!streaming){
+			guesses.add(guess);
+			golds.add(gold);
+		}
 		//--Count
 		exCount += 1;
 	}
@@ -96,6 +118,72 @@ public class ScoreCalc <T> {
 		}else{
 			return covar / denom;
 		}
+	}
+
+	public double spearman(){
+		if(streaming){ throw new IllegalStateException("Cannot calculate Spearman for streamed data"); }
+		//--Sort Terms
+		Pair<Integer,Double>[] guessTmp = (Pair<Integer,Double>[]) new Pair[exCount];
+		Pair<Integer,Double>[] goldTmp = (Pair<Integer,Double>[]) new Pair[exCount];
+		for(int i=0; i<exCount; i++){
+			guessTmp[i] = Pair.make(i,guesses.get(i));
+			goldTmp[i]  = Pair.make(i,golds.get(i));
+		}
+		Comparator<Pair<Integer,Double>> cmp = new Comparator<Pair<Integer,Double>>(){
+			public int compare(Pair<Integer,Double> a, Pair<Integer,Double> b){
+				return a.cdr().compareTo(b.cdr());
+			}
+		};
+		java.util.Arrays.sort(guessTmp, cmp);
+		java.util.Arrays.sort(goldTmp, cmp);
+
+		//--Clean Ties
+		double[] guessRanks = new double[exCount];
+		double[] goldRanks = new double[exCount];
+		//(clean guess)
+		int i=0;
+		while(i<exCount){
+			int guessSum = 0;
+			int guessCount = 0;
+			int j=0;
+			while(i+j<exCount && guessTmp[i+j].cdr() != guessTmp[i].cdr()){
+				guessSum += (i+j);
+				guessCount += 1;
+				j += 1;
+			}
+			double guessVal = ((double) guessCount) / ((double) guessSum);
+			for(int k=0; k<j; k++){
+				guessRanks[guessTmp[i+k].car()] = guessVal;
+			}
+			i += j;
+		}
+		//(clean gold)
+		i=0;
+		while(i<exCount){
+			int goldSum = 0;
+			int goldCount = 0;
+			int j=0;
+			while(i+j<exCount && goldTmp[i+j].cdr() != goldTmp[i].cdr()){
+				if(goldTmp[i+j].cdr() != goldTmp[i].cdr()){
+					break;
+				}
+				goldSum += (i+j);
+				goldCount += 1;
+			}
+			double goldVal = ((double) goldCount) / ((double) goldSum);
+			for(int k=0; k<j; k++){
+				goldRanks[goldTmp[i+k].car()] = goldVal;
+			}
+			i += j;
+		}
+
+		//--Calculate
+		ScoreCalc tmp = new ScoreCalc();
+		for(i=0; i<exCount; i++){
+			tmp.enterContinuous(guessRanks[i], goldRanks[i]);
+		}
+		return tmp.pearson();
+		
 	}
 	
 	public void enterUnordered(T[] guess, T[] gold){
@@ -128,10 +216,17 @@ public class ScoreCalc <T> {
 	
 	public void printDiscrete(){ printDiscrete("Result"); }
 	public void printDiscrete(String type){
-		if(state != State.DISCRETE){ throw new IllegalStateException("Cannot printDiscrete for non-discrete data"); }
+		if(state != State.DISCRETE){ throw new IllegalStateException("Cannot printDiscrete for non-discrete (or empty) data"); }
 		log(type, "F1: " + F1(), true);
 		log(type, "Precision: " + precision(), true);
 		log(type, "Recall: " + recall(), true);
 		log(type, "Total Examples: " + exCount, true);
+	}
+
+	public void printContinuous(String type){
+		if(state != State.CONTINUOUS){ throw new IllegalStateException("Cannot printContinuous for non-continuous (or empty) data"); }
+		log(type, "Pearson Correlation: " + pearson(), true);
+		log(type, "Total Examples: " + exCount, true);
+		
 	}
 }

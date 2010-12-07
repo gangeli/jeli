@@ -488,6 +488,14 @@ public class Utils {
 		catch(FileNotFoundException e){ throw new RuntimeException(e); }
 	}
 
+	public static final java.io.FileWriter writer(String path){
+		try{
+			return new java.io.FileWriter(new java.io.File(path),false);
+		}catch(IOException e){
+			return null;
+		}
+	}
+
 	public static final <E> int indexOf(E[] array, E[] subArray){
 		int cand = -1;
 		int matchLen = 0;
