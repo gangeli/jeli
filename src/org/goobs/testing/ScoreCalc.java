@@ -47,7 +47,7 @@ public class ScoreCalc <T> {
 		
 	}
 
-	public ScoreCalc setStreaming(boolean shouldStream){
+	public ScoreCalc<T> setStreaming(boolean shouldStream){
 		if(!shouldStream && this.streaming && exCount > 0){
 			throw new IllegalStateException("Already started recording!");
 		}
@@ -120,6 +120,7 @@ public class ScoreCalc <T> {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public double spearman(){
 		if(streaming){ throw new IllegalStateException("Cannot calculate Spearman for streamed data"); }
 		//--Sort Terms
@@ -146,12 +147,12 @@ public class ScoreCalc <T> {
 			int guessSum = 0;
 			int guessCount = 0;
 			int j=0;
-			while(i+j<exCount && guessTmp[i+j].cdr() != guessTmp[i].cdr()){
+			while(i+j<exCount && guessTmp[i+j].cdr().equals(guessTmp[i].cdr())){
 				guessSum += (i+j);
 				guessCount += 1;
 				j += 1;
 			}
-			double guessVal = ((double) guessCount) / ((double) guessSum);
+			double guessVal = ((double) guessSum) / ((double) guessCount);
 			for(int k=0; k<j; k++){
 				guessRanks[guessTmp[i+k].car()] = guessVal;
 			}
@@ -163,14 +164,12 @@ public class ScoreCalc <T> {
 			int goldSum = 0;
 			int goldCount = 0;
 			int j=0;
-			while(i+j<exCount && goldTmp[i+j].cdr() != goldTmp[i].cdr()){
-				if(goldTmp[i+j].cdr() != goldTmp[i].cdr()){
-					break;
-				}
+			while(i+j<exCount && goldTmp[i+j].cdr().equals(goldTmp[i].cdr())){
 				goldSum += (i+j);
 				goldCount += 1;
+				j += 1;
 			}
-			double goldVal = ((double) goldCount) / ((double) goldSum);
+			double goldVal = ((double) goldSum) / ((double) goldCount);
 			for(int k=0; k<j; k++){
 				goldRanks[goldTmp[i+k].car()] = goldVal;
 			}
@@ -178,7 +177,7 @@ public class ScoreCalc <T> {
 		}
 
 		//--Calculate
-		ScoreCalc tmp = new ScoreCalc();
+		ScoreCalc<Double> tmp = new ScoreCalc<Double>();
 		for(i=0; i<exCount; i++){
 			tmp.enterContinuous(guessRanks[i], goldRanks[i]);
 		}

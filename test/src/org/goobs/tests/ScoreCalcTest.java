@@ -72,4 +72,52 @@ public class ScoreCalcTest {
 			assertEquals(pearsonCorrelation(guess, gold), toTest.pearson(), TOLERANCE);
 		}
 	}
+	
+	@Test
+	public void spearmanCorrelationTest(){
+		//--Basic Test
+		//(no repeats)
+		ScoreCalc<Double> test = (new ScoreCalc<Double>()).setStreaming(false);
+		double[] a = new double[]{1.0,2.0,3.0};
+		double[] b = new double[]{1.0,3.0,4.0};
+		for(int i=0; i<a.length; i++){
+			test.enterContinuous(a[i], b[i]);
+		}
+		assertEquals(1.0, test.spearman(), TOLERANCE);
+		//(repeats)
+		test = (new ScoreCalc<Double>()).setStreaming(false);
+		a = new double[]{1.0,2.0,1.0,3.0};
+		b = new double[]{3.2,10.0,3.2,11.0};
+		for(int i=0; i<a.length; i++){
+			test.enterContinuous(a[i], b[i]);
+		}
+		assertEquals(1.0, test.spearman(), TOLERANCE);
+		//(repeats2)
+		test = (new ScoreCalc<Double>()).setStreaming(false);
+		a = new double[]{1.0,2.0,2.0,2.0,2.0,2.0,3.0};
+		b = new double[]{1.0,2.0,2.0,2.0,2.0,2.0,4.0};
+		for(int i=0; i<a.length; i++){
+			test.enterContinuous(a[i], b[i]);
+		}
+		assertEquals(1.0, test.spearman(), TOLERANCE);
+		//(perfect negative correlation)
+		test = (new ScoreCalc<Double>()).setStreaming(false);
+		a = new double[]{1.0,2.0,1.0,3.0};
+		b = new double[]{6.3,2.9,6.3,1.0};
+		for(int i=0; i<a.length; i++){
+			test.enterContinuous(a[i], b[i]);
+		}
+		assertEquals(-1.0, test.spearman(), TOLERANCE);
+		//(random correlation)
+		test = (new ScoreCalc<Double>()).setStreaming(false);
+		a = new double[]{2.3,5.4,6.4,9.2};
+		b = new double[]{1.5,3.0,9.2,5.7};
+		for(int i=0; i<a.length; i++){
+			test.enterContinuous(a[i], b[i]);
+		}
+		assertEquals(test.spearman(), test.spearman(), TOLERANCE);
+		assertTrue(test.spearman()<=1.0);
+		assertTrue(test.spearman()>=0.0);
+		//--TODO better tests
+	}
 }
