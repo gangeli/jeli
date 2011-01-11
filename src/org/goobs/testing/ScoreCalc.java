@@ -16,8 +16,9 @@ public class ScoreCalc <T> {
 	
 	private State state = State.NONE;
 	private boolean streaming = true;
+	private int cacheCond = -1;
 	
-	private int exCount;
+	private int exCount = 0;
 	
 	/*
 	 * DISCRETE
@@ -42,6 +43,8 @@ public class ScoreCalc <T> {
 	// [[continuous]]
 	private ArrayList<Double> guesses = null;
 	private ArrayList<Double> golds = null;
+	// [[spearman]]
+	private Double spearmanCache = null;
 	
 	public ScoreCalc(){
 		
@@ -123,6 +126,7 @@ public class ScoreCalc <T> {
 	@SuppressWarnings("unchecked")
 	public double spearman(){
 		if(streaming){ throw new IllegalStateException("Cannot calculate Spearman for streamed data"); }
+		if(exCount == cacheCond && spearmanCache != null){ return spearmanCache.doubleValue(); }
 		//--Sort Terms
 		Pair<Integer,Double>[] guessTmp = (Pair<Integer,Double>[]) new Pair[exCount];
 		Pair<Integer,Double>[] goldTmp = (Pair<Integer,Double>[]) new Pair[exCount];
@@ -181,7 +185,8 @@ public class ScoreCalc <T> {
 		for(i=0; i<exCount; i++){
 			tmp.enterContinuous(guessRanks[i], goldRanks[i]);
 		}
-		return tmp.pearson();
+		spearmanCache = tmp.pearson();
+		return spearmanCache.doubleValue();
 		
 	}
 	
@@ -216,16 +221,17 @@ public class ScoreCalc <T> {
 	public void printDiscrete(){ printDiscrete("Result"); }
 	public void printDiscrete(String type){
 		if(state != State.DISCRETE){ throw new IllegalStateException("Cannot printDiscrete for non-discrete (or empty) data"); }
-		log(type, "F1: " + F1(), true);
+		log(type, "       F1: " + F1(), true);
 		log(type, "Precision: " + precision(), true);
-		log(type, "Recall: " + recall(), true);
-		log(type, "Total Examples: " + exCount, true);
+		log(type, "   Recall: " + recall(), true);
+		log(type, "Data Size: " + exCount, true);
 	}
 
 	public void printContinuous(String type){
 		if(state != State.CONTINUOUS){ throw new IllegalStateException("Cannot printContinuous for non-continuous (or empty) data"); }
-		log(type, "Pearson Correlation: " + pearson(), true);
-		log(type, "Total Examples: " + exCount, true);
+		log(type, " Pearson Correlation: " + pearson(), true);
+		log(type, "Spearman Correlation: " + spearman(), true);
+		log(type, "           Data Size: " + exCount, true);
 		
 	}
 }
