@@ -1253,6 +1253,7 @@ public final class Database implements Decodable{
 	}
 
 	private static final Object db2obj(Class<?> type, Object o){
+		if(o == null){ return null; }
 		if(type == long.class || type == Long.class){				//long
 			return ((Number) o).longValue();
 		}else if(type == int.class || type == Integer.class){		//int
