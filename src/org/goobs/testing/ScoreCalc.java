@@ -24,9 +24,8 @@ public class ScoreCalc <T> {
 	 * DISCRETE
 	 */
 	// [[precision/recall]
-	private int guessCorrect;
+	private int correct;
 	private int guessTotal;
-	private int goldCorrect;
 	private int goldTotal;
 	
 	/*
@@ -68,8 +67,8 @@ public class ScoreCalc <T> {
 		}
 		//(score)
 		if(guess == gold){
-			guessCorrect += 1;
-			goldCorrect += 1;
+			correct += 1;
+			correct += 1;
 		}
 		guessTotal += 1;
 		goldTotal += 1;
@@ -190,25 +189,55 @@ public class ScoreCalc <T> {
 		
 	}
 	
-	public void enterUnordered(T[] guess, T[] gold){
-		//TODO
-		throw new IllegalStateException("Not implemented!");
+	/**
+		Create a one-to-one matching between guess
+		and gold, where each guess is mapped to a gold
+		(if possible) independent of position, and each
+		gold has at most one matching guess.
+		For example, [1,2,1,3] and [1,1,1,2] would match 3/4
+	*/
+	public void enter(T[] guess, T[] gold){
+		//(state check)
+		if(state == State.NONE){ state = State.DISCRETE; }
+		if(state != State.DISCRETE){
+			throw new IllegalStateException("Mixing DISCRETE and " + state.toString() + " data");
+		}
+		//(update counts)
+		boolean[] goldSeen = new boolean[gold.length];
+		for(int guessI=0; guessI<guess.length; guessI++){
+			for(int goldI=0; goldI<gold.length; goldI++){
+				if(!goldSeen[goldI] && guess[guessI].equals(gold[goldI])){
+					correct += 1;
+					goldSeen[goldI] = true; //don't double-count golds
+					continue; //don't double-count guesses
+				}
+			}
+		}
+		guessTotal += guess.length;
+		goldTotal += gold.length;
 	}
-	public void enterOrdered(T[] guess, T[] gold){
-		//TODO
-		throw new IllegalStateException("Not implemented!");
+
+	public void enterRaw(int correct, int guessTotal, int goldTotal){
+		//(state check)
+		if(state == State.NONE){ state = State.DISCRETE; }
+		if(state != State.DISCRETE){
+			throw new IllegalStateException("Mixing DISCRETE and " + state.toString() + " data");
+		}
+		//(update data)
+		this.correct += correct;
+		this.guessTotal += guessTotal;
+		this.goldTotal += goldTotal;
 	}
-	
 	
 	public double precision(){
 		if(guessTotal == 0){ throw new IllegalStateException("No data points for precision!"); }
 		if(state != State.DISCRETE){ throw new IllegalStateException("Precision only defined for discrete data"); }
-		return ((double) guessCorrect) / ((double) guessTotal);
+		return ((double) correct) / ((double) guessTotal);
 	}
 	public double recall(){
 		if(goldTotal == 0){ throw new IllegalStateException("No data points for recall!"); }
 		if(state != State.DISCRETE){ throw new IllegalStateException("Precision only defined for discrete data"); }
-		return ((double) goldCorrect) / ((double) goldTotal);
+		return ((double) correct) / ((double) goldTotal);
 	}
 	public double FMeasure(double B){
 		return (1.0+B) * (precision() * recall()) / (B*B*precision() + recall());

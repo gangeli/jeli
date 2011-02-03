@@ -605,5 +605,77 @@ public class Utils {
 		}
 	}
 	
+	private static final void bubblesort(int[] terms, int start, int stop, Object[][] others){
+		for(int bubbleStop=stop-1; bubbleStop>start; bubbleStop--){
+			boolean didSwap = false;
+			for(int bubbleI=start; bubbleI<bubbleStop; bubbleI++){
+				if(terms[bubbleI] > terms[bubbleI+1]){
+					//(swap this)
+					int tmp = terms[bubbleI];
+					terms[bubbleI] = terms[bubbleI+1];
+					terms[bubbleI+1] = tmp;
+					//(swap others)
+					if(others != null){
+						for(Object[] other : others){
+							Object t = other[bubbleI];
+							other[bubbleI] = other[bubbleI+1];
+							other[bubbleI+1] = t;
+						}
+					}
+					didSwap = true;
+				}
+			}
+			if(!didSwap){ return; }
+		}
+	}
+	
+	private static final void quicksort(int[] terms, int start, int stop, Object[][] others){
+		//(base case)
+		if(stop - start < 5){ 
+			bubblesort(terms, start, stop, others);
+			return; 
+		}
+		//(guess a pivot)
+		int guessA = terms[start];
+		int guessB = terms[stop-1];
+		int guessC = terms[start+(stop-start)/2];
+		int guessX = guessA > guessB ? guessA : guessB;
+		int guess = guessX < guessC ? guessX : guessC;
+		//(swaps)
+		int frontPointer = start;
+		int backPointer = stop-1;
+		while(frontPointer < backPointer){
+			if(terms[frontPointer] < guess){
+				frontPointer += 1;
+			}else{
+				while(terms[backPointer] >= guess && frontPointer < backPointer){ 
+					backPointer -= 1;
+				}
+				if(frontPointer < backPointer){
+					//(swap this)
+					int tmp = terms[frontPointer];
+					terms[frontPointer] = terms[backPointer];
+					terms[backPointer] = tmp;
+					//(swap others)
+					if(others != null){
+						for(Object[] other : others){
+							Object t = other[frontPointer];
+							other[frontPointer] = other[backPointer];
+							other[backPointer] = t;
+						}
+					}
+				}
+			}
+		}
+		//(recursive case)
+		terms[frontPointer] = guess;
+		quicksort(terms,start,frontPointer, others);
+		quicksort(terms,frontPointer+1,stop, others);
+	}
+
+	public static final void sort(int[] indices, Object[]... others){
+		quicksort(indices,0,indices.length, others);
+	}
+	
 
 }
