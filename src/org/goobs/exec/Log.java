@@ -6,6 +6,9 @@ package org.goobs.exec;
 import java.util.Stack;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.io.IOException;
+import java.io.FileWriter;
+import java.io.File;
 
 import org.goobs.utils.Stopwatch;
 
@@ -27,34 +30,45 @@ public final class Log {
 			this.isPrinting = isPrinting;
 			timer.start();
 		}
-		final void preEndTrack(){
+		private final String preEndTrack(){
+			StringBuilder b = new StringBuilder();
 			if(numLinesSkipped > 0){
-				preLog();
-				System.out.println("..." + numLinesSkipped + " similar lines");
+				b.append(preLog());
+				b.append("...").append(numLinesSkipped).append(" similar lines")
+					.append("\n");
 				numLinesSkipped = 0;
 			}
 			for(int i=0; i<depth; i++){
-				System.out.print("  ");
+				b.append("  ");
 			}
+			System.out.print(b);
+			return b.toString();
 		}
-		final void preLog(){
+		private final String preLog(){
+			StringBuilder b = new StringBuilder();
 			if(isFirst){
-				System.out.println(" {");
+				b.append(" {\n");
 				isFirst = false;
 			}
 			for(int i=0; i<depth+1; i++){
-				System.out.print("  ");
+				b.append("  ");
 			}
+			System.out.print(b);
+			return b.toString();
 		}
-		void showTime(){
+		private final String showTime(){
+			StringBuilder b = new StringBuilder();
 			long time = timer.getElapsedTime();
 			if(isPrinting && time > Log.MIN_TIME_TOPRINT){
-				System.out.println(" [" + Stopwatch.formatTimeDifference(time) + "]");
+				b.append(" [").append(Stopwatch.formatTimeDifference(time))
+					.append("]\n");
 			}else if(isPrinting){
-				System.out.println();
+				b.append("\n");
 			}
+			System.out.print(b);
+			return b.toString();
 		}
-		boolean shouldPrint(String toPrint, boolean force){
+		private boolean shouldPrint(String toPrint, boolean force){
 			if(!isPrinting){
 				return false;
 			}
@@ -95,8 +109,11 @@ public final class Log {
 				lastPrinted = toPrint;
 				lastTick = t;
 				if(numLinesSkipped > 0 && isDifferent){
-					preLog();
-					System.out.println("..." + numLinesSkipped + " similar lines");
+					String s = preLog();
+					if(shouldFileLog){ fileLog(s); }
+					String str = "..." + numLinesSkipped + " similar lines";
+					System.out.println(str);
+					if(shouldFileLog){ fileLog(str + "\n"); }
 					numLinesSkipped = 0;
 				}
 			}else{
@@ -111,7 +128,7 @@ public final class Log {
 	private static final long TIME_INTERVAL = 1000;
 	private static final int MATCH_BOUNDARY = 5;
 	private static final int MIN_LOG_COUNT = 3;
-	
+
 	
 	@Option(gloss="Print debugging log entries")
 	private static boolean logDebug = false;
@@ -120,6 +137,9 @@ public final class Log {
 	private static LogInfo currentInfo = null;
 
 	private static Lock threadLock;
+
+	private static FileWriter logFile = null;
+	private static boolean shouldFileLog = true;
 	
 	protected static final void signalThreads(){
 		if(threadLock != null){ throw fail("Signaling multithreaded environment when already in multithreaded environment"); }
@@ -141,14 +161,17 @@ public final class Log {
 		if(currentInfo != null){
 			levels.push(currentInfo);
 			if(currentInfo.shouldPrint(name, false)){
-				currentInfo.preLog();
+				String s = currentInfo.preLog();
+				if(shouldFileLog){ fileLog(s); }
 				System.out.print(name);
+				if(shouldFileLog){ fileLog(name); }
 				currentInfo = new LogInfo(currentInfo.depth+1, currentInfo.isPrinting);
 			}else{
 				currentInfo = new LogInfo(currentInfo.depth+1, false);
 			}
 		}else{
 			System.out.print(name);
+			if(shouldFileLog){ fileLog(name); }
 			currentInfo = new LogInfo(0, true);
 		}
 	}
@@ -156,36 +179,66 @@ public final class Log {
 	public static final void endTrack() {
 		if(currentInfo == null){ fail("Ended track that was never begun!"); }
 		if(currentInfo.isPrinting){
-			currentInfo.preEndTrack();
+			String s = currentInfo.preEndTrack();
+			if(shouldFileLog){ fileLog(s); }
 			if(currentInfo.lastPrinted != null){
 				System.out.print("} ");
+				if(shouldFileLog){ fileLog("} "); }
 			}
-			currentInfo.showTime();
+			String time = currentInfo.showTime();
+			if(shouldFileLog){ fileLog(time); }
 		}
 
 		if(levels.isEmpty()) currentInfo = null; 
 		else currentInfo = levels.pop();
 	}
 	
+	//TODO multiple types of fileLog
+	private static final void fileLog(String str){
+		//(ensure file)
+		if(shouldFileLog && logFile == null){
+			try{
+				File f = Execution.touch("log");
+				if(f == null){ return; } //probably execDir not set
+				logFile = new FileWriter(f);
+			} catch(IOException e) {
+				shouldFileLog = false;
+			}
+		}
+		//(write to file)
+		if(shouldFileLog){ 
+			try{ 
+				logFile.write(str); 
+			} catch(IOException e){
+				System.out.println(" <<WARNING: LOGGING FAILED>> ");
+				shouldFileLog = false;
+			} 
+		}
+	}
+
 	private static final void commonPrintStd(Object o, boolean force){
 		if(threadLock != null){ threadLock.lock(); }
 		
 		String str = o.toString();
 		if(currentInfo != null && (currentInfo.shouldPrint(str, force))){
 			//(print object)
-			currentInfo.preLog();
+			String printed = currentInfo.preLog();
+			fileLog(printed);
 			System.out.print(str);
+			fileLog(str);
 			//(print threading info)
 			if(threadLock == null){
 				System.out.println();
+				fileLog("\n");
 			}else{
-				System.out.println(" <Thread " + Thread.currentThread().getId() + ">");
+				String toLog = " <Thread " + Thread.currentThread().getId() + ">";
+				System.out.println(toLog);
+				fileLog(toLog + "\n");
 			}
 		}else if(currentInfo == null){
 			System.out.println(str);
 		}
-		
-		
+
 		if(threadLock != null){ threadLock.unlock(); }
 	}
 	
@@ -197,7 +250,7 @@ public final class Log {
 	}
 
 	public static void debugG(Object o) {
-		if(logDebug) System.out.println(o);
+		if(logDebug) commonPrintStd(o,true);
 	}
 
 	public static void log(Object o){
@@ -208,7 +261,7 @@ public final class Log {
 	}
 
 	public static void logG(Object o) {
-		System.out.println(o);
+		commonPrintStd(o,true);
 	}
 	public static void warn(Object o){
 		warn(null, o, false);
@@ -221,7 +274,7 @@ public final class Log {
 	}
 
 	public static void warnG(Object o) {
-		System.out.println(o);
+		commonPrintStd(o,true);
 	}
 	public static void err(Object o){
 		err(null, o, false);
@@ -231,7 +284,7 @@ public final class Log {
 	}
 
 	public static void errG(Object o) {
-		System.out.println(o);
+		commonPrintStd(o,true);
 	}
 	
 	public static void todo(Object o){
@@ -260,12 +313,17 @@ public final class Log {
 		exit(ExitCode.FATAL_EXCEPTION);
 	}
 	
-	public static void exit(ExitCode code){
+	public static void exit(){ exit(ExitCode.UNKNOWN, true); }
+	public static void exit(ExitCode code){ exit(code, true); }
+	public static void exit(ExitCode code, boolean hardExit){
 		//(close everything up)
 		while(!levels.isEmpty()){
 			endTrack();
 		}
 		if(currentInfo != null) endTrack();
+		try{
+			if(logFile != null){ logFile.close(); }
+		} catch(IOException e){}
 		//(exit)
 		System.exit(code.code);
 	}

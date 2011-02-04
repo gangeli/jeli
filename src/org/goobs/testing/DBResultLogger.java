@@ -177,6 +177,10 @@ public class DBResultLogger extends ResultLogger{
 			warn("DB_LOGGER", "Could not log param: " + name + " (" + e.getMessage() + ")");
 		}
 	}
+
+	public int runIndex(){
+		return this.run.rid;
+	}
 	
 	/*
 	 * LOGGING CODE

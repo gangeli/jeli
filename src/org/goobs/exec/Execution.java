@@ -1,6 +1,7 @@
 package org.goobs.exec;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 import org.goobs.database.Database;
 import org.goobs.io.LazyFileIterator;
@@ -29,6 +32,7 @@ import org.goobs.utils.Utils;
 
 /*
  *	TODO casting to native arrays (in Utils.cast)
+ *	TODO better options logging to file
 */
 
 public final class Execution {	
@@ -51,10 +55,12 @@ public final class Execution {
 
 	@Option(name="execName", gloss="Assigns a name for this particular run")
 	private static String runName = "<unnamed>";
-	@Option(name="execOutput", gloss="Database to store parameters and results in")
+	@Option(name="execOutput",gloss="Database to store parameters and results in")
 	private static Database outputDB;
 	@Option(name="execData", gloss="Location of dataset(s)")
 	private static Database dataDB;
+	@Option(name="execDir", gloss="Directory to log stuff to")
+	protected static String execDir;
 	
 	private static DBResultLogger logger;
 	
@@ -514,6 +520,12 @@ public final class Execution {
 		return dataDB;
 	}
 	
+	/*
+	 * ----------
+	 * LOGGING
+	 * ----------
+	 */
+	
 	public static final ResultLogger getLogger(){
 		if(logger == null){  throw Log.fail("Execution database logger was never initialized (database options were not set?)"); }
 		return logger;
@@ -525,27 +537,104 @@ public final class Execution {
 	public static final <D extends Datum> Dataset<D> getDataset(Class<D> type, boolean lazy){
 		return new DatasetDB<D>(dataDB, type, lazy);
 	}
+
+	private static String execDirFull = null;
+	public static final File touch(String relativePath) throws IOException{
+		//--Ensure Directory
+		if(execDirFull == null && execDir != null){
+			//(get next index)
+			int id = 0; //keep 0 so it increments to 1
+			if(logger != null && logger instanceof DBResultLogger){
+				id = ((DBResultLogger) logger).runIndex();
+			}else{
+				//(ensure base dir)
+				File base = new File(execDir);
+				if(!base.exists()){
+					base.mkdirs();
+				}
+				//(get highest index)
+				Pattern numRegex = Pattern.compile("\\d+");
+				String[] ls = base.list();
+				for(String f : ls){
+					System.out.println("" + f);
+					Matcher m = numRegex.matcher(f);
+					if(m.find()){
+						int cand = Integer.parseInt(m.group());
+						if(cand > id){
+							id = cand;
+						}
+					}
+				}
+				//(increment it by one)
+				id += 1;
+			}
+			//(create directory)
+			execDirFull = execDir + "/" + id + ".exec";
+			(new File(execDirFull)).mkdirs();
+		}
+		if(execDirFull == null){ return null; }
+		//--Create File
+		//(create subdirectories)
+		int lastSlash = relativePath.lastIndexOf('/');
+		if(lastSlash >= 0){
+			(new File(
+				execDirFull + "/" + relativePath.substring(0,lastSlash)
+				)).mkdirs();
+		}
+		//(create file)
+		File rtn = new File(execDirFull + "/" + relativePath);
+		rtn.createNewFile();
+		return rtn;
+	}
+
+	private static final void dumpOptions(Map<String,String> options){
+		StringBuilder b = new StringBuilder();
+		for(String key : options.keySet()){
+			b.append("--").append(key).append(" \"")
+				.append(options.get(key)).append("\" \\\n");
+		}
+		try{
+			File f = touch("options");
+			if(f != null){
+				FileWriter w = new FileWriter(f);
+				w.write(b.toString());
+				w.close();
+			}
+		} catch(IOException e){	Log.warn("Could not write options file"); }
+	}
+
+	/*
+	 * ----------
+	 * EXECUTION
+	 * ----------
+	 */
 	
 	public static final void exec(Runnable toRun, String[] args) {
-		//(options and parameters)
-		Log.startTrack("init");
+		//--Init
+		Log.start_track("init");
+		//(bootstrap)
 		Map<String,String> options = parseOptions(args); //get options
 		fillOptions(BOOTSTRAP_CLASSES, options, false); //bootstrap
+		//(fill options)
 		Class<?>[] visibleClasses = getVisibleClasses(options); //get classes
-		Map<String,Field> optionFields = fillOptions(visibleClasses, options); //fill for real
+		Map<String,Field> optionFields = fillOptions(visibleClasses, options);//fill
 		initDatabase(visibleClasses, options, optionFields); //database
-		Log.endTrack();
-		//(logging)
+		dumpOptions(options); //file dump
+		Log.end_track();
+		//--Run Program
 		try {
 			Log.startTrack("main");
 			toRun.run();
 			Log.endTrack(); //ends main
 			Log.startTrack("flushing");
 			if(logger != null){ logger.save(); }
-		} catch (Exception e) {
+		} catch (Exception e) { //catch everything
 			e.printStackTrace();
+			if(logger != null){ logger.suggestFlush(); } //not a save!
+			Log.exit(ExitCode.FATAL_EXCEPTION);
 		}
-		Log.endTrack(); //ends main (if exception); flush (if normal)
+		Log.endTrack();
+		Log.exit(ExitCode.OK,false); //soft exit
 	}
 	
 	public static final void exec(Runnable toRun){
@@ -589,33 +678,6 @@ public final class Execution {
 		System.out.println(b.toString());
 		System.exit(ExitCode.INVALID_ARGUMENTS.code);
 	}
-//	
-//	@Param @Option(name="input")
-//	private static int input = -1;
-//	public static void main(String[] args){
-//		for(int i=0; i<5; i++){
-//			Execution.exec(new Runnable(){
-//				@Override
-//				public void run(){
-//					Log.log("Run " + input);
-//					ResultLogger l = Execution.getLogger();
-//					l.addGlobalString("input squared", "" + (input*input));
-//					l.addGlobalString("input cubed", "" + (input*input*input));
-//					l.add(0, "a sentence", "a longer sentence");
-//					l.add(1, "a very very very long sentence that seems to never end", 
-//							"yeah, some stuff here too");
-//					l.addLocalString(0, "bleu", "" + 0.65);
-//					l.addLocalString(1, "bleu", "" + 0.109);
-//					l.save();
-//				}
-//			}, new String[]{
-////					"--logDebug",
-//					"--scalaPath", "/usr/share/java/scala-library.jar",
-//					"--input", "" + i,
-//					"--resultPath", "testResult.db",
-//					});
-//		}
-//	}
 	
 	
 }
