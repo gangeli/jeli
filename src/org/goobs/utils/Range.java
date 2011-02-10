@@ -1,5 +1,6 @@
 package org.goobs.utils;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Type;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -92,7 +93,25 @@ public class Range implements Decodable {
 		
 		return this;
 	}
+	
+	public int size(){
+		return this.stopExclusive-this.startInclusive;
+	}
+	public int length(){
+		return this.stopExclusive-this.startInclusive;
+	}
+	
+	/*
+	 * UTILITY METHODS
+	 */
+	public int toCacheIndex(int index){
+		return index-this.startInclusive;
+	}
 
+	/*
+	 * STANDARD METHODS
+	 */
+	
 	@Override
 	public String encode(){
 		return "[" + startInclusive + "-" + stopExclusive + ")";

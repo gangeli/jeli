@@ -33,7 +33,11 @@ public class DatasetDB <D extends Datum> extends Dataset<D>{
 		this.range = new Range(db.min(type),db.max(type)+1);
 		//(init cache)
 		if(!lazy){
-			cache = new Datum[this.size];
+			cache = new Datum[range.length()];
+		}
+		//(error checks)
+		if(this.size != this.range.length()){
+			throw new IllegalStateException("Database indices are not continuously numbered!");
 		}
 	}
 
@@ -49,15 +53,16 @@ public class DatasetDB <D extends Datum> extends Dataset<D>{
 		if(!this.range.inRange(id)){
 			throw new IllegalArgumentException("ID is out of range (id=" + id + ",range=" + this.range +")");
 		}
-		if(cache != null && cache[id] != null){
-			return (D) cache[id];
+		int cacheIndex = this.range.toCacheIndex(id);
+		if(cache != null && cache[cacheIndex] != null){
+			return (D) cache[cacheIndex];
 		}
 		D rtn = db.getObjectById(type, id);
 		if(rtn == null){
 			throw new IllegalArgumentException("ID " + id + " is out of range [0,"+size()+")");
 		}
 		rtn.setReadOnly(true);
-		if(cache != null){ cache[id] = rtn; }
+		if(cache != null){ cache[cacheIndex] = rtn; }
 		rtn.refreshLinks();
 		return rtn;
 	}
