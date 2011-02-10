@@ -1,7 +1,6 @@
 package org.goobs.testing;
 
 import org.goobs.database.DatabaseObject;
-import org.goobs.database.PrimaryKey;
 
 
 public abstract class Datum extends DatabaseObject{

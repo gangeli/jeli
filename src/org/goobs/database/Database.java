@@ -31,6 +31,7 @@ import org.goobs.io.Console;
 import org.goobs.io.TextConsole;
 import org.goobs.utils.Decodable;
 import org.goobs.utils.MetaClass;
+import org.goobs.utils.Pair;
 import org.goobs.utils.Utils;
 
 public final class Database implements Decodable{
@@ -432,7 +433,7 @@ public final class Database implements Decodable{
 		}
 	}
 	
-	public <T extends DatabaseObject> int getTableRowCount(Class<T> table){
+	private <T extends DatabaseObject> Pair<String,String> class2pk(Class<T> table){
 		//(variables)
 		String name = table.getAnnotation(Table.class).name();
 		String key = null;
@@ -454,12 +455,56 @@ public final class Database implements Decodable{
 		if(!foundPK){
 			System.err.println("WARNING: Could not find primary key to count rows on. Using " + key + " instead");
 		}
-		//(return)
-		return getTableRowCount(name,key);
+		return Pair.make(name, key);
+	}
+	
+	public <T extends DatabaseObject> int getTableRowCount(Class<T> table){
+		Pair<String,String> info = class2pk(table);
+		return getTableRowCount(info.car(), info.cdr());
 	}
 	
 	public int getTableRowCount(String table, String key){
 		String query = "SELECT COUNT(" + key + ") FROM " + table +";";
+		ResultSet rs = query(query, true);
+		try {
+			if(!rs.next()){
+				throw new DatabaseException("Could not get row count!");
+			}
+			int rtn = rs.getInt(1);
+			rs.close();
+			return rtn;
+		} catch (SQLException e) {
+			throw new DatabaseException(e);
+		}
+	}
+	
+	public <T extends DatabaseObject> int max(Class<T> table){
+		Pair<String,String> info = class2pk(table);
+		return max(info.car(), info.cdr());
+	}
+	
+	public int max(String table, String key){
+		String query = "SELECT " + key + " FROM " + table +" ORDER BY " + key + " DESC LIMIT 1;";
+		ResultSet rs = query(query, true);
+		try {
+			if(!rs.next()){
+				throw new DatabaseException("Could not get row count!");
+			}
+			int rtn = rs.getInt(1);
+			rs.close();
+			return rtn;
+		} catch (SQLException e) {
+			throw new DatabaseException(e);
+		}
+	}
+	
+	public <T extends DatabaseObject> int min(Class<T> table){
+		Pair<String,String> info = class2pk(table);
+		return min(info.car(), info.cdr());
+	}
+	
+	public int min(String table, String key){
+		String query = "SELECT " + key + " FROM " + table +" ORDER BY " + key + " ASC LIMIT 1;";
 		ResultSet rs = query(query, true);
 		try {
 			if(!rs.next()){

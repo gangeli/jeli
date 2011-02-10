@@ -66,11 +66,24 @@ public class ScoreCalc <T> {
 			throw new IllegalStateException("Mixing DISCRETE and " + state.toString() + " data");
 		}
 		//(score)
-		if(guess == gold){
+		if(guess == null && gold == null){
+			//(case: impossible)
+			throw new IllegalStateException("Null point entered");
+		}else if(guess == null){
+			//(case: gold without matching guess: recall bug)
+			// no action
+		} else if(gold == null){
+			//(case: guess without matching gold: precision bug)
+			// no action
+		}else if(guess.equals(gold)){
+			//(case: equality check)
 			correct += 1;
+		} else{
+			//(case: miss)
+			// no action
 		}
-		guessTotal += 1;
-		goldTotal += 1;
+		if(guess != null){ guessTotal += 1; }
+		if(gold != null){ goldTotal += 1; }
 		//(count)
 		exCount += 1;
 	}

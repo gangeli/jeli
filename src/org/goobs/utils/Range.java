@@ -97,4 +97,25 @@ public class Range implements Decodable {
 	public String encode(){
 		return "[" + startInclusive + "-" + stopExclusive + ")";
 	}
+	
+	@Override
+	public boolean equals(Object o){
+		if(o instanceof Range){
+			Range other = ((Range) o);
+			return other.startInclusive == this.startInclusive && 
+				other.stopExclusive == stopExclusive;
+		}else{
+			return false;
+		}
+	}
+	
+	@Override
+	public int hashCode(){
+		return (startInclusive << 8) ^ stopExclusive;
+	}
+	
+	@Override
+	public String toString(){
+		return encode();
+	}
 }

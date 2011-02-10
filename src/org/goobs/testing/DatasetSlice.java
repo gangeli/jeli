@@ -1,9 +1,13 @@
 package org.goobs.testing;
 
 import org.goobs.exec.Log;
+import org.goobs.utils.Range;
 
 public class DatasetSlice <D extends Datum> extends Dataset <D>{
-
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1089678853208585396L;
 	private Dataset<D> root;
 	private int startInclusive;
 	private int stopExclusive;
@@ -22,11 +26,9 @@ public class DatasetSlice <D extends Datum> extends Dataset <D>{
 		if(stopExclusive-startInclusive == 0){
 			Log.warn("Dataset", "Dataset slice has zero size: " + startInclusive + "-" + stopExclusive);
 		}
-		if(stopExclusive-startInclusive > root.numExamples()){
-			throw new IllegalArgumentException("Database slice ranges are invalid (too large): " + startInclusive + "-"+stopExclusive);
-		}
-		if(stopExclusive > root.numExamples()){
-			throw new IllegalArgumentException("Taking a slice which goes beyond the root's numExamples");
+		Range parent = root.range();
+		if(!parent.inRange(startInclusive) || !parent.inRange(stopExclusive-1)){
+			throw new IllegalArgumentException("Database slice ranges are invalid: slice=" + this.range() + "; parent="+parent);
 		}
 	}
 	
@@ -51,6 +53,11 @@ public class DatasetSlice <D extends Datum> extends Dataset <D>{
 		}else{
 			return root.get(startInclusive + id);
 		}
+	}
+
+	@Override
+	public Range range() {
+		return new Range(startInclusive,stopExclusive);
 	}
 
 }

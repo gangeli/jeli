@@ -4,8 +4,13 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.goobs.utils.Pair;
+import org.goobs.utils.Range;
 
 public abstract class Dataset <D extends Datum> implements java.io.Serializable{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Number of examples in the dataset.
@@ -20,11 +25,16 @@ public abstract class Dataset <D extends Datum> implements java.io.Serializable{
 	 */
 	public abstract D get(int id);
 	/**
+	 * The range of indices this dataset encompases
+	 * @return A range of valid IDs
+	 */
+	public abstract Range range();
+	/**
 	 * Creates a slice of the dataset between the indices [startInclusive,stopExclusive).
 	 * @param startInclusive The (inclusive) start index
 	 * @param stopExclusive The (exclusive) stop index
 	 * @return A dataset which only covers this range
-	 */
+	 */	
 	public Dataset <D> slice(int startInclusive, int stopExclusive){
 		return new DatasetSlice<D>(this, startInclusive, stopExclusive, false);
 	}

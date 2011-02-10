@@ -4,8 +4,13 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.goobs.database.Database;
+import org.goobs.utils.Range;
 
 public class DatasetDBQuery <D extends Datum> extends Dataset<D>{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -2855476766947244670L;
 	private boolean initialized = false;
 	private Database db;
 	private Class<D> type;
@@ -34,6 +39,11 @@ public class DatasetDBQuery <D extends Datum> extends Dataset<D>{
 			cache.add( (Datum) iter.next().refreshLinks() );
 		}
 		return cache.size();
+	}
+	
+	@Override
+	public Range range(){
+		return new Range(0,this.numExamples());
 	}
 
 	@SuppressWarnings("unchecked")
