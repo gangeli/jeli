@@ -68,7 +68,6 @@ public class ScoreCalc <T> {
 		//(score)
 		if(guess == gold){
 			correct += 1;
-			correct += 1;
 		}
 		guessTotal += 1;
 		goldTotal += 1;
@@ -262,5 +261,17 @@ public class ScoreCalc <T> {
 		log(type, "Spearman Correlation: " + spearman(), true);
 		log(type, "           Data Size: " + exCount, true);
 		
+	}
+	public void print(String type){
+		switch(state){
+			case CONTINUOUS:
+				printContinuous(type);
+				break;
+			case DISCRETE:
+				printDiscrete(type);
+				break;
+			default:
+				throw internal("Unknown type in print switch");
+		}
 	}
 }

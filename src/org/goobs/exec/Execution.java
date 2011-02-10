@@ -556,7 +556,6 @@ public final class Execution {
 				Pattern numRegex = Pattern.compile("\\d+");
 				String[] ls = base.list();
 				for(String f : ls){
-					System.out.println("" + f);
 					Matcher m = numRegex.matcher(f);
 					if(m.find()){
 						int cand = Integer.parseInt(m.group());
