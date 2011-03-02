@@ -629,6 +629,7 @@ public final class Execution {
 			if(logger != null){ logger.save(); }
 		} catch (Exception e) { //catch everything
 			e.printStackTrace();
+			System.err.flush();
 			if(logger != null){ logger.suggestFlush(); } //not a save!
 			Log.exit(ExitCode.FATAL_EXCEPTION);
 		}
