@@ -54,7 +54,7 @@ public abstract class Dataset <D extends Datum> implements java.io.Serializable{
 	 * @return Number of examples in the dataset
 	 */
 	public int size(){ return numExamples(); }
-	
+
 	/**
 	 * Create an iterator over the dataset. 
 	 * @return An iterator over the dataset
