@@ -111,7 +111,8 @@ public abstract class DatabaseObject {
 				String parentKey,
 				String childKey,
 				boolean parentCentric,
-				boolean isArray){
+				boolean isArray,
+				boolean deep){
 		Class<Other> other = (Class<Other>) (parentCentric ? childClass : parentClass);
 		//--Get Variables
 		//(local pk)
@@ -172,6 +173,11 @@ public abstract class DatabaseObject {
 					lst.add(term);
 				}
 				Other[] rtn = lst.toArray((Other[]) Array.newInstance(other, lst.size()));
+				if(deep && parentCentric){ 
+					for(int i=0; i<rtn.length; i++){
+						rtn[i] = (Other) rtn[i].refreshLinks(deep);
+					}
+				}
 				if(rtn == null) throw new DatabaseException("No objects match query: " + b.toString());
 				//(set)
 				toFill.set(this, rtn);
@@ -180,6 +186,7 @@ public abstract class DatabaseObject {
 				if(database.hasTable(other)){
 					rtn = database.getFirstObject((Class<? extends Other>) other, b.toString());
 				}
+				if(deep && parentCentric){ rtn = (Other) rtn.refreshLinks(deep); }
 				backLink(this,rtn,childKey);
 				toFill.set(this, rtn);
 			}
@@ -191,8 +198,13 @@ public abstract class DatabaseObject {
 		}
 		if(!accessible) toFill.setAccessible(false);
 	}
-	
+
 	public <D extends DatabaseObject> D refreshLinks(){
+		return (D) refreshLinks(false);
+	}
+	
+	public <D extends DatabaseObject> D refreshLinks(boolean deep){
+		if(deep){ throw new IllegalStateException("DEEP REFRESH IS BUGGY"); }
 		for(Field f : this.getClass().getDeclaredFields()){
 			Parent fkey = f.getAnnotation(Parent.class);
 			if(fkey != null){
@@ -201,7 +213,7 @@ public abstract class DatabaseObject {
 				Class<?> childClass = this.getClass();
 				String parentKey = fkey.parentField();
 				String childKey = fkey.localField();
-				refreshLink(f, parentClass, childClass, parentKey, childKey, false, false);
+				refreshLink(f, parentClass, childClass, parentKey, childKey, false, false,deep);
 			}
 			Child link = f.getAnnotation(Child.class);
 			if(link != null){
@@ -212,7 +224,7 @@ public abstract class DatabaseObject {
 				if(childClass.isArray()){ childClass = childClass.getComponentType(); isArray = true;}
 				String parentKey = link.localField();
 				String childKey = link.childField();
-				refreshLink(f, parentClass, childClass, parentKey, childKey, true, isArray);
+				refreshLink(f, parentClass, childClass, parentKey, childKey, true, isArray, deep);
 			}
 		}
 		return (D) this;
