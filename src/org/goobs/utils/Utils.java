@@ -636,14 +636,34 @@ public class Utils {
 			return; 
 		}
 		//(guess a pivot)
+		Object[] guessObj = null;
+		if(others != null){ guessObj = new Object[others.length]; }
 		int guessA = terms[start];
 		int guessB = terms[stop-1];
 		int guessC = terms[start+(stop-start)/2];
 		int guessX = guessA > guessB ? guessA : guessB;
+		int guessI = guessA > guessB ? start : stop-1;
 		int guess = guessX < guessC ? guessX : guessC;
+		guessI = guessX < guessC ? guessI : (start+(stop-start)/2);
+		if(others != null){
+			for(int i=0; i<others.length; i++){
+				guessObj[i] = others[i][guessI];
+			}
+		}
+		//(move pivot to end)
+		int tmp = terms[stop-1];
+		terms[stop-1] = guess;
+		terms[guessI] = tmp;
+		if(others != null){
+			for(int i=0; i<others.length; i++){
+				Object t = others[i][stop-1];
+				others[i][stop-1] = guessObj[i];
+				others[i][guessI] = t;
+			}
+		}
 		//(swaps)
 		int frontPointer = start;
-		int backPointer = stop-1;
+		int backPointer = stop-2;
 		while(frontPointer < backPointer){
 			if(terms[frontPointer] < guess){
 				frontPointer += 1;
@@ -653,7 +673,7 @@ public class Utils {
 				}
 				if(frontPointer < backPointer){
 					//(swap this)
-					int tmp = terms[frontPointer];
+					tmp = terms[frontPointer];
 					terms[frontPointer] = terms[backPointer];
 					terms[backPointer] = tmp;
 					//(swap others)
@@ -667,8 +687,18 @@ public class Utils {
 				}
 			}
 		}
-		//(recursive case)
+		//(move pivot to place)
+		tmp = terms[frontPointer];
 		terms[frontPointer] = guess;
+		terms[stop-1] = tmp;
+		if(others != null){
+			for(int i=0; i<others.length; i++){
+				Object t = others[i][frontPointer];
+				others[i][frontPointer] = guessObj[i];
+				others[i][stop-1] = t;
+			}
+		}
+		//(recursive case)
 		quicksort(terms,start,frontPointer, others);
 		quicksort(terms,frontPointer+1,stop, others);
 	}
