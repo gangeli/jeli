@@ -32,7 +32,7 @@
 	<taskdef resource="scala/tools/ant/antlib.xml">
 		<classpath>
 			<pathelement location="${lib}/scala-compiler.jar"/>
-			<pathelement location="${scala-library.jar}"/>
+			<pathelement location="${lib}/scala-library.jar"/>
 		</classpath>
 	</taskdef>
 
@@ -50,10 +50,8 @@
 
 	<target name="init-scala">
 		<!--Scala Properties-->
-		<property name="scala-library.jar" 
-			value="${lib}/scala-library.jar"/>
 		<path id="scala.classpath">
-			<pathelement location="${scala-library.jar}"/>
+			<pathelement location="${lib}/scala-library.jar"/>
 			<pathelement location="${build}"/>
 		</path>
 	</target>

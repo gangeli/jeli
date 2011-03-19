@@ -245,6 +245,9 @@ public final class Log {
 	public static void debug(Object o){
 		debug(null, o, false);
 	}
+	public static void debug(String tag, Object o){
+		debug(tag, o, false);
+	}
 	public static void debug(String tag, Object o, boolean force) {
 		if(logDebug) commonPrintStd((tag == null ? "" : "[" + tag + "]: ") + o, force);
 	}
@@ -278,6 +281,9 @@ public final class Log {
 	}
 	public static void err(Object o){
 		err(null, o, false);
+	}
+	public static void err(String tag, Object o){
+		err(tag, o, false);
 	}
 	public static void err(String tag, Object o, boolean force) {
 		commonPrintStd((tag == null ? "" : "[" + tag + "]: ") + o, force);

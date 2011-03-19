@@ -15,7 +15,7 @@ public class SortTest {
 		Random r = new Random();
 		int[] rtn = new int[size];
 		for (int i = 0; i < rtn.length; i++) {
-			rtn[i] = r.nextInt();
+			rtn[i] = r.nextInt(size);
 		}
 		return rtn;
 	}
@@ -56,10 +56,27 @@ public class SortTest {
 	
 	@Test
 	public void testBasic(){
+		//--Random
 		int[] input = randArray(100);
 		int len = input.length;
 		sort(input);
 		assertTrue(input.length == len);
+		assertSorted(input);
+		//--Contrived Cases
+		input = new int[]{ 1, 2, 1, 1 };
+		sort(input);
+		assertSorted(input);
+		input = new int[]{ 1, 2, 1, 1, 2, 2, 3, 4, 3, 1, 2, 1, 2, 2, 2, 3 };
+		sort(input);
+		assertSorted(input);
+		input = new int[]{1,1,1,1,1};
+		sort(input);
+		assertSorted(input);
+		input = new int[]{0, 2, 3, 4, 0, 3};
+		sort(input);
+		assertSorted(input);
+		input = new int[]{0, 2, 3, 4, 0, 3};
+		sort(input, toObj(input));
 		assertSorted(input);
 	}
 	
@@ -125,6 +142,15 @@ public class SortTest {
 			for(Integer key : preCounts.keySet()){
 				assertEquals(preCounts.get(key), postCounts.get(key));
 			}
+		}
+		//--Contrived Cases
+		//--Simple
+		input = new int[]{0, 2, 3, 4, 0, 3};
+		preCounts = counts(input);
+		sort(input);
+		postCounts = counts(input);
+		for(Integer key : preCounts.keySet()){
+			assertEquals(preCounts.get(key), postCounts.get(key));
 		}
 	}
 	
