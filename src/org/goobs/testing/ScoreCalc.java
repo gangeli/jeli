@@ -239,6 +239,7 @@ public class ScoreCalc <T> {
 		this.correct += correct;
 		this.guessTotal += guessTotal;
 		this.goldTotal += goldTotal;
+		this.exCount += 1;
 	}
 	
 	public double precision(){

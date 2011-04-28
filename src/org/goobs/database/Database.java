@@ -1243,7 +1243,7 @@ public final class Database implements Decodable{
 	}
 	
 	private static final void obj2db(PreparedStatement stmt, int slot, Object obj) throws SQLException{
-		if(obj instanceof Boolean){
+		if(obj instanceof Boolean){ //boolean
 			stmt.setBoolean(slot, (boolean) ((Boolean) obj));
 		}else if(obj instanceof Byte){								//Integer Fields
 			stmt.setShort(slot, (short) (Byte) obj);
@@ -1298,7 +1298,7 @@ public final class Database implements Decodable{
 	}
 
 	private static final Object db2obj(Class<?> type, Object o){
-		if(o == null){ return null; }
+		if(o == null){if(type == boolean.class){ return false;} else {return null;}}
 		if(type == long.class || type == Long.class){				//long
 			return ((Number) o).longValue();
 		}else if(type == int.class || type == Integer.class){		//int
@@ -1309,6 +1309,8 @@ public final class Database implements Decodable{
 			return (char) ((Number) o).intValue();
 		}else if(type == byte.class || type == Byte.class){			//byte
 			return ((Number) o).byteValue();
+		}else if(type == boolean.class || type == Boolean.class){			//boolean
+			return ((Boolean) o).booleanValue();
 		}else if(type == double.class || type == Double.class){		//double
 			if(o == null){
 				return Double.NaN;

@@ -231,12 +231,27 @@ public class Utils {
 		return false;
 	}
 	
+	public static final <A,B> Class<?> commonSuperclass(Class<A> a, Class<B> b){
+		if(a.equals(b)){ return a; }
+		if(a.isAssignableFrom(b)){ return a; }
+		if(b.isAssignableFrom(a)){ return b; }
+		return Object.class;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static final <E> E[] concat(E[] a, E[] b){
+		Class<?> clazz = commonSuperclass(a.getClass().getComponentType(), b.getClass().getComponentType());
+		E[] rtn = (E[]) Array.newInstance(clazz, a.length+b.length);
+		System.arraycopy(a, 0, rtn, 0, a.length);
+		System.arraycopy(b, 0, rtn, a.length, b.length);
+		return rtn;
+	}
+	
 	@SuppressWarnings("unchecked")
 	public static final <E> E[] concat(E[] array, E elem){
-		E[] rtn = (E[])  new Object[array.length+1];
-		for(int i=0; i<array.length; i++){
-			rtn[i] = array[i];
-		}
+		Class<?> clazz = commonSuperclass(array.getClass().getComponentType(), elem.getClass());
+		E[] rtn = (E[]) Array.newInstance(clazz, array.length+1);
+		System.arraycopy(array, 0, rtn, 0, array.length);
 		rtn[rtn.length-1] = elem;
 		return rtn;
 	}

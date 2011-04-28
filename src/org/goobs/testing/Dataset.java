@@ -60,15 +60,16 @@ public abstract class Dataset <D extends Datum> implements java.io.Serializable{
 	 * @return An iterator over the dataset
 	 */
 	public Iterator<D> iterator(){
+		final Range r = this.range();
 		return new Iterator<D>(){
-			private int index = 0;
+			private int index = r.minInclusive();
 			@Override
 			public boolean hasNext() {
-				return index < numExamples();
+				return index < r.maxExclusive();
 			}
 			@Override
 			public D next() {
-				if(index >= numExamples()){ throw new NoSuchElementException(); }
+				if(index >= r.maxExclusive()){ throw new NoSuchElementException(); }
 				D rtn = get(index);
 				index += 1;
 				return rtn;

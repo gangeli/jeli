@@ -57,7 +57,7 @@ public final class Execution {
 	
 
 	@Option(name="execName", gloss="Assigns a name for this particular run")
-	private static String runName = "<unnamed>";
+	private static String runName;
 	@Option(name="execOutput",gloss="Database to store parameters and results in")
 	private static Database outputDB;
 	@Option(name="execData", gloss="Location of dataset(s)")
@@ -623,6 +623,13 @@ public final class Execution {
 	public static final void exec(Runnable toRun, String[] args, boolean exit) {
 		//--Init
 		Log.start_track("init");
+		//(cleanup)
+		ignoredClasspath = new String[0];
+		runName = "<unnamed>";
+		outputDB = null;
+		dataDB = null;
+		execDir = null;
+		logger = null;
 		//(bootstrap)
 		Map<String,String> options = parseOptions(args); //get options
 		fillOptions(BOOTSTRAP_CLASSES, options, false); //bootstrap

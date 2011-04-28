@@ -209,6 +209,7 @@ public final class Log {
 		if(shouldFileLog){ 
 			try{ 
 				logFile.write(str); 
+				logFile.flush();
 			} catch(IOException e){
 				System.out.println(" <<WARNING: LOGGING FAILED>> ");
 				shouldFileLog = false;
