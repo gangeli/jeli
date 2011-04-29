@@ -100,6 +100,9 @@ public class Range implements Decodable {
 	public int length(){
 		return this.stopExclusive-this.startInclusive;
 	}
+	public int norm(){
+		return this.stopExclusive-this.startInclusive;
+	}
 	
 	/*
 	 * UTILITY METHODS

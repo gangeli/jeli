@@ -57,7 +57,7 @@ public class DatasetSlice <D extends Datum> extends Dataset <D>{
 
 	@Override
 	public Range range() {
-		return new Range(startInclusive,stopExclusive);
+		return new Range(0,stopExclusive-startInclusive);
 	}
 
 }

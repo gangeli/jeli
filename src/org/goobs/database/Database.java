@@ -991,7 +991,7 @@ public final class Database implements Decodable{
 			//(keys)
 			boolean first = true;
 			for(i=0; i<names.length; i++){
-				if(!names[i].equals(pKey.name())){
+				if(pKey == null || !names[i].equals(pKey.name())){
 					if(!first) onCreate.append(", ");
 					onCreate.append(names[i]);	
 					first = false;
@@ -1011,7 +1011,9 @@ public final class Database implements Decodable{
 				if(i > 0) onUpdate.append(", ");
 				onUpdate.append(names[i]).append("=?");
 			}
-			onUpdate.append(" WHERE ").append(pKey.name()).append("=?");
+			if(pKey != null){
+				onUpdate.append(" WHERE ").append(pKey.name()).append("=?");
+			}
 			onUpdate.append(";");
 	
 			//--Return
