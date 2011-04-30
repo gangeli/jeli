@@ -53,7 +53,7 @@ public final class Log {
 			for(int i=0; i<depth+1; i++){
 				b.append("  ");
 			}
-			System.out.print(b);
+//			System.out.print(b);
 			return b.toString();
 		}
 		private final String showTime(){
@@ -110,6 +110,7 @@ public final class Log {
 				lastTick = t;
 				if(numLinesSkipped > 0 && isDifferent){
 					String s = preLog();
+					System.out.print(s);
 					if(shouldFileLog){ fileLog(s); }
 					String str = "..." + numLinesSkipped + " similar lines";
 					System.out.println(str);
@@ -163,6 +164,7 @@ public final class Log {
 			if(currentInfo.shouldPrint(name, false)){
 				String s = currentInfo.preLog();
 				if(shouldFileLog){ fileLog(s); }
+				System.out.print(s);
 				System.out.print(name);
 				if(shouldFileLog){ fileLog(name); }
 				currentInfo = new LogInfo(currentInfo.depth+1, currentInfo.isPrinting);
@@ -224,6 +226,7 @@ public final class Log {
 		if(currentInfo != null && (currentInfo.shouldPrint(str, force))){
 			//(print object)
 			String printed = currentInfo.preLog();
+			System.out.print(printed);
 			fileLog(printed);
 			System.out.print(str);
 			fileLog(str);
