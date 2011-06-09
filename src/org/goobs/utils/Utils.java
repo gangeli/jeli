@@ -477,7 +477,6 @@ public class Utils {
 		} else {
 			return null;
 		}
-
 	}
 
 	public static final void fileCopy(InputStream in, OutputStream out){

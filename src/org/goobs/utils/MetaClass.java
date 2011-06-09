@@ -235,7 +235,7 @@ public class MetaClass {
 			return b.toString();
 		}
 
-		@SuppressWarnings("unchecked")
+		@SuppressWarnings({"rawtypes"})
 		@Override
 		public boolean equals(Object o) {
 			if (o instanceof ClassFactory) {

@@ -53,7 +53,6 @@ public final class Log {
 			for(int i=0; i<depth+1; i++){
 				b.append("  ");
 			}
-//			System.out.print(b);
 			return b.toString();
 		}
 		private final String showTime(){
@@ -72,12 +71,11 @@ public final class Log {
 			if(!isPrinting){
 				return false;
 			}
-			if(force){ return true; }
 			long t = timer.getElapsedTime();
 			boolean rtn = true;
 			boolean isDifferent = false;
 			//--Get Should Print
-			if(lastPrinted == null){
+			if(force || lastPrinted == null){
 				//case: first printed
 				rtn =  true;
 			}else{
@@ -311,6 +309,13 @@ public final class Log {
 
 	public static RuntimeException fail(Object msg) {
 		return new RuntimeException(msg.toString());
+	}
+
+	public static UnsupportedOperationException implementme() {
+		return new UnsupportedOperationException("Implement Me");
+	}
+	public static UnsupportedOperationException broken() {
+		return implementme();
 	}
 
 	public static RuntimeException fail(Throwable cause) {
