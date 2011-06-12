@@ -1492,7 +1492,7 @@ public final class Database implements Decodable{
 			return Enum.valueOf((Class <? extends Enum>) clazz, val);
 		}else if(scala.Enumeration.Value.class.isAssignableFrom(clazz)){
 			try {
-				return ((scala.Enumeration) clazz.getEnclosingClass().newInstance()).valueOf(val);
+				return ((scala.Enumeration) clazz.getEnclosingClass().newInstance()).withName(val);
 			} catch (InstantiationException e) {
 				throw new DatabaseException(e);
 			} catch (IllegalAccessException e) {
