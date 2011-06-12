@@ -1,55 +1,56 @@
-BUILD = bin
+# -- VARIABLES --
+# (locations)
+SRC=src
+TEST_SRC=test/src
+LIB=etc
+BUILD=bin
+TEST_BUILD=test/bin
+DIST=dist
+TMP=tmp
+# (classpath)
+CP=${LIB}/jchart2d.jar:${LIB}/mysql.jar:${LIB}/postgresql.jar:${LIB}/scala-compiler.jar:${LIB}/scala-library.jar:${LIB}/sqlite.jar
+# (config)
+.SUFFIXES: .java .class
 
-STANFORDJAR = /home/gabor/lib/java/stanford.jar
+.java.class:
+	javac $<
 
-default: build
+# -- JARS --
+DIST_LIB=lib
+${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/*.java)	$(wildcard ${SRC}/*.scala)
+	mkdir -p ${BUILD}
+	mkdir -p ${DIST}
+	javac -Xlint:unchecked -Xlint:deprecation -d $(BUILD) -cp $(CP) `find $(SRC) -name "*.java"`
+	scalac -deprecation -d ${BUILD} -cp ${CP} `find ${SRC} -name "*.scala"` `find ${SRC} -name "*.java"`
+	jar cf ${DIST}/${DIST_LIB}.jar -C $(BUILD) .
+	jar uf ${DIST}/${DIST_LIB}.jar -C $(SRC) .
+	
+DIST_DB=database
+${DIST}/${DIST_DB}.jar: $(wildcard ${SRC}/org/goobs/database/*.java) ${SRC}/org/goobs/utils/Utils.java ${SRC}/org/goobs/utils/MetaClass.java ${SRC}/org/goobs/utils/Decodable.java ${SRC}/org/goobs/io/Console.java ${SRC}/org/goobs/io/TextConsole.java
+	mkdir -p ${BUILD}
+	mkdir -p ${DIST}
+	javac -Xlint:unchecked -Xlint:deprecation -d $(BUILD) -cp $(CP) `find $(SRC) -name "*.java"`
+	jar cf ${DIST}/${DIST_DB}.jar -C $(BUILD) .
+	jar uf ${DIST}/${DIST_DB}.jar -C $(SRC) .
 
-build: 
-	ant build
+DIST_TEST=test
+${DIST}/${DIST_TEST}.jar: $(wildcard ${TEST_SRC}/*.java)
+	mkdir -p ${TEST_BUILD}
+	mkdir -p ${DIST}
+	javac -Xlint:unchecked -Xlint:deprecation -d $(TEST_BUILD) -cp $(CP):${DIST}/${DIST_LIB}.jar:${LIB}/junit.jar `find $(TEST_SRC) -name "*.java"`
+	jar cf ${DIST}/${DIST_TEST}.jar -C $(TEST_BUILD) .
+	jar uf ${DIST}/${DIST_TEST}.jar -C $(TEST_SRC) .
 
-tar:
-	ant dist
+# -- TARGETS --
+lib: ${DIST}/${DIST_LIB}.jar 
+db: ${DIST}/${DIST_DB}.jar
+test: ${DIST}/${DIST_TEST}.jar
+default: lib
 
-test: build
-	${BUILD}/aux/setupTest.rb
-	ant test
+all: ${DIST}/${DIST_LIB}.jar ${DIST}/${DIST_DB}.jar ${DIST}/${DIST_TEST}.jar
 
 clean:
-	ant clean
-
-ubuntu_10_10:
-	#--Tools For Makefile
-	#(programs)
-	apt-get --assume-yes install python-software-properties
-	#(ensure version)
-	cat /etc/issue | egrep " 10.10(\.| )"
-	#(ensure variables)
-	mkdir -p etc
-	cd etc && file ${STANFORDJAR}
-	#--Java/Scala
-	#(ensure java)
-	/usr/lib/jvm/java-6-sun/bin/java > /dev/null || cat /etc/apt/sources.list | grep "deb http://archive.canonical.com/ maverick partner" || add-apt-repository "deb http://archive.canonical.com/ maverick partner"
-	/usr/lib/jvm/java-6-sun/bin/java > /dev/null || apt-get update
-	/usr/lib/jvm/java-6-sun/bin/java > /dev/null || apt-get --assume-yes install sun-java6-jdk
-	#(ensure scala)
-	apt-get --assume-yes install ant scala
-	#--Java Dependencies
-	#(ensure scala-libs)
-	rm -f etc/scala-compiler.jar && ln -s /usr/share/java/scala-compiler.jar etc/scala-compiler.jar
-	rm -f etc/scala-library.jar && ln -s /usr/share/java/scala-library.jar etc/scala-library.jar
-	#(ensure databases)
-	apt-get --assume-yes install libpg-java
-	rm -f etc/postgresql.jar && ln -s /usr/share/java/postgresql.jar etc/postgresql.jar
-	apt-get --assume-yes install libmysql-java
-	rm -f etc/mysql.jar && ln -s /usr/share/java/mysql.jar etc/mysql.jar
-	file etc/sqlite.jar
-	#(ensure arduino)
-	apt-get --assume-yes install librxtx-java
-	rm -f etc/RXTXcomm.jar && ln -s /usr/share/java/RXTXcomm.jar etc/RXTXcomm.jar
-	#(ensure stanford)
-	rm -f etc/stanford.jar && ln -s ${STANFORDJAR} etc/stanford.jar
-	rm -f etc/stanford-pos.jar && ln -s /home/gabor/lib/java/stanford-pos.jar etc/stanford-pos.jar
-	#--Postgres
-	sudo apt-get --assume-yes install postgresql
-
-ubuntu: ubuntu_10_10
+	rm -rf ${BUILD}
+	rm -rf ${TEST_BUILD}
+	rm -rf ${DIST}
+	rm -f java.hprof.txt
