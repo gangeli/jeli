@@ -46,6 +46,7 @@ public final class Database implements Decodable{
 		private Field primaryKey;
 		private PreparedStatement onCreate, onUpdate;
 		private Map<Field,PreparedStatement> keySearch;
+        private Map<Field,PreparedStatement> keyDelete;
 		private Field[] fields;
 		private DBClassInfo(
 				MetaClass.ClassFactory <E> factory, 
@@ -53,6 +54,7 @@ public final class Database implements Decodable{
 				PreparedStatement onCreate, 
 				PreparedStatement onUpdate,
 				Map<Field,PreparedStatement> keySearch,
+                Map<Field,PreparedStatement> keyDelete,
 				Field[] fields){
 			
 			this.factory = factory; 
@@ -60,6 +62,7 @@ public final class Database implements Decodable{
 			this.onCreate=onCreate; 
 			this.onUpdate=onUpdate;
 			this.keySearch = keySearch;
+            this.keyDelete = keyDelete;
 			this.fields=fields;
 		}
 	}
@@ -307,7 +310,7 @@ public final class Database implements Decodable{
 	public void clear(){
 		for(String table : getTableNames()){
 			if(!(type == SQLITE && table.equalsIgnoreCase("SQLITE_SEQUENCE"))){
-				query("DROP TABLE " + table + (type == SQLITE ? "" : " CASCADE;"), false);
+				update("DROP TABLE " + table + (type == SQLITE ? "" : " CASCADE;"));
 			}
 		}
 	}
@@ -465,7 +468,7 @@ public final class Database implements Decodable{
 	
 	public int getTableRowCount(String table, String key){
 		String query = "SELECT COUNT(" + key + ") FROM " + table +";";
-		ResultSet rs = query(query, true);
+		ResultSet rs = query(query);
 		try {
 			if(!rs.next()){
 				throw new DatabaseException("Could not get row count!");
@@ -485,7 +488,7 @@ public final class Database implements Decodable{
 	
 	public int max(String table, String key){
 		String query = "SELECT " + key + " FROM " + table +" ORDER BY " + key + " DESC LIMIT 1;";
-		ResultSet rs = query(query, true);
+		ResultSet rs = query(query);
 		try {
 			if(!rs.next()){
 				throw new DatabaseException("Could not get row count!");
@@ -505,7 +508,7 @@ public final class Database implements Decodable{
 	
 	public int min(String table, String key){
 		String query = "SELECT " + key + " FROM " + table +" ORDER BY " + key + " ASC LIMIT 1;";
-		ResultSet rs = query(query, true);
+		ResultSet rs = query(query);
 		try {
 			if(!rs.next()){
 				throw new DatabaseException("Could not get row count!");
@@ -669,7 +672,7 @@ public final class Database implements Decodable{
 		}
 		
 		//--Create Table
-		query(query.toString(), false);
+		update(query.toString());
 		
 		//--Foreign Keys
 		if(type != SQLITE){
@@ -690,22 +693,22 @@ public final class Database implements Decodable{
 				.append(local).append(") REFERENCES ")
 				.append(foreignTable.name())
 				.append("(").append(target).append(");");
-				query(fkQuery.toString(), false);
+				update(fkQuery.toString());
 			}
 		}
 		
 		//--Indexes
 		//(single field)
 		for(String indexQuery : indexes){
-			query(indexQuery, false);
+			update(indexQuery);
 		}
 		//(compound)
 		for(Annotation ann : toCreate.getAnnotations()){
 			if(ann instanceof CompoundIndex){
-				query(indexQuery(ann, null, table, nextIndexIdentifier++), false);
+				update(indexQuery(ann, null, table, nextIndexIdentifier++));
 			}else if(ann instanceof CompoundIndexList){
 				for(CompoundIndex i : ((CompoundIndexList) ann).value()){
-					query(indexQuery(i, null, table, nextIndexIdentifier++), false);
+					update(indexQuery(i, null, table, nextIndexIdentifier++));
 				}
 			}
 		}
@@ -727,10 +730,38 @@ public final class Database implements Decodable{
 		obj.init(this, obj.getClass(), null, DatabaseObject.FLAG_NONE);
 		return obj;
 	}
+
+	public <E extends DatabaseObject> int deleteObjectsWhere(Class<E> classType, String whereClause) {
+		//--Prepare query
+		StringBuilder query = new StringBuilder();
+		Table table = classType.getAnnotation(Table.class);
+		if(table == null){ throw new DatabaseException("Class extends database object but does not define @table annotation: " + classType); }
+		query.append("DELETE FROM ").append(table.name());
+		if(whereClause != null && !whereClause.trim().equals("")){ 
+			query.append(" WHERE ").append(whereClause); 
+		}
+		query.append(";");
+		//--Query
+		return update(query.toString());
+    }
+
+    public <E extends DatabaseObject> boolean deleteObjectById(Class<E> clazz, int id){
+		try {
+			E instance = emptyObject(clazz);
+			DBClassInfo<E> info = instance.getInfo();
+			if(info.primaryKey == null){ throw new DatabaseException("Cannot delete object by id: object has no primary key: " + clazz); }
+			PreparedStatement psmt = info.keyDelete.get(info.primaryKey);
+			psmt.setInt(1, id);
+			int updated = psmt.executeUpdate();
+			return updated == 1;
+		} catch (SQLException e) {
+			throw new DatabaseException(e);
+		}
+	}
 	
 	public <E extends DatabaseObject> E getFirstObject(Class<E> classType, String query){		
 		//--Query
-		ResultSet results = query(query, true);
+		ResultSet results = query(query);
 		try {
 			//--Get Result
 			if(!results.next()){
@@ -749,7 +780,7 @@ public final class Database implements Decodable{
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public <E extends DatabaseObject> Iterator <E> getObjects(Class<E> classType, String query){
-		ResultSet results = query(query, true);
+		ResultSet results = query(query);
 		lastStatement = null; //don't auto-clean
 		return new ResultSetIterator(results, classType);
 	}
@@ -765,7 +796,7 @@ public final class Database implements Decodable{
 		}
 		query.append(";");
 		//--Query
-		ResultSet results = query(query.toString(), true);
+		ResultSet results = query(query.toString());
 		try {
 			//--Get Result
 			if(!results.next()){
@@ -794,7 +825,7 @@ public final class Database implements Decodable{
 		}
 		query.append(";");
 		//--Query
-		ResultSet results = query(query.toString(), true);
+		ResultSet results = query(query.toString());
 		lastStatement = null; //don't auto-clean
 		return new ResultSetIterator<E>(results, classType);
 	}
@@ -904,7 +935,8 @@ public final class Database implements Decodable{
 		HashMap<String,Field> keys = new HashMap <String,Field> ();
 		List<String> foreignKeys = new LinkedList<String>();
 		Field primaryKey = null; PrimaryKey pKey = null;
-		HashMap <Field, PreparedStatement> indices = new HashMap <Field,PreparedStatement>();
+		HashMap <Field, PreparedStatement> findByIndex = new HashMap <Field,PreparedStatement>();
+        HashMap <Field, PreparedStatement> delByIndex = new HashMap <Field,PreparedStatement>();
 		HashSet <Field> indexedTerms = new HashSet <Field>();
 		
 		try{
@@ -965,7 +997,7 @@ public final class Database implements Decodable{
 			String[] names = new String[keys.size()];
 			Field[] fields = new Field[keys.size()];
 			String[] registeredFields = getTableColumns(table);
-			if(registeredFields.length != names.length){ 
+			if(registeredFields.length != names.length){
 				return recoverClassChanged(clazz,constructorParams,keys);
 			}
 			//(keys)
@@ -980,10 +1012,16 @@ public final class Database implements Decodable{
 			
 			//--Create Indices
 			for(Field key : indexedTerms){
+                //(find query)
 				StringBuilder q = new StringBuilder();
 				q.append("SELECT * FROM ").append(table).append(" WHERE ")
 					.append(field2name(key)).append("=?");
-				indices.put(key, conn.prepareStatement(q.toString()));
+				findByIndex.put(key, conn.prepareStatement(q.toString()));
+                //(delete query)
+                StringBuilder d = new StringBuilder();
+                d.append("DELETE FROM ").append(table).append(" WHERE ")
+                    .append(field2name(key)).append("=?");
+                delByIndex.put(key, conn.prepareStatement(d.toString()));
 			}
 			
 			//--On Create Query
@@ -1025,7 +1063,7 @@ public final class Database implements Decodable{
 			}
 			PreparedStatement stmtUpdate = conn.prepareStatement(onUpdate.toString());
 			MetaClass.ClassFactory<F> factory = MetaClass.create(clazz).createFactory(constructorParams);
-			return new DBClassInfo<F>(factory, primaryKey, stmtCreate, stmtUpdate, indices, fields);
+			return new DBClassInfo<F>(factory, primaryKey, stmtCreate, stmtUpdate, findByIndex, delByIndex, fields);
 		} catch (Exception e) {
 			if(e instanceof DatabaseException){
 				throw (DatabaseException) e;
@@ -1112,9 +1150,9 @@ public final class Database implements Decodable{
 			//(execute)
 			info.onCreate.execute();
 			//(set primary key)
-			if (info.onCreate.getUpdateCount() == 1) {
+			if (info.onCreate.getUpdateCount() == 1 && info.primaryKey != null) {
 				ResultSet res = info.onCreate.getGeneratedKeys();
-				if(!res.next()){ throw new DatabaseException("Could not get created row (res.next() call failed)"); }
+				if(res == null || !res.next()){ throw new DatabaseException("Could not get created row (res.next() call failed)"); }
 				int id = -1;
 				if(type == PSQL){
 					id = res.getInt(info.primaryKey.getAnnotation(PrimaryKey.class).name());
@@ -1206,11 +1244,11 @@ public final class Database implements Decodable{
 	 * This method will create a new object if it does not exist
 	 * @param <E> The instance of the object being flushed
 	 * @param <F> The class of the object being flushed; same as E in practice
-	 * @param clazz The class of the object being flushed
-	 * @param object The object being flushed
+	 * @param info The info for the class of the object being flushed
+	 * @param instance The object being flushed
 	 * @return The primary key of the object flushed
 	 */
-	protected <E extends DatabaseObject, F extends E> void flush(DBClassInfo<E> info, E instance){	
+	protected <E extends DatabaseObject, F extends E> void flush(DBClassInfo<E> info, E instance){
 		if(instance.isInDatabase()){
 			updateRow(info, instance);
 		}else{
@@ -1219,26 +1257,37 @@ public final class Database implements Decodable{
 		}
 	}
 
+
+    private void prepareStatement() throws SQLException{
+        if(conn == null) throw new DatabaseException("Querying without an open database connection");
+	    if(lastStatement != null){ lastStatement.close(); }
+	    lastStatement = conn.createStatement();
+    }
 	/**
 	 * Run a raw database query. The raw result of this query
 	 * can be retrieved in getLastStatementResult()
 	 * NOTE: remember to close the statement after a query
 	 * @param query The raw query to run, in SQL syntax
-	 * @return True if the query was successful, else False.
+	 * @return The result of the query
 	 */
-	private ResultSet query(String query, boolean expectResult) {
+	private ResultSet query(String query) {
 		try {
-			if(conn == null) throw new DatabaseException("Querying without an open database connection");
-			if(lastStatement != null){ lastStatement.close(); }
-			lastStatement = conn.createStatement();
-			// Execute the statement
-			if(expectResult){
-				ResultSet s = lastStatement.executeQuery(query);
-				return s;
-			} else {
-				lastStatement.executeUpdate(query);
-				return null;
-			}
+            prepareStatement();
+            return lastStatement.executeQuery(query);
+		} catch (SQLException e) {
+			throw new DatabaseException(e);
+		}
+	}
+
+    /**
+	 * Run a raw database update.
+	 * @param query The raw query to run, in SQL syntax
+	 * @return The number of updated rows
+	 */
+	private int update(String query) {
+		try {
+            prepareStatement();
+            return lastStatement.executeUpdate(query);
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
 		}
@@ -1441,9 +1490,11 @@ public final class Database implements Decodable{
 			if(!this.sqlite.exists()){ throw new IllegalArgumentException("No such sqlite file: " + encoded); }
 			break;
 		}
-		
-		
 		return this;
+	}
+	
+	public static Database fromString(String str){
+		return (Database) (new Database()).decode(str,null);
 	}
 
 	@Override

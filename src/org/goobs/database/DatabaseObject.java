@@ -298,6 +298,28 @@ public abstract class DatabaseObject {
 		}
 	}
 
+    public boolean delete(){
+        //(find the primary key)
+        int pKey = -1;
+        Class<?> clazz = this.getClass();
+		for(Field f : clazz.getDeclaredFields()){
+			PrimaryKey key = f.getAnnotation(PrimaryKey.class);
+			if(key != null){
+                if(pKey >= 0){ throw new DatabaseException("Multiple primary keys"); }
+                try {
+                    boolean wasAccessible = f.isAccessible();
+                    if(!f.isAccessible()){ f.setAccessible(true); }
+                    pKey = f.getInt(this);
+                    if(!wasAccessible){ f.setAccessible(false); }
+                } catch (IllegalAccessException e) {
+                    throw new DatabaseException("Cannot access primary key");
+                }
+			}
+		}
+        //(delete from the database)
+        return this.database.deleteObjectById(this.getClass(), pKey);
+    }
+
 	
 	
 	
