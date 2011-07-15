@@ -9,6 +9,7 @@ DIST=dist
 TMP=tmp
 # (classpath)
 CP=${LIB}/jchart2d.jar:${LIB}/mysql.jar:${LIB}/postgresql.jar:${LIB}/scala-compiler.jar:${LIB}/scala-library.jar:${LIB}/sqlite.jar
+JAVANLP=${JAVANLP_HOME}/projects/core/classes:${JAVANLP_HOME}/projects/core/lib/xom-1.2.6.jar
 # (config)
 .SUFFIXES: .java .class
 
@@ -18,10 +19,11 @@ CP=${LIB}/jchart2d.jar:${LIB}/mysql.jar:${LIB}/postgresql.jar:${LIB}/scala-compi
 # -- JARS --
 DIST_LIB=lib
 ${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/*.java)	$(wildcard ${SRC}/*.scala)
+	echo ${JAVANLP_HOME}
 	mkdir -p ${BUILD}
 	mkdir -p ${DIST}
 	javac -Xlint:unchecked -Xlint:deprecation -d $(BUILD) -cp $(CP) `find $(SRC) -name "*.java"`
-	scalac -deprecation -d ${BUILD} -cp ${CP} `find ${SRC} -name "*.scala"` `find ${SRC} -name "*.java"`
+	scalac -deprecation -d ${BUILD} -cp ${CP}:${JAVANLP} `find ${SRC} -name "*.scala"` `find ${SRC} -name "*.java"`
 	jar cf ${DIST}/${DIST_LIB}.jar -C $(BUILD) .
 	jar uf ${DIST}/${DIST_LIB}.jar -C $(SRC) .
 	
