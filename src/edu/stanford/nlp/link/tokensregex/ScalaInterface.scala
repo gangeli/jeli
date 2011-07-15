@@ -38,7 +38,7 @@ import edu.stanford.nlp.ling.tokensregex.SequencePattern._
 
 */
 
-case class Pattern(base:PatternExpr){ //TODO :: and | could be more efficient
+case class Pattern(base:PatternExpr){ //TODO :: and |  could be more efficient
 
 	def ::(first:Pattern):Pattern = { 
 		Pattern(new SequencePatternExpr(
@@ -57,6 +57,9 @@ case class Pattern(base:PatternExpr){ //TODO :: and | could be more efficient
 		Pattern(new RepeatPatternExpr(this.base,1,Int.MaxValue))
 	}
 	def + :Pattern = plus
+	def ? :Pattern = {
+		Pattern(new RepeatPatternExpr(this.base,0,1))
+	}
 	def apply(min:Int,max:Int):Pattern = {
 		Pattern(new RepeatPatternExpr(this.base,min,max))
 	}
@@ -87,10 +90,12 @@ case class AnnotationWrapper[A](ann:Class[_<:CoreAnnotation[A]]){
 	type AClass = Class[_<:Any]
 	import CoreMapNodePattern.NumericAnnotationPattern.CmpType
 	//--Null Apply
-	def apply():Node = {
+	def exists:Node = {
 		val p = new CoreMapNodePattern.NotNilAnnotationPattern
 		new Node(new CoreMapNodePattern(Map[AClass,NodePattern[_]]( (ann,p) )))
 	}
+	def apply():Node = exists
+	def e:Node = exists
 	//--String
 	def apply(toMatch:String):Node = {
 		val p = 
@@ -172,6 +177,12 @@ object ScalaInterface {
 					b.groupID
 					))
 	//(shortcuts)
+//	implicit def class2node[A] //DON'T USE
+//			(ann:Class[_<:CoreAnnotation[A]]):Node
+//		= wrapper2node(class2wrapper(ann))
+//	implicit def class2pattern[A] //DON'T USE
+//			(ann:Class[_<:CoreAnnotation[A]]):Pattern
+//		= node2pattern(wrapper2node(class2wrapper(ann)))
 	implicit def class2expr[A]
 			(ann:Class[_<:CoreAnnotation[A]]):PatternExpr
 		= pattern2expr(node2pattern(wrapper2node(class2wrapper(ann))))
