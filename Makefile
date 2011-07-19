@@ -19,7 +19,6 @@ JAVANLP=${JAVANLP_HOME}/projects/core/classes:${JAVANLP_HOME}/projects/core/lib/
 # -- JARS --
 DIST_LIB=lib
 ${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/*.java)	$(wildcard ${SRC}/*.scala)
-	echo ${JAVANLP_HOME}
 	mkdir -p ${BUILD}
 	mkdir -p ${DIST}
 	javac -Xlint:unchecked -Xlint:deprecation -d $(BUILD) -cp $(CP) `find $(SRC) -name "*.java"`
