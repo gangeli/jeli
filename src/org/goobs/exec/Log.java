@@ -342,4 +342,10 @@ public final class Log {
 		//(exit)
 		System.exit(code.code);
 	}
+
+	// ----- PROFILING -----
+
+//	public static void profile() {
+//
+//	}
 }
