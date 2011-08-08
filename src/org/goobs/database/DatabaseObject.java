@@ -2,14 +2,11 @@ package org.goobs.database;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.util.Date;
-import java.util.IdentityHashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 
 import org.goobs.database.Database.DBClassInfo;
 import org.goobs.exec.Log;
+import org.goobs.utils.Utils;
 
 public abstract class DatabaseObject {
 
@@ -39,6 +36,16 @@ public abstract class DatabaseObject {
 		}else{
 			flags = (byte) (flags & ~flag);
 		}
+	}
+
+	protected Field[] getDeclaredFields(){
+		Class c = this.getClass();
+		Field[] rtn = new Field[0];
+		while(c != null){
+			rtn = Utils.concat(rtn, c.getDeclaredFields());
+			c = c.getSuperclass();
+		}
+		return rtn;
 	}
 	
 	@SuppressWarnings("rawtypes")
@@ -81,7 +88,7 @@ public abstract class DatabaseObject {
 		//(if no child, no need to back link)
 		if(child == null){ return; }
 		//(for each child field...)
-		for(Field f : child.getClass().getDeclaredFields()){
+		for(Field f : child.getDeclaredFields()){
 			//(if the field is a parent field, and matches the other side of the link)
 			Parent p = f.getAnnotation(Parent.class);
 			if(p != null && p.localField().equals(childKey)){
@@ -118,7 +125,7 @@ public abstract class DatabaseObject {
 		//(local pk)
 		String primaryKey = null;
 		int primaryKeyVal = 0;
-		for(Field cand : this.getClass().getDeclaredFields()){
+		for(Field cand : getDeclaredFields()){
 			PrimaryKey pk = cand.getAnnotation(PrimaryKey.class);
 			if(pk != null){
 				primaryKey = pk.name();
@@ -205,7 +212,7 @@ public abstract class DatabaseObject {
 	
 	public <D extends DatabaseObject> D refreshLinks(boolean deep){
 		if(deep){ throw new IllegalStateException("DEEP REFRESH IS BUGGY"); }
-		for(Field f : this.getClass().getDeclaredFields()){
+		for(Field f : getDeclaredFields()){
 			Parent fkey = f.getAnnotation(Parent.class);
 			if(fkey != null){
 				//(fill objects)
@@ -247,8 +254,7 @@ public abstract class DatabaseObject {
 		if(isSet(FLAG_FLUSHING)){ return (T) this; }
 		setFlag(FLAG_FLUSHING, true);
 		try {
-			Class<?> clazz = this.getClass();
-			for(Field f : clazz.getDeclaredFields()){
+			for(Field f : getDeclaredFields()){
 				Parent key = f.getAnnotation(Parent.class);
 				if(key != null){
 					DatabaseObject parent = null;
@@ -258,7 +264,7 @@ public abstract class DatabaseObject {
 				}
 			}
 			flush();
-			for(Field f : clazz.getDeclaredFields()){
+			for(Field f : getDeclaredFields()){
 				Child link = f.getAnnotation(Child.class);
 				if(link != null && f.get(this) != null){  //moved null check up here
 					boolean accessible = f.isAccessible();
@@ -301,8 +307,7 @@ public abstract class DatabaseObject {
     public boolean delete(){
         //(find the primary key)
         int pKey = -1;
-        Class<?> clazz = this.getClass();
-		for(Field f : clazz.getDeclaredFields()){
+		for(Field f : getDeclaredFields()){
 			PrimaryKey key = f.getAnnotation(PrimaryKey.class);
 			if(key != null){
                 if(pKey >= 0){ throw new DatabaseException("Multiple primary keys"); }
@@ -319,6 +324,14 @@ public abstract class DatabaseObject {
         //(delete from the database)
         return this.database.deleteObjectById(this.getClass(), pKey);
     }
+
+	public String tableName(){
+		if( this.getClass().getAnnotation(Table.class) == null ){
+			throw new IllegalStateException("Database object has no Table annotation");
+		} else {
+			return this.getClass().getAnnotation(Table.class).name();
+		}
+	}
 
 	
 	

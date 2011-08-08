@@ -382,6 +382,14 @@ public final class Database implements Decodable{
 		}
 	}
 
+	public static String getTableName(Class<? extends DatabaseObject> clazz){
+		if( clazz.getAnnotation(Table.class) == null ){
+			throw new IllegalStateException("Database object has no Table annotation");
+		} else {
+			return clazz.getAnnotation(Table.class).name();
+		}
+	}
+
 	/**
 	 * Returns whether the given table exists.
 	 * Note that the table name is case insensitive.
