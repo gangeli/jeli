@@ -1,73 +1,191 @@
 package org.goobs.slib
 
+import java.util.AbstractList
+
+import scala.collection.JavaConversions._
+
 import edu.stanford.nlp.util.CoreMap
+import edu.stanford.nlp.util.ArrayCoreMap
+import edu.stanford.nlp.util.TypesafeMap
 import edu.stanford.nlp.ling.CoreLabel
+import edu.stanford.nlp.ling.CoreAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.AnswerAnnotation
+import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation
+import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation
 
-import scala.collection.JavaConversions._
-
-import java.util.AbstractList
+import org.goobs.database._
 
 object JavaNLP {
-	val WORD   = classOf[TextAnnotation]
-	val POS    = classOf[PartOfSpeechAnnotation]
-	val LEMMA  = classOf[LemmaAnnotation]
-	val ANSWER = classOf[AnswerAnnotation]
+	val WORD      = classOf[TextAnnotation]
+	val POS       = classOf[PartOfSpeechAnnotation]
+	val LEMMA     = classOf[LemmaAnnotation]
+	val ANSWER    = classOf[AnswerAnnotation]
+	val TOKENS    = classOf[TokensAnnotation]
+	val SENTENCES = classOf[SentencesAnnotation]
 
+	case class CoreAnnotationWrapper[V,A <: CoreAnnotation[V]](ann:A)
 
-	def word2coremap(word:String):CoreMap = {
+	@Table(name="values")
+	class AnnotationPair[V,A <: CoreAnnotation[V]]
+			(k:A,v:V) extends DatabaseObject {
+		@PrimaryKey(name="vid")
+		private var vid:Int = 0
+		@Key(name="key")
+		private var key = k.getType.toString
+		@Key(name="value")
+		private var value = v
+	}
+
+	@Table(name="maps")
+	class CoreMapWrapper(map:CoreMap) 
+			extends DatabaseObject{
+
+		@PrimaryKey(name="mid")
+		private var mid:Int = 0
+		@Parent(localField="fid", parentField="fid")
+		private var fid:Int = 0
+
+		def getMap:CoreMap = map
+			
+		def describe:Unit = {
+			//TODO continue me from here!
+		}
+	}
+
+	@Table(name="dataset")
+	class CoreMapDataset(elems:Array[CoreMap]) 
+			extends DatabaseObject {
+		
+		@PrimaryKey(name="fid")
+		private var fid:Int = 0
+		@Child(localField="fid", childField="fid")
+		private var maps:Array[CoreMapWrapper] 
+			= elems.map{ x => new CoreMapWrapper(x) }
+
+		def describe:Unit = {
+			maps.foreach{ (map:CoreMapWrapper) =>
+				println("MAP: " + map.toString)
+				map.describe
+			}
+		}
+	}
+
+	implicit def coreAnnotation2CoreAnnWrapper[V,A <: CoreAnnotation[V]](ann:A
+		):CoreAnnotationWrapper[V,A] = CoreAnnotationWrapper(ann)
+	implicit def coreAnnWrapper2CoreAnnotation[V,A <: CoreAnnotation[V]]
+		(wrapper:CoreAnnotationWrapper[V,A]):A = wrapper.ann
+
+	implicit def typesafeMap2typesafeMapWrapper(map:CoreMap
+		):CoreMapWrapper = new CoreMapWrapper(map)
+	implicit def typesafeMapWrapper2TypesafeMap
+		(wrapper:CoreMapWrapper):CoreMap = wrapper.getMap
+
+	def word2corelabel(word:String):CoreLabel = {
 		val token = new CoreLabel(2)
 		token.set(WORD,word)
 		token
 	}
-	def word2coremap(word:String,pos:String):CoreMap = {
+	def word2corelabel(word:String,pos:String):CoreLabel = {
 		val token = new CoreLabel(3)
 		token.set(WORD,word)
 		token.set(POS,pos)
 		token
 	}
-	def word2coremap(word:String,pos:String,lemma:String):CoreMap = {
+	def word2corelabel(word:String,pos:String,lemma:String):CoreLabel = {
 		val token = new CoreLabel(4)
 		token.set(WORD,word)
 		token.set(POS,pos)
 		token.set(LEMMA,lemma)
 		token
 	}
-	def sent2coremaps(sent:Array[String]):java.util.List[CoreMap] = {
-		sent.map{ (word:String) => word2coremap(word) }.toList
+	def sent2corelabels(sent:Array[String]):java.util.List[CoreLabel] = {
+		sent.map{ (word:String) => word2corelabel(word) }.toList
 	}
-	def sent2coremaps(sent:Array[String],pos:Array[String]
-			):java.util.List[CoreMap] = {
+	def sent2corelabels(sent:Array[String],pos:Array[String]
+			):java.util.List[CoreLabel] = {
 		if(sent.length != pos.length){ 
 			throw new IllegalArgumentException("Length mismatch")
 		}
-		sent.zip(pos).map{case (w:String,pos:String) => word2coremap(w,pos) }.toList
+		val retArray:Array[CoreLabel] 
+			= sent.zip(pos).map{ 
+				case (word:String,pos:String) => word2corelabel(word,pos) }
+		retArray.toList
 	}
-	def sent2coremaps(sent:Array[String],pos:Array[String],lemma:Array[String]
-			):java.util.List[CoreMap] = {
+	def sent2corelabels(sent:Array[String],pos:Array[String],lemma:Array[String]
+			):java.util.List[CoreLabel] = {
 		if(sent.length != pos.length || sent.length != lemma.length){ 
 			throw new IllegalArgumentException("Length mismatch")
 		}
 		sent.zip(pos).zip(lemma).map{ case ((w:String,pos:String),lemma:String) => 
-			word2coremap(w,pos,lemma) }.toList
+			word2corelabel(w,pos,lemma) }.toList
+	}
+	def sent2coremaps(sent:Array[String]):java.util.List[CoreMap] = {
+		sent2corelabels(sent).map{ x => x }
+	}
+	def sent2coremaps(sent:Array[String],pos:Array[String]
+			):java.util.List[CoreMap] = {
+		sent2corelabels(sent,pos).map{ x => x }
+	}
+	def sent2coremaps(sent:Array[String],pos:Array[String],lemma:Array[String]
+			):java.util.List[CoreMap] = {
+		sent2corelabels(sent,pos,lemma).map{ x => x }
 	}
 
-	def annotate(sent:java.util.List[CoreMap],tags:Array[String]
-			):java.util.List[CoreMap] = {
+	def sent2coremap(sent:Array[CoreLabel]):CoreMap = {
+		val tokens:java.util.List[CoreLabel] = sent.toList
+		sent2coremap(tokens)
+	}
+	def sent2coremap(tokens:java.util.List[CoreLabel]):CoreMap = {
+		val rtn = new ArrayCoreMap(1)
+		rtn.set(TOKENS,tokens)
+		rtn
+	}
+
+	def sentences(sents:Array[Array[CoreLabel]]):CoreMap = {
+		val lst:Array[CoreMap] = sents.map{ sent2coremap(_) }
+		sentences(lst)
+	}
+	def sentences(sents:Array[java.util.List[CoreLabel]]):CoreMap = {
+		val lst:java.util.List[CoreMap] = new java.util.ArrayList[CoreMap]()
+		sents.foreach{ (term:java.util.List[CoreLabel]) =>
+			lst.add(sent2coremap(term)) }
+		sentences(lst)
+	}
+	def sentences(sents:Array[CoreMap]):CoreMap = {
+		val lst:java.util.List[CoreMap] = new java.util.ArrayList[CoreMap]()
+		sents.foreach{ lst.add(_) }
+		sentences(lst)
+		
+	}
+	def sentences(sents:java.util.List[CoreMap]):CoreMap = {
+		val rtn = new ArrayCoreMap(1)
+		rtn.set(SENTENCES,sents)
+		rtn
+	}
+
+	def setAnswers[A <: CoreMap](sent:java.util.List[A],answers:Array[String]
+			):java.util.List[A] = {
 		//(check)
-		if(sent.size != tags.length){ 
+		if(sent.size != answers.length){ 
 			throw new IllegalArgumentException("Length mismatch")
 		}
 		//(tag)
 		var i:Int = 0
-		val iter:java.util.Iterator[CoreMap] = sent.iterator
+		val iter:java.util.Iterator[A] = sent.iterator
 		while(iter.hasNext){
-			iter.next.set(ANSWER,tags(i))
+			iter.next.set(ANSWER,answers(i))
 			i += 1
 		}
+		sent
+	}
+
+	def setAnswers(sent:CoreMap,answers:Array[String]):CoreMap = {
+		val labels:java.util.List[CoreMap]
+			= sent.get[java.util.List[CoreMap],SentencesAnnotation](SENTENCES)
+		setAnswers(labels, answers)
 		sent
 	}
 
@@ -76,6 +194,19 @@ object JavaNLP {
 		lst.map{ (term:CoreMap) => 
 			term.get[String,TextAnnotation](WORD)
 		}.toArray
+	}
+
+	def main(args:Array[String]) = {
+		val sent1:java.util.List[CoreLabel] 
+			= sent2corelabels("This is a sample sentence".split(" "))
+		val sent2:java.util.List[CoreLabel] 
+			= sent2corelabels("This is another sentence".split(" "))
+		val sents:CoreMap
+			= sentences(Array[java.util.List[CoreLabel]](sent1,sent2))
+
+		val dataset = new CoreMapDataset(Array[CoreMap](sents))
+
+		dataset.describe
 	}
 }
 

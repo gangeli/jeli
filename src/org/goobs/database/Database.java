@@ -1412,9 +1412,15 @@ public final class Database implements Decodable{
 					rtn[i] = str2enum(type.getComponentType(), strings[i]);
 				}
 				return rtn;
-			}else{
+			}else if(type.getComponentType().isAssignableFrom(String.class)){
 				return strings;
-			}
+			}else{
+				Object[] rtn = (Object[]) Array.newInstance(type.getComponentType(), strings.length);
+				for(int i=0; i<rtn.length; i++){
+					rtn[i] = Utils.cast(strings[i], type.getComponentType());
+				}
+				return rtn;
+			}        //TODO primitive arrays
 		}else{														//else
 			return o;
 		}
