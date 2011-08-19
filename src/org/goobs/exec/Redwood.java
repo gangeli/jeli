@@ -1,5 +1,6 @@
 package org.goobs.exec;
 
+import javax.sound.midi.SysexMessage;
 import java.util.*;
 
 public class Redwood {
@@ -423,8 +424,34 @@ public class Redwood {
 	}
 
 	public static void main(String[] args){
-		Redwood.dontPrintChannels();
-
+		//--Wait for JIT to kick in
+		long start = System.currentTimeMillis();
+		startTrack("Scratch");
+			for(int i=0; i<10000; i++){
+				log(FORCE,DBG,"scratch " + i);
+			}
+		endTrack("Scratch");
+		long jit = System.currentTimeMillis()-start;
+		//--Redwood
+		start = System.currentTimeMillis();
+		startTrack("Redwood");
+			for(int i=0; i<10000; i++){
+				log(FORCE,DBG,"redwood " + i);
+			}
+		endTrack("Redwood");
+		long redwood = System.currentTimeMillis()-start;
+		//--Println
+		start = System.currentTimeMillis();
+		for(int i=0; i<10000; i++){
+			System.out.print("println " + i + "\n");
+		}
+		long println = System.currentTimeMillis()-start;
+		//--Difference
+		System.out.println("\n");
+		System.out.println("[pre-jit]: " + formatTimeDifference(jit));
+		System.out.println("Redwood:   " + formatTimeDifference(redwood));
+		System.out.println("Println:   " + formatTimeDifference(println));
+		System.out.println("\n");
 
 		startTrack("Track 1");
 			log("tag",ERR, "hello world");
