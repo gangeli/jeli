@@ -261,7 +261,7 @@ public class DBResultLogger extends ResultLogger{
 		for(DatabaseObject o : queue){
 			o.flush();
 		}
-		db.endTranaction();
+		db.endTransaction();
 		flushingLock.unlock();
 		//(mark as done)
 		this.run.complete();

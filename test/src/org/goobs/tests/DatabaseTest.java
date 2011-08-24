@@ -790,7 +790,7 @@ public class DatabaseTest{
 				f.fieldLong = 4000000000123L;
 				f.flush();
 			}
-			d.endTranaction();
+			d.endTransaction();
 			//--Disconnect
 			d.disconnect();
 		}
@@ -1086,7 +1086,7 @@ public class DatabaseTest{
 				x.noIndex = r.nextInt();
 				x.flush();
 			}
-			d.endTranaction();
+			d.endTransaction();
 			//(check)
 			x = d.getObjectByKey(TableIndices.class, "fieldA", -42);
 			assertTrue(x != null);
@@ -1122,7 +1122,7 @@ public class DatabaseTest{
 				x.noIndex = r.nextInt();
 				x.flush();
 			}
-			d.endTranaction();
+			d.endTransaction();
 			//(check)
 			Iterator<TableIndices> iter = d.getObjectsByKey(TableIndices.class, "fieldA", -42);
 			while(iter.hasNext()){
@@ -1333,7 +1333,7 @@ public class DatabaseTest{
 				x.noIndex = r.nextInt();
 				x.flush();
 			}
-			d.endTranaction();
+			d.endTransaction();
 			//(check)
 			x = d.getFirstObjectWhere(TableCompoundIndices.class, "fieldA=-42 and fieldB=42");
 			assertTrue(x != null);

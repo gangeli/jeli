@@ -296,7 +296,7 @@ public final class Database implements Decodable{
 		}
 	}
 	
-	public void endTranaction(){
+	public void endTransaction(){
 		try {
 			if(!inTransaction) throw new DatabaseException("Ending a non-existent transaction");
 			conn.commit();
@@ -304,6 +304,14 @@ public final class Database implements Decodable{
 			inTransaction = false;
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
+		}
+	}
+
+	public void commit(){
+		try {
+			conn.commit();
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -443,6 +451,20 @@ public final class Database implements Decodable{
 			throw new DatabaseException(e);
 		}
 	}
+
+	/**
+	 * Drops a table from the database.
+	 * @param clazz The class corresponding to the table to be dropped
+	 * @param <E> The type of the database object being dropped
+	 * @return true if the table was in the database
+	 */
+	public <E extends DatabaseObject> boolean dropTable(Class<E> clazz){
+		if(!this.hasTable(clazz)){ return false; }
+		Table ann = clazz.getAnnotation(Table.class);
+		if(ann == null){ throw new IllegalArgumentException("Class " + clazz + " has no !Table annotation"); }
+		update("DROP TABLE " + ann.name() + " CASCADE;");
+		return true;
+	}
 	
 	private <T extends DatabaseObject> Pair<String,String> class2pk(Class<T> table){
 		//(variables)
@@ -528,7 +550,7 @@ public final class Database implements Decodable{
 			throw new DatabaseException(e);
 		}
 	}
-	
+
 	public IndexInfo[] getTableIndices(String table){
 		throw new DatabaseException("TODO not yet implemented");
 	}
@@ -536,7 +558,7 @@ public final class Database implements Decodable{
 	/*
 	 * OBJECT MAPPING
 	 */
-	
+
 	private String indexQuery(Annotation index, Field f, String table, int unique){
 		Index.Type type;
 		String fields;
@@ -561,12 +583,15 @@ public final class Database implements Decodable{
 			}
 			//(save fields)
 			fields = key.name();
+		}else if(index instanceof Parent){
+			type = ((Parent) index).indexType();
+			fields = ((Parent) index).localField();
 		}else{
 			throw new IllegalArgumentException("Called indexQuery() with non-index annotation");
 		}
-		
+
 		StringBuilder b = new StringBuilder();
-		
+
 		//(r-tree special case)
 		if(type == Index.Type.RTREE){
 			b.append("CREATE SPATIAL INDEX ");
@@ -644,6 +669,7 @@ public final class Database implements Decodable{
 					query.append(typeJava2sql(type,f, -1));
 					foreignKeys.add(f);
 					entered = true;
+					if(((Parent) ann).indexType() != Index.Type.NONE){ indexQuery(ann,f, table, nextIndexIdentifier++); }
 				}else if(ann instanceof Key){
 					if(entered) throw new DatabaseException("Multiple keys for field: " + f + " in class " + toCreate);
 					if(printComma) query.append(",");
@@ -658,10 +684,10 @@ public final class Database implements Decodable{
 					}
 					entered = true;
 				}else if(ann instanceof Index){
-					indexes.add(indexQuery(ann, f, table,nextIndexIdentifier++));
+					if(((Index) ann).type() != Index.Type.NONE){ indexes.add(indexQuery(ann, f, table,nextIndexIdentifier++)); }
 				}else if(ann instanceof IndexList){
 					for(Index i : ((IndexList) ann).value()){
-						indexes.add(indexQuery(i,f,table,nextIndexIdentifier++));
+						if(i.type() != Index.Type.NONE){ indexes.add(indexQuery(i,f,table,nextIndexIdentifier++)); }
 					}
 				}
 				if(entered){ numKeys += 1; printComma = true; }

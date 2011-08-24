@@ -7,6 +7,8 @@ import scala.collection.JavaConversions._
 import edu.stanford.nlp.util.CoreMap
 import edu.stanford.nlp.util.ArrayCoreMap
 import edu.stanford.nlp.util.TypesafeMap
+import edu.stanford.nlp.ling.Word
+import edu.stanford.nlp.ling.HasWord
 import edu.stanford.nlp.ling.CoreLabel
 import edu.stanford.nlp.ling.CoreAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation
@@ -165,6 +167,11 @@ object JavaNLP {
 		rtn.set(SENTENCES,sents)
 		rtn
 	}
+	def sentences(sents:Array[Array[String]]):CoreMap = {
+		sentences( sents.map{ case (sent:Array[String]) =>
+				sent2corelabels(sent)
+			} )
+	}
 
 	def setAnswers[A <: CoreMap](sent:java.util.List[A],answers:Array[String]
 			):java.util.List[A] = {
@@ -194,6 +201,18 @@ object JavaNLP {
 		lst.map{ (term:CoreMap) => 
 			term.get[String,TextAnnotation](WORD)
 		}.toArray
+	}
+
+	implicit def string2HasWord(str:String):HasWord = new Word(str)
+	implicit def list2HasWord(lst:List[String]):java.util.List[_ <: HasWord] = {
+		val labels:java.util.List[Word] = new java.util.ArrayList[Word]
+		lst.foreach{ case (w:String) => labels.add(new Word(w)) }
+		labels
+	}
+	implicit def array2HasWord(lst:Array[String]):java.util.List[_ <: HasWord] = {
+		val labels:java.util.List[Word] = new java.util.ArrayList[Word]
+		lst.foreach{ case (w:String) => labels.add(new Word(w)) }
+		labels
 	}
 
 	def main(args:Array[String]) = {

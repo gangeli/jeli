@@ -206,10 +206,12 @@ public abstract class DatabaseObject {
 		if(!accessible) toFill.setAccessible(false);
 	}
 
+	@SuppressWarnings("unchecked")
 	public <D extends DatabaseObject> D refreshLinks(){
 		return (D) refreshLinks(false);
 	}
-	
+
+	@SuppressWarnings("unchecked")
 	public <D extends DatabaseObject> D refreshLinks(boolean deep){
 		if(deep){ throw new IllegalStateException("DEEP REFRESH IS BUGGY"); }
 		for(Field f : getDeclaredFields()){

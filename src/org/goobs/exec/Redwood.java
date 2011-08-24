@@ -1,6 +1,5 @@
 package org.goobs.exec;
 
-import javax.sound.midi.SysexMessage;
 import java.util.*;
 
 public class Redwood {
@@ -442,7 +441,7 @@ public class Redwood {
 		long redwood = System.currentTimeMillis()-start;
 		//--Println
 		start = System.currentTimeMillis();
-		for(int i=0; i<10000; i++){
+		for(int i=0; i<1000; i++){
 			System.out.print("println " + i + "\n");
 		}
 		long println = System.currentTimeMillis()-start;

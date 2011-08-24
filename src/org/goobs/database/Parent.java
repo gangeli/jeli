@@ -9,8 +9,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface Parent{
 	String localField();
-	/**
-	 * References the target database name
-	 */
 	String parentField();
+	Index.Type indexType() default Index.Type.HASH;
 }

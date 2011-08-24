@@ -512,7 +512,7 @@ public final class Execution {
 			}
 		}
 		//--Commit
-		outputDB.endTranaction();
+		outputDB.endTransaction();
 	}
 	
 	public static final void setOutputDatabase(Database d){

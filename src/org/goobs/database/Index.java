@@ -11,7 +11,8 @@ public @interface Index {
 	public static enum Type{
 		HASH,
 		BTREE,
-		RTREE
+		RTREE,
+		NONE
 	}
 	
 	public Type type() default Type.BTREE;
