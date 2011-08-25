@@ -1,6 +1,12 @@
 package org.goobs.utils;
 
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class MetaClass {
 
@@ -40,6 +46,7 @@ public class MetaClass {
 		private Class<?>[] classParams;
 		private Class<Type> cl;
 		private Constructor<Type> constructor;
+		private Map<Pair<Field,Object>,WeakReference<Type>> interner = new HashMap<Pair<Field,Object>,WeakReference<Type>>();
 
 		private boolean samePrimitive(Class<?> a, Class<?> b){
 			if(!a.isPrimitive() && !b.isPrimitive()) return false;
@@ -116,7 +123,7 @@ public class MetaClass {
 			// (filter: length)
 			for (int i = 0; i < constructors.length; i++) {
 				constructorParams[i] = constructors[i].getParameterTypes();
-				if (params.length == constructorParams[i].length) { // length is good
+				if (constructors[i].isVarArgs() || params.length == constructorParams[i].length) { // length is good
 					potentials[i] = constructors[i];
 					distances[i] = 0;
 				} else { // length is bad
@@ -125,22 +132,30 @@ public class MetaClass {
 				}
 			}
 			// (filter:type)
-			for (int paramIndex = 0; paramIndex < params.length; paramIndex++) { // for
-																					// each
-																					// parameter...
-				Class<?> target = params[paramIndex];
-				for (int conIndex = 0; conIndex < potentials.length; conIndex++) { // for
-																					// each
-																					// constructor...
-					if (potentials[conIndex] != null) { // if the constructor is
-														// in the pool...
-						Class<?> cand = constructorParams[conIndex][paramIndex];
-						int dist = superDistance(target, cand);
+			for (int paramIndex = 0; paramIndex < params.length; paramIndex++) { // for each parameter...
+				Class<?> argParam = params[paramIndex];
+				for (int conIndex = 0; conIndex < potentials.length; conIndex++) { // for each constructor...
+					if (potentials[conIndex] != null) { // if the constructor is in the pool...
+						//(adjust index for varargs)
+						int conParamIndex = paramIndex;
+						if(paramIndex >= constructorParams[conIndex].length){
+							if(potentials[conIndex].isVarArgs()){
+								conParamIndex = constructorParams[conIndex].length-1;
+							} else {
+								throw new IllegalStateException("INTERNAL: parameter lengths don't match");
+							}
+						}
+						//(get class)
+						Class<?> conParam = constructorParams[conIndex][conParamIndex];
+						if(potentials[conIndex].isVarArgs() && conParamIndex == constructorParams[conIndex].length-1){
+							conParam = conParam.getComponentType();
+						}
+						//(get distance)
+						int dist = superDistance(argParam, conParam);
 						if (dist >= 0) { // and if the constructor matches...
 							distances[conIndex] += dist; // keep it
 						} else {
-							potentials[conIndex] = null; // else, remove it from
-															// the pool
+							potentials[conIndex] = null; // else, remove it from the pool
 							distances[conIndex] = -1;
 						}
 					}
@@ -189,6 +204,10 @@ public class MetaClass {
 			construct(classname, classParams);
 		}
 
+		private ClassFactory(String classname) throws ClassNotFoundException, NoSuchMethodException {
+			construct(classname);
+		}
+
 		/**
 		 * Creates an instance of the class produced in this factory
 		 * 
@@ -201,17 +220,40 @@ public class MetaClass {
 		 */
 		public Type createInstance(Object... params) {
 			try {
+				//(ensure visibility)
 				boolean accessible = true;
 				if(!constructor.isAccessible()){
 					accessible = false;
 					constructor.setAccessible(true);
 				}
-				Type rtn = constructor.newInstance(params);
+				//(create arguments)
+				Object[] toPass = new Object[constructor.getParameterTypes().length];
+				System.arraycopy(params,0,toPass,0,toPass.length-1);
+				if(constructor.isVarArgs()){
+					Class<?> vargsClass = constructor.getParameterTypes()[constructor.getParameterTypes().length-1].getComponentType();
+					int length = params.length - (toPass.length - 1);
+					Object last = Array.newInstance(vargsClass,length);
+					Utils.arraycopy(params,toPass.length-1,last,0,vargsClass,length);
+					toPass[toPass.length-1] = last;
+				}else {
+					toPass[toPass.length-1] = params[params.length-1];
+				}
+				Type rtn = constructor.newInstance(toPass);
 				if(!accessible){ constructor.setAccessible(false); }
 				return rtn;
 			} catch (Exception e) {
 				throw new ClassCreationException(e);
 			}
+		}
+
+		public synchronized Type createCachedInstance(Field f, Object value, Object ... params){
+			Pair<Field,Object> key = Pair.make(f, value);
+			WeakReference<Type> rtn = interner.get(key);
+			if(rtn == null || rtn.get() == null){
+				rtn = new WeakReference<Type>(createInstance(params));
+				interner.put(key,rtn);
+			}
+			return rtn.get();
 		}
 
 		/**
@@ -273,11 +315,29 @@ public class MetaClass {
 	/**
 	 * Creates a new MetaClass producing objects of the given type
 	 * 
-	 * @param classtype
+	 * @param classname
 	 *            The class to create
 	 */
 	public MetaClass(Class<?> classname) {
 		this.classname = classname.getName();
+	}
+
+	/**
+	 * Creates a factory for producing instances of this class from a
+	 * constructor taking no types
+	 *
+	 * @param <E>
+	 *            The type of the objects to be produced
+	 * @return A ClassFactory of the given type
+	 */
+	public <E> ClassFactory<E> createFactory() {
+		try {
+			return new ClassFactory<E>(classname);
+		} catch (ClassCreationException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new ClassCreationException(e);
+		}
 	}
 
 	/**

@@ -1,6 +1,8 @@
 package org.goobs.slib
 
 import java.util.AbstractList
+import java.util.Iterator
+import java.lang.reflect.ParameterizedType
 
 import scala.collection.JavaConversions._
 
@@ -32,28 +34,51 @@ object JavaNLP {
 
 	@Table(name="values")
 	class AnnotationPair[V,A <: CoreAnnotation[V]]
-			(k:A,v:V) extends DatabaseObject {
+			(k:Class[A],v:V) extends DatabaseObject {
 		@PrimaryKey(name="vid")
-		private var vid:Int = 0
+		private var vid:Int = -1
+		@Key(name="mid")
+		private var mid:Int = -1
 		@Key(name="key")
-		private var key = k.getType.toString
+		private var key:Class[A] = k.getType
 		@Key(name="value")
-		private var value = v
+		private var value:V = v
+
+		def describe(indent:Int):Unit = {
+		}
 	}
 
 	@Table(name="maps")
-	class CoreMapWrapper(map:CoreMap) 
-			extends DatabaseObject{
-
+	class CoreMapWrapper(map:CoreMap) extends DatabaseObject{
 		@PrimaryKey(name="mid")
-		private var mid:Int = 0
+		private var mid:Int = -1
 		@Parent(localField="fid", parentField="fid")
-		private var fid:Int = 0
+		private var dataset:CoreMapDataset = null
 
-		def getMap:CoreMap = map
+		def getCoreMap:CoreMap = map
+
+		def apply[A](key:Class[A]):Any = {
+			7
+//			println(key.getGenericInterfaces()(0))
+//			key.getGenericInterfaces()(0).asInstanceOf[ParameterizedType].getActualTypeArguments.foreach{ x =>
+		}
 			
-		def describe:Unit = {
-			//TODO continue me from here!
+		def describe(indent:Int):Unit = {
+			val iter:Iterator[Class[_]] = map.keySet.iterator
+			while(iter.hasNext){
+				val key:Class[_] = iter.next
+				println("  "*indent + key)
+//				val mapClass = classOf[CoreMap]
+//				val get = mapClass.getMethod("get")
+//				val obj = get.invoke(map,key)
+//				println(obj)
+//				val value = apply(key)
+			}
+		}
+
+		override def toString:String = {
+			"CoreMap [" + {if(mid < 0) "unflushed" else mid} + 
+				"] (size " + map.size +")"
 		}
 	}
 
@@ -63,27 +88,25 @@ object JavaNLP {
 		
 		@PrimaryKey(name="fid")
 		private var fid:Int = 0
-		@Child(localField="fid", childField="fid")
-		private var maps:Array[CoreMapWrapper] 
-			= elems.map{ x => new CoreMapWrapper(x) }
 
 		def describe:Unit = {
-			maps.foreach{ (map:CoreMapWrapper) =>
-				println("MAP: " + map.toString)
-				map.describe
+			elems.foreach{ (map:CoreMap) =>
+				val wrapped:CoreMapWrapper = map
+				println("MAP: " + wrapped.toString)
+				wrapped.describe(1)
 			}
 		}
 	}
 
-	implicit def coreAnnotation2CoreAnnWrapper[V,A <: CoreAnnotation[V]](ann:A
-		):CoreAnnotationWrapper[V,A] = CoreAnnotationWrapper(ann)
-	implicit def coreAnnWrapper2CoreAnnotation[V,A <: CoreAnnotation[V]]
-		(wrapper:CoreAnnotationWrapper[V,A]):A = wrapper.ann
-
-	implicit def typesafeMap2typesafeMapWrapper(map:CoreMap
-		):CoreMapWrapper = new CoreMapWrapper(map)
-	implicit def typesafeMapWrapper2TypesafeMap
-		(wrapper:CoreMapWrapper):CoreMap = wrapper.getMap
+//	implicit def coreAnnotation2CoreAnnWrapper[V,A <: CoreAnnotation[V]](ann:A
+//		):CoreAnnotationWrapper[V,A] = CoreAnnotationWrapper(ann)
+//	implicit def coreAnnWrapper2CoreAnnotation[V,A <: CoreAnnotation[V]]
+//		(wrapper:CoreAnnotationWrapper[V,A]):A = wrapper.ann
+//
+//	implicit def typesafeMap2typesafeMapWrapper(map:CoreMap
+//		):CoreMapDatum = new CoreMapDatum(map)
+//	implicit def typesafeMapWrapper2TypesafeMap
+//		(wrapper:CoreMapDatum):CoreMap = wrapper.getCoreMap
 
 	def word2corelabel(word:String):CoreLabel = {
 		val token = new CoreLabel(2)
@@ -216,16 +239,16 @@ object JavaNLP {
 	}
 
 	def main(args:Array[String]) = {
-		val sent1:java.util.List[CoreLabel] 
-			= sent2corelabels("This is a sample sentence".split(" "))
-		val sent2:java.util.List[CoreLabel] 
-			= sent2corelabels("This is another sentence".split(" "))
-		val sents:CoreMap
-			= sentences(Array[java.util.List[CoreLabel]](sent1,sent2))
-
-		val dataset = new CoreMapDataset(Array[CoreMap](sents))
-
-		dataset.describe
+//		val sent1:java.util.List[CoreLabel] 
+//			= sent2corelabels("This is a sample sentence".split(" "))
+//		val sent2:java.util.List[CoreLabel] 
+//			= sent2corelabels("This is another sentence".split(" "))
+//		val sents:CoreMap
+//			= sentences(Array[java.util.List[CoreLabel]](sent1,sent2))
+//
+//		val dataset = new CoreMapDataset(Array[CoreMap](sents))
+//
+//		dataset.describe
 	}
 }
 

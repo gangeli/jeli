@@ -10,7 +10,7 @@ import org.goobs.utils.Utils;
 
 public abstract class DatabaseObject {
 
-	protected static final byte FLAG_NONE = (1<<0);
+	protected static final byte FLAG_NONE = (1);
 	protected static final byte FLAG_IN_DB = (1<<1);
 	protected static final byte FLAG_READ_ONLY = (1<<2);
 	private static final byte FLAG_FLUSHING = (byte) (1<<7);
@@ -22,7 +22,7 @@ public abstract class DatabaseObject {
 	protected Database database;
 	private byte flags = 0x0;
 	
-	private static final boolean flag(byte flags, byte flag){
+	private static boolean flag(byte flags, byte flag){
 		return (flag & flags) != 0;
 	}
 	
@@ -48,8 +48,8 @@ public abstract class DatabaseObject {
 		return rtn;
 	}
 	
-	@SuppressWarnings("rawtypes")
-	protected final <E> DatabaseObject init(Database db, Class <E> clazz, Object[] args, byte flags){
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	protected final <E> E init(Database db, Class <E> clazz, Object[] args, byte flags){
 		this.database = db;
 		//(set flags)
 		this.flags = flags;
@@ -67,7 +67,7 @@ public abstract class DatabaseObject {
 			}
 			m.put(db, database.createObjectInfo(this.getClass(), types));
 		}
-		return this;
+		return (E) this;
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -81,7 +81,10 @@ public abstract class DatabaseObject {
 	protected void setInDatabase(boolean inDB){ setFlag(FLAG_IN_DB, inDB); }
 	public void setReadOnly(boolean readOnly){ setFlag(FLAG_READ_ONLY, readOnly); }
 	
-	
+
+
+
+
 	private <C extends DatabaseObject, P extends DatabaseObject>
 			void backLink(P parent, C child, String childKey){
 //		System.out.println(parent + "  --  " + child + "   on   " + childKey);

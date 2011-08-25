@@ -7,13 +7,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.text.DecimalFormat;
-import java.util.Collection;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Random;
+import java.util.*;
 
 import org.goobs.exec.Log;
 
@@ -394,6 +388,58 @@ public class Utils {
 			return type2class( ((WildcardType) type).getUpperBounds()[0] );
 		}else{
 			throw new IllegalArgumentException("Cannot convert type to class: " + type);
+		}
+	}
+
+	public static Class<?> primitive2wrapper(Class<?> primitive){
+		if(primitive == boolean.class){ return Boolean.class; }
+		else if(primitive == byte.class){ return Byte.class; }
+		else if(primitive == short.class){ return Short.class; }
+		else if(primitive == char.class){ return Character.class; }
+		else if(primitive == int.class){ return Integer.class; }
+		else if(primitive == long.class){ return Long.class; }
+		else if(primitive == float.class){ return Float.class; }
+		else if(primitive == double.class){ return Double.class; }
+		else { throw new IllegalArgumentException("Class is not a primitive: " + primitive); }
+	}
+
+	public static void arraycopy(Object[] src, int srcPos, Object dst, int dstPos, Class<?> dstClass, int length){
+		if(dstClass.isPrimitive()){
+			if(dstClass == boolean.class){
+				boolean[] primitiveSrc = new boolean[src.length];
+				for(int i=0; i<primitiveSrc.length; i++){ primitiveSrc[i] = (Boolean) src[i]; }
+				System.arraycopy(primitiveSrc,srcPos,dst,dstPos,length);
+			} else if(dstClass == byte.class){
+				byte[] primitiveSrc = new byte[src.length];
+				for(int i=0; i<primitiveSrc.length; i++){ primitiveSrc[i] = (Byte) src[i]; }
+				System.arraycopy(primitiveSrc,srcPos,dst,dstPos,length);
+			} else if(dstClass == short.class){
+				short[] primitiveSrc = new short[src.length];
+				for(int i=0; i<primitiveSrc.length; i++){ primitiveSrc[i] = (Short) src[i]; }
+				System.arraycopy(primitiveSrc,srcPos,dst,dstPos,length);
+			} else if(dstClass == char.class){
+				char[] primitiveSrc = new char[src.length];
+				for(int i=0; i<primitiveSrc.length; i++){ primitiveSrc[i] = (Character) src[i]; }
+				System.arraycopy(primitiveSrc,srcPos,dst,dstPos,length);
+			} else if(dstClass == int.class){
+				int[] primitiveSrc = new int[src.length];
+				for(int i=0; i<primitiveSrc.length; i++){ primitiveSrc[i] = (Integer) src[i]; }
+				System.arraycopy(primitiveSrc,srcPos,dst,dstPos,length);
+				} else if(dstClass == long.class){
+				long[] primitiveSrc = new long[src.length];
+				for(int i=0; i<primitiveSrc.length; i++){ primitiveSrc[i] = (Long) src[i]; }
+				System.arraycopy(primitiveSrc,srcPos,dst,dstPos,length);
+			} else if(dstClass == float.class){
+				float[] primitiveSrc = new float[src.length];
+				for(int i=0; i<primitiveSrc.length; i++){ primitiveSrc[i] = (Float) src[i]; }
+				System.arraycopy(primitiveSrc,srcPos,dst,dstPos,length);
+			} else if(dstClass == double.class){
+				double[] primitiveSrc = new double[src.length];
+				for(int i=0; i<primitiveSrc.length; i++){ primitiveSrc[i] = (Double) src[i]; }
+				System.arraycopy(primitiveSrc,srcPos,dst,dstPos,length);
+			}
+		} else {
+			System.arraycopy(src,srcPos,dst,dstPos,length);
 		}
 	}
 	

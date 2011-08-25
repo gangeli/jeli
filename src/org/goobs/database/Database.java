@@ -54,16 +54,16 @@ public final class Database implements Decodable{
 				PreparedStatement onCreate, 
 				PreparedStatement onUpdate,
 				Map<Field,PreparedStatement> keySearch,
-                Map<Field,PreparedStatement> keyDelete,
+				Map<Field,PreparedStatement> keyDelete,
 				Field[] fields){
 			
-			this.factory = factory; 
+			this.factory    = factory;
 			this.primaryKey = primaryKey;
-			this.onCreate=onCreate; 
-			this.onUpdate=onUpdate;
-			this.keySearch = keySearch;
-            this.keyDelete = keyDelete;
-			this.fields=fields;
+			this.onCreate   = onCreate;
+			this.onUpdate   = onUpdate;
+			this.keySearch  = keySearch;
+			this.keyDelete  = keyDelete;
+			this.fields     = fields;
 		}
 	}
 	
