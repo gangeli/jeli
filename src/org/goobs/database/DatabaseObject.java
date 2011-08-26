@@ -75,12 +75,19 @@ public abstract class DatabaseObject {
 		return dbInfo.get(this.getClass()).get(database);
 	}
 
+	@SuppressWarnings({"unchecked"})
 	protected static <E> DBClassInfo<E> getInfo(Class<E> clazz, Database database){
 		Map<Database, DBClassInfo> map = dbInfo.get(clazz);
 		if(map == null){
 			return null;
 		} else {
 			return map.get(database);
+		}
+	}
+
+	protected static void clearInfo(Database database){
+		for(Class clazz : dbInfo.keySet()){
+			dbInfo.get(clazz).remove(database);
 		}
 	}
 	

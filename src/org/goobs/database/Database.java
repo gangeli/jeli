@@ -3,6 +3,7 @@ package org.goobs.database;
 import java.io.File;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
@@ -94,6 +95,8 @@ public final class Database implements Decodable{
 	private Connection conn = null;
 	private Statement lastStatement;
 	private boolean inTransaction = false;
+
+	private Map<Class,Map<Pair<Field,Object>,WeakReference<Object>>> internerMap;
 	
 	private final class ResultSetIterator<E extends DatabaseObject> implements Iterator<E>{
 		private ResultSet rs;
@@ -106,11 +109,7 @@ public final class Database implements Decodable{
 		private ResultSetIterator(ResultSet rs, Class<E> classType){
 			this.rs = rs;
 			this.classType = classType;
-			this.info = DatabaseObject.getInfo(classType, Database.this);
-			if(this.info == null){
-				E obj = emptyObject(classType);
-				this.info = obj.getInfo();
-			}
+			this.info = ensureClassInfo(classType);
 			this.fact = new MetaClass(classType).createFactory(new Class[0]);
 			if(type == MYSQL){
 				try {
@@ -129,7 +128,7 @@ public final class Database implements Decodable{
 						//(create a class)
 						E obj = null;
 						if(info.primaryKey != null){
-							obj = fact.createCachedInstance(info.primaryKey, rs.getObject(info.primaryKeyIndex+1));
+							obj = mkObject(classType,info.primaryKey,castResult(rs, info.primaryKeyIndex, info.primaryKey.getType()),fact);
 						} else {
 							obj = fact.createInstance();
 						}
@@ -266,6 +265,7 @@ public final class Database implements Decodable{
 	 * @return True if the connection was successful, else False.
 	 */
 	public Database connect() {
+		internerMap = new HashMap<Class,Map<Pair<Field,Object>,WeakReference<Object>>>();
 		try {
 			String url = null;
 			switch(type){
@@ -300,6 +300,8 @@ public final class Database implements Decodable{
 	}
 	
 	public void disconnect(){
+		internerMap = null;
+		DatabaseObject.clearInfo(this);
 		try {
 			conn.close();
 			conn = null;
@@ -771,11 +773,71 @@ public final class Database implements Decodable{
 		return true;
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked"})
 	public <E extends DatabaseObject> E emptyObject(Class<E> classType, Object... args){
 		DBClassInfo<E> info = DatabaseObject.getInfo(classType,this);
 		E rtn = (E) new MetaClass(classType).createInstance(args);
 		rtn.init(this, classType, args, DatabaseObject.FLAG_NONE);
+		return rtn;
+	}
+
+	private void cacheObject(Object instance, Field field, Object fieldValue){
+		Class<?> clazz = instance.getClass();
+		Pair<Field, Object> key = Pair.make(field, fieldValue);
+		Map<Pair<Field, Object>, WeakReference<Object>> interner = internerMap.get(clazz);
+		//(get map)
+		if(interner == null){
+			interner = new HashMap<Pair<Field, Object>, WeakReference<Object>>();
+			internerMap.put(clazz,interner);
+		}
+		//(get reference)
+		WeakReference<Object> ref = interner.get(key);
+		if(ref == null || ref.get() == null){
+			ref = new WeakReference<Object>(instance);
+			interner.put(key,ref);
+		} else {
+			throw new IllegalArgumentException("Caching an object which is already in the cache: " + instance);
+		}
+	}
+
+	@SuppressWarnings({"unchecked"})
+	private synchronized <E extends DatabaseObject> E mkObject(Class<E> classType, Field f, Object value, MetaClass.ClassFactory fact){
+		Map<Pair<Field, Object>, WeakReference<Object>> interner = internerMap.get(classType);
+		if(interner == null){
+			interner = new HashMap<Pair<Field, Object>, WeakReference<Object>>();
+			internerMap.put(classType,interner);
+		}
+
+		Pair<Field,Object> key = Pair.make(f, value);
+		WeakReference<Object> rtn = interner.get(key);
+		if(rtn == null || rtn.get() == null){
+			if(rtn != null && rtn.get() == null){ interner.remove(key); }
+			rtn = new WeakReference<Object>(fact.createInstance());
+			interner.put(key, rtn);
+		}
+		return (E) rtn.get();
+
+	}
+
+	@SuppressWarnings({"unchecked"})
+	private <E extends DatabaseObject> E cachedObject(Class<E> classType, ResultSet rs) throws SQLException{
+		DBClassInfo<E> info = ensureClassInfo(classType);
+		E rtn = null;
+		//--Get Object
+		if(info.primaryKey == null){
+			//(case: no primary key; can't cache)
+			rtn = (E) new MetaClass(classType).createInstance();
+		} else {
+			//(case: object might be in the cache)
+			Object pk = castResult(rs, info.primaryKeyIndex, info.primaryKey.getType());
+			rtn = mkObject(classType, info.primaryKey, pk, new MetaClass(classType).createFactory());
+		}
+		//--Process Object
+		if(!rtn.isInDatabase()){
+			populateObject(info, rs, rtn);
+			rtn.init(this, classType, null, DatabaseObject.FLAG_IN_DB);
+		}
+		//--Return
 		return rtn;
 	}
 	
@@ -804,8 +866,7 @@ public final class Database implements Decodable{
 
     public <E extends DatabaseObject> boolean deleteObjectById(Class<E> clazz, int id){
 		try {
-			E instance = emptyObject(clazz);
-			DBClassInfo<E> info = instance.getInfo();
+			DBClassInfo<E> info = ensureClassInfo(clazz);
 			if(info.primaryKey == null){ throw new DatabaseException("Cannot delete object by id: object has no primary key: " + clazz); }
 			PreparedStatement psmt = info.keyDelete.get(info.primaryKey);
 			psmt.setInt(1, id);
@@ -825,11 +886,7 @@ public final class Database implements Decodable{
 				return null;
 			}
 			//(get the result)
-			E rtn =  emptyObject(classType);
-			DBClassInfo <E> info = rtn.getInfo();
-			populateObject(info, results, rtn);
-			rtn.init(this, rtn.getClass(), null, DatabaseObject.FLAG_IN_DB);
-			return rtn;
+			return cachedObject(classType, results);
 		} catch (SQLException e) {
 			return null;
 		}
@@ -860,12 +917,7 @@ public final class Database implements Decodable{
 				return null;
 			}
 			//(get the result)
-			E rtn =  emptyObject(classType);
-			DBClassInfo <E> info = rtn.getInfo();
-			populateObject(info, results, rtn);
-			rtn.init(this, rtn.getClass(), null, DatabaseObject.FLAG_IN_DB);
-			results.close();
-			return rtn;
+			return cachedObject(classType, results);
 		} catch (SQLException e) {
 			return null;
 		}
@@ -890,8 +942,7 @@ public final class Database implements Decodable{
 	
 	public <E extends DatabaseObject> E getObjectById(Class<E> clazz, int id){
 		try {
-			E instance = emptyObject(clazz);
-			DBClassInfo<E> info = instance.getInfo();
+			DBClassInfo<E> info = ensureClassInfo(clazz);
 			if(info.primaryKey == null){ throw new DatabaseException("Cannot get object by id: object has no primary key: " + clazz); }
 			PreparedStatement psmt = info.keySearch.get(info.primaryKey);
 			psmt.setInt(1, id);
@@ -899,9 +950,7 @@ public final class Database implements Decodable{
 			if(!results.next()){
 				return null;
 			}
-			E rtn =  populateObject(info, results, instance);
-			rtn.init(this, rtn.getClass(), null, DatabaseObject.FLAG_IN_DB);
-			return rtn;
+			return cachedObject(clazz,results);
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
 		}
@@ -909,8 +958,7 @@ public final class Database implements Decodable{
 	
 	public <E extends DatabaseObject> E getObjectByKey(Class<E> clazz, String key, Object value){
 		try {
-			E instance = emptyObject(clazz);
-			DBClassInfo<E> info = instance.getInfo();
+			DBClassInfo<E> info = ensureClassInfo(clazz);
 			PreparedStatement psmt = null;
 			//(get key)
 			for(Field x : info.keySearch.keySet()){
@@ -939,9 +987,7 @@ public final class Database implements Decodable{
 			if(!results.next()){
 				return null;
 			}
-			E rtn = populateObject(info, results, instance);
-			rtn.init(this, rtn.getClass(), null, DatabaseObject.FLAG_IN_DB);
-			return rtn;
+			return cachedObject(clazz, results);
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
 		}
@@ -949,8 +995,7 @@ public final class Database implements Decodable{
 	
 	public <E extends DatabaseObject> Iterator<E> getObjectsByKey(Class<E> clazz, String key, Object value){
 		try {
-			E instance = emptyObject(clazz);
-			DBClassInfo<E> info = instance.getInfo();
+			DBClassInfo<E> info = ensureClassInfo(clazz);
 			PreparedStatement psmt = null;
 			//(get key)
 			for(Field x : info.keySearch.keySet()){
@@ -1311,6 +1356,13 @@ public final class Database implements Decodable{
 		}else{
 			addRow(info, instance);
 			instance.setInDatabase(true);
+			if(info.primaryKey != null){
+				try {
+					cacheObject(instance, info.primaryKey, info.primaryKey.get(instance));
+				} catch (IllegalAccessException e) {
+					throw new DatabaseException("Could not cache object: " + instance);
+				}
+			}
 		}
 	}
 
@@ -1477,8 +1529,32 @@ public final class Database implements Decodable{
 			return o;
 		}
 	}
+
+	@SuppressWarnings({"unchecked"})
+	private <E> E castResult(ResultSet results, int index, Class<E> clazz) throws SQLException{
+		Object o = results.getObject(index+1);
+		if(o instanceof byte[]){
+			//(object stream)
+			return (E) Utils.bytes2obj((byte[]) o);
+		}else{
+			//(native type)
+			if(type == SQLITE){
+				return (E) Utils.cast(o == null ? null : o.toString(), clazz);	//sqlite has no types
+			}else{
+				if(o instanceof BigInteger){
+					long tmp = ((BigInteger) o).longValue();
+					if(tmp < Integer.MAX_VALUE){
+						o = (int) tmp;
+					}else{
+						o = tmp;
+					}
+				}
+				return (E) db2obj(clazz, o);
+			}
+		}
+	}
 	
-	private final <E extends DatabaseObject> E populateObject(DBClassInfo<E> info, ResultSet results, E instance){
+	private <E extends DatabaseObject> E populateObject(DBClassInfo<E> info, ResultSet results, E instance){
 		try {
 			Field[] fields = info.fields;
 			for(int i=0; i<fields.length; i++){
@@ -1489,26 +1565,7 @@ public final class Database implements Decodable{
 					f.setAccessible(true);
 					accessible = false;
 				}
-				Object o = results.getObject(i+1);
-				if(o instanceof byte[]){
-					//(object stream)
-					f.set(instance, Utils.bytes2obj((byte[]) o));
-				}else{
-					//(native type)
-					if(type == SQLITE){
-						f.set(instance, Utils.cast(o == null ? null : o.toString(), f.getType()));	//sqlite has no types
-					}else{
-						if(o instanceof BigInteger){
-							long tmp = ((BigInteger) o).longValue();
-							if(tmp < Integer.MAX_VALUE){
-								o = (int) tmp;
-							}else{
-								o = tmp;
-							}
-						}
-						f.set(instance, db2obj(f.getType(), o));
-					}
-				}
+				f.set(instance, castResult(results, i, f.getType()));
 				if(!accessible){ f.setAccessible(false); }
 			}
 			return instance;
@@ -1518,6 +1575,15 @@ public final class Database implements Decodable{
 			throw new DatabaseException(e);
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
+		}
+	}
+
+	private <E extends DatabaseObject> DBClassInfo<E> ensureClassInfo(Class<E> clazz){
+		DBClassInfo cand = DatabaseObject.getInfo(clazz, this);
+		if(cand != null){
+			return cand;
+		} else {
+			return emptyObject(clazz).getInfo();
 		}
 	}
 	

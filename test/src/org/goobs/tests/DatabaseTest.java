@@ -587,6 +587,8 @@ public class DatabaseTest{
 			//(load)
 			f = d.getObjectById(TableStandardFields.class, f.id);
 			assertTrue(f != null);
+			TableStandardFields g = d.getObjectById(TableStandardFields.class, f.id);
+			assertTrue("Strict equality should hold between two identical reads", f == g);
 			//(check)
 			assertTrue(f.id != 0);
 			assertEquals(f.fieldA, "string");
@@ -604,6 +606,8 @@ public class DatabaseTest{
 			x.pk = 0;
 			x.flush();
 			assertTrue(x.pk != 0);
+			TablePrimaryKeyPlus y = d.getObjectById(TablePrimaryKeyPlus.class, x.pk);
+			assertTrue( x == y );
 			
 			d.disconnect();
 		}
@@ -665,11 +669,14 @@ public class DatabaseTest{
 		assertTrue(f != null);
 		//(check)
 		if(Double.isNaN(exp)){
-			assertEquals(fexp, f.fieldFloat, 0.0);
-			assertEquals(exp, f.fieldDouble, 0.0);
+			assertTrue("Not NaN: " + f.fieldDouble, Double.isNaN(f.fieldDouble));
 		}else{
-			assertEquals(fexp, f.fieldFloat, 0.0001);
 			assertEquals(exp, f.fieldDouble, 0.0001);
+		}
+		if(Float.isNaN(fexp)){
+			assertTrue(Float.isNaN(f.fieldFloat));
+		} else {
+			assertEquals(fexp, f.fieldFloat, 0.0001);
 		}
 	}
 	
@@ -679,16 +686,17 @@ public class DatabaseTest{
 		short sval = (short) val;
 		int ival = (int) val;
 		//(save)
-		TableStandardFields f = d.emptyObject(TableStandardFields.class);
-		f.fieldByte = bval;
-		f.fieldChar = cval;
-		f.fieldShort = sval;
-		f.fieldInt = ival;
-		f.fieldLong = val;
-		f.flush();
+		TableStandardFields g = d.emptyObject(TableStandardFields.class);
+		g.fieldByte = bval;
+		g.fieldChar = cval;
+		g.fieldShort = sval;
+		g.fieldInt = ival;
+		g.fieldLong = val;
+		g.flush();
 		//(load)
-		f = d.getObjectById(TableStandardFields.class, f.id);
+		TableStandardFields f = d.getObjectById(TableStandardFields.class, g.id);
 		assertTrue(f != null);
+		assertTrue(f == g);
 		//(check)
 		assertEquals(bval, f.fieldByte);
 		assertEquals(cval, f.fieldChar);
@@ -756,8 +764,8 @@ public class DatabaseTest{
 			assertEquals(Long.MAX_VALUE, f.fieldLong);
 			//--Special Cases
 			floatTest(d,Double.NaN, Double.NaN);
-			floatTest(d,Double.NEGATIVE_INFINITY, Double.NaN);
-			floatTest(d,Double.POSITIVE_INFINITY, Double.NaN);
+			floatTest(d,Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY);
+			floatTest(d,Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
 			//--Random tests
 			Random r = new Random();
 			for(int i=0; i<10; i++){
@@ -1522,24 +1530,32 @@ public class DatabaseTest{
 			r2_1.flush(); //make sure this works too
 			//(foreign relations should not be set)
 			TableFKBase b1bak = b1;
+//			d.disconnect(); //reset cache
+//			d.connect();
 			b1 = d.getObjectById(TableFKBase.class, b1.id);
-			assertNull(b1.parent);
-			assertNull(b1.child);
-			assertNull(b1.sub1);
-			assertNull(b1.sub2);
+//			assertNull(b1.parent);
+//			assertNull(b1.child);
+//			assertNull(b1.sub1);
+//			assertNull(b1.sub2);
 			//(foreign key relations should be set now)
 			b1.refreshLinks();
 			assertNotNull(b1.parent);
 			assertEquals(b1bak.parent.id, b1.parent.id);
+			assertTrue(b1bak == b1);
 			if(b1bak.child != null) assertNotNull(b1.child);
-			if(b1bak.child != null) assertEquals(b1bak.child.id, b1.child.id);
+			if(b1bak.child != null){
+				assertEquals(b1bak.child.id, b1.child.id);
+				assertTrue(b1bak.child == b1.child);
+			}
 			assertNotNull(b1.sub1);
 			assertEquals(b1bak.sub1.length, b1.sub1.length);
 			for(int i=0; i<b1.sub1.length; i++){
 				assertEquals(b1bak.sub1[i].id, b1.sub1[i].id);
+				assertTrue(b1bak.sub1[i] == b1.sub1[i]);
 			}
 			assertNotNull(b1.sub2);
 			assertEquals(b1bak.sub2.id, b1.sub2.id);
+			assert(b1bak.sub2 == b1.sub2);
 			
 			//--Cleanup
 			d.disconnect();

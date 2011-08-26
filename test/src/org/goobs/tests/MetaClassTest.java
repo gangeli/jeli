@@ -379,23 +379,5 @@ public class MetaClassTest{
 		assertTrue(a.a[1] == 2);
 		assertTrue(a.a[2] == 3);
 	}
-
-	@Test
-	public void testCaching() throws NoSuchFieldException{
-		MetaClass.ClassFactory<Cacheable> fact = MetaClass.create(CLASS+"$Cacheable").createFactory(int.class,int.class);
-		Cacheable v11 = fact.createCachedInstance(Cacheable.class.getField("pk"),1,  1,1);
-		assertNotNull(v11);
-		assertEquals(1,v11.pk);
-		assertEquals(1,v11.qk);
-		Cacheable v12 = fact.createCachedInstance(Cacheable.class.getField("pk"),1,  1,2);
-		assertTrue(v11 == v12);
-		Cacheable v21 = fact.createCachedInstance(Cacheable.class.getField("qk"),1,  2,1);
-		assertTrue(v11 != v21);
-		v11 = fact.createCachedInstance(Cacheable.class.getField("qk"),1,  1,1);
-		v21 = fact.createCachedInstance(Cacheable.class.getField("qk"),1,  2,1);
-		assertTrue(v11 == v21);
-		Cacheable v22 = fact.createCachedInstance(Cacheable.class.getField("qk"),2,  2,2);
-		assertTrue(v11 != v22);
-	}
 	
 }

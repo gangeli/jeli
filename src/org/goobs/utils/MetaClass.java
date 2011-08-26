@@ -1,5 +1,7 @@
 package org.goobs.utils;
 
+import com.sun.org.apache.bcel.internal.generic.NEW;
+
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
@@ -46,7 +48,6 @@ public class MetaClass {
 		private Class<?>[] classParams;
 		private Class<Type> cl;
 		private Constructor<Type> constructor;
-		private Map<Pair<Field,Object>,WeakReference<Type>> interner = new HashMap<Pair<Field,Object>,WeakReference<Type>>();
 
 		private boolean samePrimitive(Class<?> a, Class<?> b){
 			if(!a.isPrimitive() && !b.isPrimitive()) return false;
@@ -105,6 +106,7 @@ public class MetaClass {
 		@SuppressWarnings("unchecked")
 		private void construct(String classname, Class<?>... params)
 				throws ClassNotFoundException, NoSuchMethodException {
+			//--Initialization
 			// (save class parameters)
 			this.classParams = params;
 			// (create class)
@@ -250,29 +252,6 @@ public class MetaClass {
 			} catch (Exception e) {
 				throw new ClassCreationException(e);
 			}
-		}
-
-		/**
-		 * Creates an instance of the class produced in this factory, cached on the value
-		 * of a particular field (i.e. a primary key for a database)
-		 *
-		 * @param f The field to cache on
-		 * @param value The value of the field to cache on
-		 * @param params
-		 *            The arguments to the constructor of the class NOTE: the
-		 *            resulting instance will [unlike java] invoke the most
-		 *            narrow constructor rather than the one which matches the
-		 *            signature passed to this function
-		 * @return An instance of the class
-		 */
-		public synchronized Type createCachedInstance(Field f, Object value, Object ... params){
-			Pair<Field,Object> key = Pair.make(f, value);
-			WeakReference<Type> rtn = interner.get(key);
-			if(rtn == null || rtn.get() == null){
-				rtn = new WeakReference<Type>(createInstance(params));
-				interner.put(key,rtn);
-			}
-			return rtn.get();
 		}
 
 		/**
@@ -437,26 +416,6 @@ public class MetaClass {
 	}
 
 	/**
-	 * Create an instance of the class, inferring the type automatically, and
-	 * given an array of objects as constructor parameters NOTE: the resulting
-	 * instance will [unlike java] invoke the most narrow constructor rather
-	 * than the one which matches the signature passed to this function .
-	 * This function returns a cached object, on a particular field and value.
-	 *
-	 * @param <E>
-	 *            The type of the object returned
-	 * @param f the field to cache on
-	 * @param value the value of the field to cache on
-	 * @param objects
-	 *            The arguments to the constructor of the class
-	 * @return An instance of the class
-	 */
-	public <E> E createCachedInstance(Field f, Object value, Object... objects) {
-		ClassFactory<E> fact = createFactory(objects);
-		return fact.createCachedInstance(f,value,objects);
-	}
-
-	/**
 	 * Creates an instance of the class, forcing a cast to a certain type and
 	 * given an array of objects as constructor parameters NOTE: the resulting
 	 * instance will [unlike java] invoke the most narrow constructor rather
@@ -529,4 +488,5 @@ public class MetaClass {
 	public static MetaClass create(Class <?> clazz) {
 		return new MetaClass(clazz);
 	}
+
 }
