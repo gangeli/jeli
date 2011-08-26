@@ -1472,11 +1472,10 @@ public class DatabaseTest{
 			TableFKBase b3 = d.emptyObject(TableFKBase.class);
 			//(sub1)
 			TableFKRef1 r1_1 = d.emptyObject(TableFKRef1.class, "r1.1",
-					new TableFKRef1_1[]{
 					d.emptyObject(TableFKRef1_1.class,"r1_1.1"),
 					d.emptyObject(TableFKRef1_1.class,"r1_1.2"),
 					d.emptyObject(TableFKRef1_1.class,"r1_1.3"),
-					d.emptyObject(TableFKRef1_1.class,"r1_1.4")}
+					d.emptyObject(TableFKRef1_1.class,"r1_1.4")
 				);
 			r1_1.pid = b1;
 			assertEquals(0, d.getTableRowCount(TableFKRef1_1.class));
@@ -1486,11 +1485,10 @@ public class DatabaseTest{
 			//(mid-test: b1 should have flushed)
 			assertNotNull(d.getObjectById(TableFKBase.class, b1.id));
 			TableFKRef1 r1_2 = d.emptyObject(TableFKRef1.class, "r1.2",
-					new TableFKRef1_1[]{
 					d.emptyObject(TableFKRef1_1.class,"r1_1.5"),
 					d.emptyObject(TableFKRef1_1.class,"r1_1.6"),
 					d.emptyObject(TableFKRef1_1.class,"r1_1.7"),
-					d.emptyObject(TableFKRef1_1.class,"r1_1.8")});
+					d.emptyObject(TableFKRef1_1.class,"r1_1.8"));
 			r1_2.pid = b1;
 			r1_2.deepFlush();
 			//(sub2)

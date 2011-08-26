@@ -123,10 +123,13 @@ public class MetaClass {
 			// (filter: length)
 			for (int i = 0; i < constructors.length; i++) {
 				constructorParams[i] = constructors[i].getParameterTypes();
-				if (constructors[i].isVarArgs() || params.length == constructorParams[i].length) { // length is good
+				if (constructors[i].isVarArgs() && params.length > constructorParams[i].length-1) { // length is good (varargs)
 					potentials[i] = constructors[i];
 					distances[i] = 0;
-				} else { // length is bad
+				} else if(params.length == constructorParams[i].length){                            // length is good (standard
+					potentials[i] = constructors[i];
+					distances[i] = 0;
+				} else {                                                                            // length is bad
 					potentials[i] = null;
 					distances[i] = -1;
 				}
@@ -228,14 +231,17 @@ public class MetaClass {
 				}
 				//(create arguments)
 				Object[] toPass = new Object[constructor.getParameterTypes().length];
-				System.arraycopy(params,0,toPass,0,toPass.length-1);
+				if(params.length < toPass.length){
+					throw new IllegalArgumentException("Too few arguments to constructror (" + toPass.length + " but only passed " + params.length + ")");
+				}
+				System.arraycopy(params,0,toPass,0, toPass.length == 0 ? 0 : toPass.length-1);
 				if(constructor.isVarArgs()){
 					Class<?> vargsClass = constructor.getParameterTypes()[constructor.getParameterTypes().length-1].getComponentType();
 					int length = params.length - (toPass.length - 1);
 					Object last = Array.newInstance(vargsClass,length);
 					Utils.arraycopy(params,toPass.length-1,last,0,vargsClass,length);
 					toPass[toPass.length-1] = last;
-				}else {
+				}else if(toPass.length > 0){
 					toPass[toPass.length-1] = params[params.length-1];
 				}
 				Type rtn = constructor.newInstance(toPass);
@@ -246,6 +252,19 @@ public class MetaClass {
 			}
 		}
 
+		/**
+		 * Creates an instance of the class produced in this factory, cached on the value
+		 * of a particular field (i.e. a primary key for a database)
+		 *
+		 * @param f The field to cache on
+		 * @param value The value of the field to cache on
+		 * @param params
+		 *            The arguments to the constructor of the class NOTE: the
+		 *            resulting instance will [unlike java] invoke the most
+		 *            narrow constructor rather than the one which matches the
+		 *            signature passed to this function
+		 * @return An instance of the class
+		 */
 		public synchronized Type createCachedInstance(Field f, Object value, Object ... params){
 			Pair<Field,Object> key = Pair.make(f, value);
 			WeakReference<Type> rtn = interner.get(key);
@@ -415,6 +434,26 @@ public class MetaClass {
 	public <E> E createInstance(Object... objects) {
 		ClassFactory<E> fact = createFactory(objects);
 		return fact.createInstance(objects);
+	}
+
+	/**
+	 * Create an instance of the class, inferring the type automatically, and
+	 * given an array of objects as constructor parameters NOTE: the resulting
+	 * instance will [unlike java] invoke the most narrow constructor rather
+	 * than the one which matches the signature passed to this function .
+	 * This function returns a cached object, on a particular field and value.
+	 *
+	 * @param <E>
+	 *            The type of the object returned
+	 * @param f the field to cache on
+	 * @param value the value of the field to cache on
+	 * @param objects
+	 *            The arguments to the constructor of the class
+	 * @return An instance of the class
+	 */
+	public <E> E createCachedInstance(Field f, Object value, Object... objects) {
+		ClassFactory<E> fact = createFactory(objects);
+		return fact.createCachedInstance(f,value,objects);
 	}
 
 	/**

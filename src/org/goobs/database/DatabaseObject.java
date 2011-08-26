@@ -74,6 +74,15 @@ public abstract class DatabaseObject {
 	protected <E> DBClassInfo<E> getInfo(){
 		return dbInfo.get(this.getClass()).get(database);
 	}
+
+	protected static <E> DBClassInfo<E> getInfo(Class<E> clazz, Database database){
+		Map<Database, DBClassInfo> map = dbInfo.get(clazz);
+		if(map == null){
+			return null;
+		} else {
+			return map.get(database);
+		}
+	}
 	
 	public boolean isInDatabase(){
 		return flag(flags, FLAG_IN_DB);

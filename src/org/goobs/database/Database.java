@@ -27,12 +27,14 @@ import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.sun.xml.internal.bind.v2.model.core.ClassInfo;
 import org.goobs.io.Console;
 import org.goobs.io.TextConsole;
 import org.goobs.utils.Decodable;
 import org.goobs.utils.MetaClass;
 import org.goobs.utils.Pair;
 import org.goobs.utils.Utils;
+import sun.beans.editors.FloatEditor;
 
 public final class Database implements Decodable{
 	
@@ -46,8 +48,10 @@ public final class Database implements Decodable{
 		private Field primaryKey;
 		private PreparedStatement onCreate, onUpdate;
 		private Map<Field,PreparedStatement> keySearch;
-        private Map<Field,PreparedStatement> keyDelete;
+		private Map<Field,PreparedStatement> keyDelete;
 		private Field[] fields;
+		private int primaryKeyIndex = -1;
+
 		private DBClassInfo(
 				MetaClass.ClassFactory <E> factory, 
 				Field primaryKey,
@@ -56,7 +60,7 @@ public final class Database implements Decodable{
 				Map<Field,PreparedStatement> keySearch,
 				Map<Field,PreparedStatement> keyDelete,
 				Field[] fields){
-			
+			//--Set Variables
 			this.factory    = factory;
 			this.primaryKey = primaryKey;
 			this.onCreate   = onCreate;
@@ -64,6 +68,14 @@ public final class Database implements Decodable{
 			this.keySearch  = keySearch;
 			this.keyDelete  = keyDelete;
 			this.fields     = fields;
+			//--Set Computations
+			if(primaryKey != null){
+				int i=0;
+				for(Field f : fields){
+					if(f.getAnnotation(PrimaryKey.class) != null){ primaryKeyIndex = i; }
+					i += 1;
+				}
+			}
 		}
 	}
 	
@@ -94,8 +106,11 @@ public final class Database implements Decodable{
 		private ResultSetIterator(ResultSet rs, Class<E> classType){
 			this.rs = rs;
 			this.classType = classType;
-			E instance = emptyObject(classType);
-			this.info = instance.getInfo();
+			this.info = DatabaseObject.getInfo(classType, Database.this);
+			if(this.info == null){
+				E obj = emptyObject(classType);
+				this.info = obj.getInfo();
+			}
 			this.fact = new MetaClass(classType).createFactory(new Class[0]);
 			if(type == MYSQL){
 				try {
@@ -112,8 +127,15 @@ public final class Database implements Decodable{
 				if(next == null){
 					if(rs.next()){
 						//(create a class)
-						E obj = fact.createInstance(new Object[0]);
-						obj.init(Database.this, classType, null, DatabaseObject.FLAG_IN_DB);
+						E obj = null;
+						if(info.primaryKey != null){
+							obj = fact.createCachedInstance(info.primaryKey, rs.getObject(info.primaryKeyIndex+1));
+						} else {
+							obj = fact.createInstance();
+						}
+						if(!obj.isInDatabase()){
+							obj.init(Database.this, classType, null, DatabaseObject.FLAG_IN_DB);
+						}
 						populateObject(info, rs, obj);
 						next = obj;
 						return true;
@@ -751,6 +773,7 @@ public final class Database implements Decodable{
 
 	@SuppressWarnings("unchecked")
 	public <E extends DatabaseObject> E emptyObject(Class<E> classType, Object... args){
+		DBClassInfo<E> info = DatabaseObject.getInfo(classType,this);
 		E rtn = (E) new MetaClass(classType).createInstance(args);
 		rtn.init(this, classType, args, DatabaseObject.FLAG_NONE);
 		return rtn;
@@ -1382,9 +1405,18 @@ public final class Database implements Decodable{
 		return fieldList;
 	}
 
-	private static final Object db2obj(Class<?> type, Object o){
-		if(o == null){if(type == boolean.class){ return false;} else {return null;}}
-		if(type == long.class || type == Long.class){				//long
+	private static Object db2obj(Class<?> type, Object o){
+		if(o == null){
+			if(type == boolean.class){
+					return false;
+			} else if(type == float.class || type == Float.class){
+				return Float.NaN;
+			} else if(type == double.class || type == Double.class){
+				return Double.NaN;
+			} else {
+				return null;
+			}
+		}else if(type == long.class || type == Long.class){				//long
 			return ((Number) o).longValue();
 		}else if(type == int.class || type == Integer.class){		//int
 			return ((Number) o).intValue();
@@ -1397,17 +1429,9 @@ public final class Database implements Decodable{
 		}else if(type == boolean.class || type == Boolean.class){			//boolean
 			return ((Boolean) o).booleanValue();
 		}else if(type == double.class || type == Double.class){		//double
-			if(o == null){
-				return Double.NaN;
-			}else{
-				return ((Number) o).doubleValue();
-			}
+			return ((Number) o).doubleValue();
 		}else if(type == float.class || type == Float.class){		//float
-			if(o == null){
-				return Float.NaN;
-			}else{
-				return ((Number) o).floatValue();
-			}
+			return ((Number) o).floatValue();
 		}else if(Decodable.class.isAssignableFrom(type)){			//decodable
 			if(o == null){ return null; }
 			Decodable d;
@@ -1441,12 +1465,14 @@ public final class Database implements Decodable{
 			}else if(type.getComponentType().isAssignableFrom(String.class)){
 				return strings;
 			}else{
-				Object[] rtn = (Object[]) Array.newInstance(type.getComponentType(), strings.length);
-				for(int i=0; i<rtn.length; i++){
-					rtn[i] = Utils.cast(strings[i], type.getComponentType());
+				Object dst = Array.newInstance(type.getComponentType(), strings.length);
+				Object[] src = new Array[strings.length];
+				for(int i=0; i<src.length; i++){
+					src[i] = Utils.cast(strings[i], type.getComponentType());
 				}
-				return rtn;
-			}        //TODO primitive arrays
+				Utils.arraycopy(src,0,dst,0,type.getComponentType(),strings.length);
+				return dst;
+			}
 		}else{														//else
 			return o;
 		}
