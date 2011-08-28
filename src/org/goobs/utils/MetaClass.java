@@ -1,7 +1,6 @@
 package org.goobs.utils;
 
-import com.sun.org.apache.bcel.internal.generic.NEW;
-
+import java.lang.annotation.Annotation;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
@@ -487,6 +486,40 @@ public class MetaClass {
 	 */
 	public static MetaClass create(Class <?> clazz) {
 		return new MetaClass(clazz);
+	}
+
+	public static Field[] getDeclaredFields(Class c){
+		Field[] rtn = new Field[0];
+		while(c != null){
+			rtn = Utils.concat(rtn, c.getDeclaredFields());
+			c = c.getSuperclass();
+		}
+		return rtn;
+	}
+
+	public static <E> Field findField(Class<E> clazz, String field) throws NoSuchFieldException {
+		try {
+			return clazz.getField(field);
+		} catch (NoSuchFieldException e) {
+			Field[] fields = getDeclaredFields(clazz);
+			for(Field f : fields){
+				if(f.getName().equals(field)) {
+					return f;
+				}
+			}
+			throw new NoSuchFieldException(field + " in " + clazz);
+		}
+	}
+
+	@SuppressWarnings({"unchecked"})
+	public static <E extends Annotation> E findAnnotation(Class clazz, Class<E> ann) {
+		if(clazz == null){ return null; }
+		E cand = (E) clazz.getAnnotation(ann);
+		if(cand == null){
+			return findAnnotation(clazz.getSuperclass(), ann);
+		} else {
+			return cand;
+		}
 	}
 
 }

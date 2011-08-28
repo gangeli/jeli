@@ -147,10 +147,10 @@ public abstract class ExternalPrimitive extends ScmObject implements Primitive{
 //		System.out.println(schemify("hello"));
 //		System.out.println(schemify(5));
 //		System.out.println(schemify(new String[]{"hello", "there", "world"}));
-//		List tmp = new LinkedList();
+//		DBList tmp = new LinkedList();
 //		tmp.add("hello");
 //		tmp.add(7);
-//		List tmp2 = new LinkedList();
+//		DBList tmp2 = new LinkedList();
 //		tmp2.add("world");
 //		tmp2.add(3.8);
 //		tmp.add(tmp2);

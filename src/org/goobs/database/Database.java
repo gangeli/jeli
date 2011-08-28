@@ -15,27 +15,16 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.sun.xml.internal.bind.v2.model.core.ClassInfo;
 import org.goobs.io.Console;
 import org.goobs.io.TextConsole;
 import org.goobs.utils.Decodable;
 import org.goobs.utils.MetaClass;
 import org.goobs.utils.Pair;
 import org.goobs.utils.Utils;
-import sun.beans.editors.FloatEditor;
 
 public final class Database implements Decodable{
 	
@@ -415,10 +404,10 @@ public final class Database implements Decodable{
 	}
 
 	public static String getTableName(Class<? extends DatabaseObject> clazz){
-		if( clazz.getAnnotation(Table.class) == null ){
+		if( MetaClass.findAnnotation(clazz, Table.class) == null ){
 			throw new IllegalStateException("Database object has no Table annotation");
 		} else {
-			return clazz.getAnnotation(Table.class).name();
+			return MetaClass.findAnnotation(clazz, Table.class).name();
 		}
 	}
 
@@ -437,7 +426,7 @@ public final class Database implements Decodable{
 	
 	public <E extends DatabaseObject> boolean hasTable(Class<E> clazz){
 		try {
-			return hasTable(clazz.getAnnotation(Table.class).name());
+			return hasTable(MetaClass.findAnnotation(clazz, Table.class).name());
 		} catch (RuntimeException e) {
 			if(e instanceof DatabaseException){ throw e; }
 			throw new DatabaseException("Could not find table with class: " + clazz);
@@ -484,7 +473,7 @@ public final class Database implements Decodable{
 	 */
 	public <E extends DatabaseObject> boolean dropTable(Class<E> clazz){
 		if(!this.hasTable(clazz)){ return false; }
-		Table ann = clazz.getAnnotation(Table.class);
+		Table ann = MetaClass.findAnnotation(clazz, Table.class);
 		if(ann == null){ throw new IllegalArgumentException("Class " + clazz + " has no !Table annotation"); }
 		update("DROP TABLE " + ann.name() + " CASCADE;");
 		return true;
@@ -492,11 +481,11 @@ public final class Database implements Decodable{
 	
 	private <T extends DatabaseObject> Pair<String,String> class2pk(Class<T> table){
 		//(variables)
-		String name = table.getAnnotation(Table.class).name();
+		String name = MetaClass.findAnnotation(table, Table.class).name();
 		String key = null;
 		boolean foundPK = false;
 		//(find a key)
-		for(Field f : class2fields(table)){
+		for(Field f : MetaClass.getDeclaredFields(table)){
 			for(Annotation ann : f.getAnnotations()){
 				if(ann instanceof PrimaryKey){
 					key = ((PrimaryKey) ann).name();
@@ -602,7 +591,7 @@ public final class Database implements Decodable{
 			Key key = f.getAnnotation(Key.class);
 			//(error checks)
 			if(key == null) throw new DatabaseException("An index can only be created on a normal key: " + f);
-			if((nonNative(f.getType()) && Serializable.class.isAssignableFrom(f.getType()))){
+			if((nonNative(f.getType()) && !Class.class.isAssignableFrom(f.getType()) && Serializable.class.isAssignableFrom(f.getType()))){
 				if(key.length() <= 0) throw new DatabaseException("An indexed key of type Serializable must have a [positive] length defined: " + f);
 			}
 			//(save fields)
@@ -642,11 +631,13 @@ public final class Database implements Decodable{
 	/**
 	 * Create a table if that table does not exist. If the table exists,
 	 * then do nothing.
+	 * @param toCreate the class of the table to ensure is in the database
 	 */
+	@SuppressWarnings({"unchecked"})
 	public <E extends DatabaseObject> boolean ensureTable(Class<E> toCreate){
 		//--Variables
 		//(keys and indices)
-		String table = toCreate.getAnnotation(Table.class).name();
+		String table = MetaClass.findAnnotation(toCreate, Table.class).name();
 		LinkedList<Field> foreignKeys = new LinkedList<Field>();
 		LinkedList<String> indexes = new LinkedList <String> ();
 		//(query building)
@@ -659,12 +650,12 @@ public final class Database implements Decodable{
 		int nextIndexIdentifier = 0;
 		
 		//--Check Table
-		if(hasTable(toCreate.getAnnotation(Table.class).name())){
+		if(hasTable(MetaClass.findAnnotation(toCreate, Table.class).name())){
 			return true;
 		}		
 		
 		//--For Each Field...
-		for(Field f : class2fields(toCreate)){
+		for(Field f : MetaClass.getDeclaredFields(toCreate)){
 			boolean entered = false;
 			//--Add It's Annotation
 			for(Annotation ann : f.getAnnotations()){
@@ -700,7 +691,7 @@ public final class Database implements Decodable{
 					fieldName = ((Key) ann).name();
 					query.append("\n\t");
 					query.append( fieldName ).append(" ");
-					query.append(typeJava2sql(type,f, ((Key) ann).length()));
+					query.append(typeJava2sql(type,f, ((Key) ann).length(), ((Key) ann).type()));
 					//(r-tree index requires not null)
 					if(f.getAnnotation(Index.class) != null 
 							&& f.getAnnotation(Index.class).type() == Index.Type.RTREE){
@@ -737,8 +728,8 @@ public final class Database implements Decodable{
 			for(Field f : foreignKeys){
 				//(variables)
 				Parent key = f.getAnnotation(Parent.class);
-				Table foreignTable = f.getType().isArray() ? 
-						f.getType().getComponentType().getAnnotation(Table.class)
+				Table foreignTable = f.getType().isArray() ?
+						MetaClass.findAnnotation(f.getType().getComponentType(), Table.class)
 						: f.getType().getAnnotation(Table.class);
 				if(foreignTable == null){ 
 					throw new DatabaseException("Target type of foreign key has no @Table annotation: " + f.getType());
@@ -747,6 +738,7 @@ public final class Database implements Decodable{
 				String local = key.localField();
 				String target = key.parentField();
 				//(build query)
+				ensureTable((Class<? extends DatabaseObject>) f.getType());
 				fkQuery.append("ALTER TABLE ").append(table).append(" ADD FOREIGN KEY (")
 				.append(local).append(") REFERENCES ")
 				.append(foreignTable.name())
@@ -775,7 +767,7 @@ public final class Database implements Decodable{
 
 	@SuppressWarnings({"unchecked"})
 	public <E extends DatabaseObject> E emptyObject(Class<E> classType, Object... args){
-		DBClassInfo<E> info = DatabaseObject.getInfo(classType,this);
+		DBClassInfo<E> info = DatabaseObject.getInfo(classType, this);
 		E rtn = (E) new MetaClass(classType).createInstance(args);
 		rtn.init(this, classType, args, DatabaseObject.FLAG_NONE);
 		return rtn;
@@ -844,7 +836,7 @@ public final class Database implements Decodable{
 	public <E extends DatabaseObject> void registerType(Class<E> type, Object...args){
 		this.emptyObject(type, args); //make new object; don't save it
 	}
-	
+
 	public <E extends DatabaseObject> E registerObject(E obj){
 		obj.init(this, obj.getClass(), null, DatabaseObject.FLAG_NONE);
 		return obj;
@@ -853,7 +845,7 @@ public final class Database implements Decodable{
 	public <E extends DatabaseObject> int deleteObjectsWhere(Class<E> classType, String whereClause) {
 		//--Prepare query
 		StringBuilder query = new StringBuilder();
-		Table table = classType.getAnnotation(Table.class);
+		Table table = MetaClass.findAnnotation(classType, Table.class);
 		if(table == null){ throw new DatabaseException("Class extends database object but does not define @table annotation: " + classType); }
 		query.append("DELETE FROM ").append(table.name());
 		if(whereClause != null && !whereClause.trim().equals("")){ 
@@ -902,7 +894,7 @@ public final class Database implements Decodable{
 	public <E extends DatabaseObject> E getFirstObjectWhere(Class<E> classType, String whereClause){
 		//--Prepare query
 		StringBuilder query = new StringBuilder();
-		Table table = classType.getAnnotation(Table.class);
+		Table table = MetaClass.findAnnotation(classType, Table.class);
 		if(table == null){ throw new DatabaseException("Class extends database object but does not define @table annotation: " + classType); }
 		query.append("SELECT * FROM ").append(table.name());
 		if(whereClause != null && !whereClause.trim().equals("")){ 
@@ -926,7 +918,7 @@ public final class Database implements Decodable{
 	public <E extends DatabaseObject> Iterator <E> getObjectsWhere(Class<E> classType, String whereClause){
 		//--Prepare query
 		StringBuilder query = new StringBuilder();
-		Table table = classType.getAnnotation(Table.class);
+		Table table = MetaClass.findAnnotation(classType, Table.class);
 		if(table == null){ throw new DatabaseException("Class extends database object but does not define @table annotation: " + classType); }
 		query.append("SELECT * FROM ").append(table.name());
 		if(whereClause != null && !whereClause.trim().equals("")){ 
@@ -1043,7 +1035,7 @@ public final class Database implements Decodable{
 		
 		try{
 			//--The Fields
-			for(Field f : class2fields(clazz)){
+			for(Field f : MetaClass.getDeclaredFields(clazz)){
 				boolean hasIndex = false;;
 				boolean hasKey = false;
 				//(for each annotation)
@@ -1091,7 +1083,8 @@ public final class Database implements Decodable{
 			}
 			
 			//--Get/Create Table
-			String table = clazz.getAnnotation(Table.class).name();
+			if(MetaClass.findAnnotation(clazz,Table.class) == null){ throw new IllegalStateException("Database has no @Table annotation: " + clazz); }
+			String table = MetaClass.findAnnotation(clazz,Table.class).name();
 			if(!hasTable(table) && !ensureTable(clazz)){ throw new DatabaseException("Could not create table " + table); }
 			
 			//--Sort Fields
@@ -1211,7 +1204,7 @@ public final class Database implements Decodable{
 						if(pkey == null){ throw new DatabaseException("Referenced object has no primary key: " + f.getType()); }
 						int primaryKey = -1;
 						try {
-							Field fld = foreign.getClass().getDeclaredField(pkey);
+							Field fld = MetaClass.findField(foreign.getClass(), pkey);
 							boolean savePerm = fld.isAccessible();
 							if(!savePerm) fld.setAccessible(true);
 							primaryKey = fld.getInt(foreign);
@@ -1221,7 +1214,7 @@ public final class Database implements Decodable{
 							throw new DatabaseException(e);
 						} catch (NoSuchFieldException e) {
 							if(!restore) f.setAccessible(false);
-							throw new DatabaseException("Referenced object reported incorrect primary key: " + f.getType() + " field=" + f);
+							throw new DatabaseException(e);
 						}
 						info.onCreate.setObject(slot, primaryKey);
 					}
@@ -1229,7 +1222,7 @@ public final class Database implements Decodable{
 					Object o = f.get(instance);
 					if(o == null){ info.onCreate.setString(slot, null); }
 					else { info.onCreate.setString(slot, ((Decodable) f.get(instance)).encode()); }
-				} else if(nonNative(f.getType()) && Serializable.class.isAssignableFrom(f.getType())){
+				} else if(nonNative(f.getType()) && !Class.class.isAssignableFrom(f.getType()) && Serializable.class.isAssignableFrom(f.getType())){
 					//(case: non-native serializable)
 					if(type == SQLITE) throw new DatabaseException("Cannot write serializable objects to sqlite database (try Decodable instead?)");
 					info.onCreate.setBytes(slot, Utils.obj2bytes((Serializable) f.get(instance)));
@@ -1358,7 +1351,10 @@ public final class Database implements Decodable{
 			instance.setInDatabase(true);
 			if(info.primaryKey != null){
 				try {
+					boolean restore = false;
+					if(!info.primaryKey.isAccessible()){ restore = true; info.primaryKey.setAccessible(true); }
 					cacheObject(instance, info.primaryKey, info.primaryKey.get(instance));
+					if(restore){ info.primaryKey.setAccessible(false);}
 				} catch (IllegalAccessException e) {
 					throw new DatabaseException("Could not cache object: " + instance);
 				}
@@ -1395,8 +1391,8 @@ public final class Database implements Decodable{
 	 */
 	private int update(String query) {
 		try {
-            prepareStatement();
-            return lastStatement.executeUpdate(query);
+			prepareStatement();
+			return lastStatement.executeUpdate(query);
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
 		}
@@ -1437,24 +1433,13 @@ public final class Database implements Decodable{
 			stmt.setString(slot, obj.toString());
 		}else if(obj instanceof Date){
 			stmt.setObject(slot, new java.sql.Timestamp(((Date) obj).getTime()));
+		} else if(obj instanceof Class){
+			stmt.setString(slot, ((Class) obj).getName());
 		}else if(obj != null && obj.getClass().isArray()){
 			stmt.setString(slot, Arrays.toString((Object[]) obj));
 		}else{
 			stmt.setObject(slot, obj);
 		}
-	}
-	
-	private static List<Field> class2fields(Class<?> clazz){
-		LinkedList<Field> fieldList = new LinkedList<Field>();
-		Class<?> onprix = clazz;
-		while(onprix != DatabaseObject.class){
-			if(onprix == null){ throw new DatabaseException("Class must extend DatabaseObject"); }
-			for(Field f : onprix.getDeclaredFields()){
-				fieldList.add(f);
-			}
-			onprix = onprix.getSuperclass();
-		}
-		return fieldList;
 	}
 
 	private static Object db2obj(Class<?> type, Object o){
@@ -1525,6 +1510,12 @@ public final class Database implements Decodable{
 				Utils.arraycopy(src,0,dst,0,type.getComponentType(),strings.length);
 				return dst;
 			}
+		} else if(Class.class.isAssignableFrom(type)){
+			try {
+				return Class.forName(o.toString());
+			} catch (ClassNotFoundException e) {
+				throw new DatabaseException("Class no longer exists in classpath: " + o);
+			}
 		}else{														//else
 			return o;
 		}
@@ -1578,6 +1569,7 @@ public final class Database implements Decodable{
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private <E extends DatabaseObject> DBClassInfo<E> ensureClassInfo(Class<E> clazz){
 		DBClassInfo cand = DatabaseObject.getInfo(clazz, this);
 		if(cand != null){
@@ -1699,9 +1691,12 @@ public final class Database implements Decodable{
 		}
 	}
 	
-	
-	private static final String typeJava2sql(int databaseType, Field f, int length){
-		Class <?> clazz = f.getType();
+
+	private static String typeJava2sql(int databaseType, Field f, int length){
+		return typeJava2sql(databaseType, f, length, java.lang.Object.class);
+	}
+	private static String typeJava2sql(int databaseType, Field f, int length, Class suggestedType){
+		Class <?> clazz = (suggestedType != java.lang.Object.class) ? suggestedType : f.getType();
 		if(f.getAnnotation(Parent.class) != null){
 			return "INTEGER";
 		}else if(clazz == boolean.class || Boolean.class.isAssignableFrom(clazz)){
@@ -1743,6 +1738,8 @@ public final class Database implements Decodable{
 			}else{
 				return "VARCHAR(" + length + ")";
 			}
+		}else if(Class.class.isAssignableFrom(clazz)){
+			return "VARCHAR(127)";
 		}else if(nonNative(clazz) && Serializable.class.isAssignableFrom(clazz)){
 			if(databaseType == PSQL){
 				return "BYTEA";

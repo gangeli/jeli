@@ -21,13 +21,10 @@ import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
 import org.goobs.database.Database;
+import org.goobs.database.DatabaseObject;
 import org.goobs.io.LazyFileIterator;
-import org.goobs.testing.DBResultLogger;
-import org.goobs.testing.Dataset;
-import org.goobs.testing.DatasetDB;
-import org.goobs.testing.Datum;
-import org.goobs.testing.InMemoryLogger;
-import org.goobs.testing.ResultLogger;
+import org.goobs.testing.*;
+import org.goobs.testing.DatabaseDataset;
 import org.goobs.utils.Marker;
 import org.goobs.utils.Utils;
 
@@ -540,11 +537,11 @@ public final class Execution {
 		return logger;
 	}
 	
-	public static final <D extends Datum> Dataset<D> getDataset(Class<D> type){
+	public static final <D extends DatabaseObject & Datum> Dataset<D> getDataset(Class<D> type){
 		return getDataset(type,false);
 	}
-	public static final <D extends Datum> Dataset<D> getDataset(Class<D> type, boolean lazy){
-		return new DatasetDB<D>(dataDB, type, lazy);
+	public static final <D extends DatabaseObject & Datum> Dataset<D> getDataset(Class<D> type, boolean lazy){
+		return new DatabaseDataset<D>(dataDB, type, lazy);
 	}
 
 	private static String execDirFull = null;

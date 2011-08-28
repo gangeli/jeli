@@ -77,7 +77,7 @@ import edu.stanford.nlp.ling.tokensregex.SequencePattern._
 //case class Node(base:NodePattern[CoreMap]) {
 //	def |(other:Node):Node = {
 //		new Node(new NodePattern.DisjNodePattern(
-//			List[NodePattern[CoreMap]](this.base,other.base)))
+//			DBList[NodePattern[CoreMap]](this.base,other.base)))
 //	}
 //	def unary_! :Node = {
 //		new Node(new NodePattern.NegateNodePattern(this.base))
@@ -130,9 +130,9 @@ import edu.stanford.nlp.ling.tokensregex.SequencePattern._
 //	
 //case class Backref(
 //		groupID:Int,
-//		clauses:List[Class[_<:CoreAnnotation[_<:Any]]]){
+//		clauses:DBList[Class[_<:CoreAnnotation[_<:Any]]]){
 //	def this(groupID:Int) 
-//		= this(groupID,List[Class[_<:CoreAnnotation[_<:Any]]]())
+//		= this(groupID,DBList[Class[_<:CoreAnnotation[_<:Any]]]())
 //	def apply(toAdd:Class[_<:CoreAnnotation[_<:Any]]*):Backref = {
 //		Backref(groupID,clauses ::: toAdd.toList)
 //	}
@@ -150,7 +150,7 @@ import edu.stanford.nlp.ling.tokensregex.SequencePattern._
 //		ann.apply()
 //	}
 //	implicit def product2node(prod:Product):Node = {
-//		val lst:java.util.List[NodePattern[CoreMap]] 
+//		val lst:java.util.DBList[NodePattern[CoreMap]]
 //			= prod.productIterator.map{ (n:Any) => 
 //				n match {
 //					case (x:Class[CoreAnnotation[_]]) => 
@@ -216,7 +216,7 @@ import edu.stanford.nlp.ling.tokensregex.SequencePattern._
 ////		val pipeline = new StanfordCoreNLP(props)
 ////		val input:Annotation = new Annotation("the hotter the summer")
 ////		pipeline.annotate(input)
-////		val tokens = input.get[java.util.List[CoreLabel],TokensAnnotation](
+////		val tokens = input.get[java.util.DBList[CoreLabel],TokensAnnotation](
 ////			classOf[TokensAnnotation])
 ////	
 ////		val pattern = TokenSequencePattern.compile(pat);

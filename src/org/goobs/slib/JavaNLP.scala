@@ -30,84 +30,6 @@ object JavaNLP {
 	val TOKENS    = classOf[TokensAnnotation]
 	val SENTENCES = classOf[SentencesAnnotation]
 
-	case class CoreAnnotationWrapper[V,A <: CoreAnnotation[V]](ann:A)
-
-	@Table(name="values")
-	class AnnotationPair[V,A <: CoreAnnotation[V]]
-			(k:Class[A],v:V) extends DatabaseObject {
-		@PrimaryKey(name="vid")
-		private var vid:Int = -1
-		@Key(name="mid")
-		private var mid:Int = -1
-		@Key(name="key")
-		private var key:Class[A] = k.getType
-		@Key(name="value")
-		private var value:V = v
-
-		def describe(indent:Int):Unit = {
-		}
-	}
-
-	@Table(name="maps")
-	class CoreMapWrapper(map:CoreMap) extends DatabaseObject{
-		@PrimaryKey(name="mid")
-		private var mid:Int = -1
-		@Parent(localField="fid", parentField="fid")
-		private var dataset:CoreMapDataset = null
-
-		def getCoreMap:CoreMap = map
-
-		def apply[A](key:Class[A]):Any = {
-			7
-//			println(key.getGenericInterfaces()(0))
-//			key.getGenericInterfaces()(0).asInstanceOf[ParameterizedType].getActualTypeArguments.foreach{ x =>
-		}
-			
-		def describe(indent:Int):Unit = {
-			val iter:Iterator[Class[_]] = map.keySet.iterator
-			while(iter.hasNext){
-				val key:Class[_] = iter.next
-				println("  "*indent + key)
-//				val mapClass = classOf[CoreMap]
-//				val get = mapClass.getMethod("get")
-//				val obj = get.invoke(map,key)
-//				println(obj)
-//				val value = apply(key)
-			}
-		}
-
-		override def toString:String = {
-			"CoreMap [" + {if(mid < 0) "unflushed" else mid} + 
-				"] (size " + map.size +")"
-		}
-	}
-
-	@Table(name="dataset")
-	class CoreMapDataset(elems:Array[CoreMap]) 
-			extends DatabaseObject {
-		
-		@PrimaryKey(name="fid")
-		private var fid:Int = 0
-
-		def describe:Unit = {
-			elems.foreach{ (map:CoreMap) =>
-				val wrapped:CoreMapWrapper = map
-				println("MAP: " + wrapped.toString)
-				wrapped.describe(1)
-			}
-		}
-	}
-
-//	implicit def coreAnnotation2CoreAnnWrapper[V,A <: CoreAnnotation[V]](ann:A
-//		):CoreAnnotationWrapper[V,A] = CoreAnnotationWrapper(ann)
-//	implicit def coreAnnWrapper2CoreAnnotation[V,A <: CoreAnnotation[V]]
-//		(wrapper:CoreAnnotationWrapper[V,A]):A = wrapper.ann
-//
-//	implicit def typesafeMap2typesafeMapWrapper(map:CoreMap
-//		):CoreMapDatum = new CoreMapDatum(map)
-//	implicit def typesafeMapWrapper2TypesafeMap
-//		(wrapper:CoreMapDatum):CoreMap = wrapper.getCoreMap
-
 	def word2corelabel(word:String):CoreLabel = {
 		val token = new CoreLabel(2)
 		token.set(WORD,word)
@@ -236,19 +158,6 @@ object JavaNLP {
 		val labels:java.util.List[Word] = new java.util.ArrayList[Word]
 		lst.foreach{ case (w:String) => labels.add(new Word(w)) }
 		labels
-	}
-
-	def main(args:Array[String]) = {
-//		val sent1:java.util.List[CoreLabel] 
-//			= sent2corelabels("This is a sample sentence".split(" "))
-//		val sent2:java.util.List[CoreLabel] 
-//			= sent2corelabels("This is another sentence".split(" "))
-//		val sents:CoreMap
-//			= sentences(Array[java.util.List[CoreLabel]](sent1,sent2))
-//
-//		val dataset = new CoreMapDataset(Array[CoreMap](sents))
-//
-//		dataset.describe
 	}
 }
 

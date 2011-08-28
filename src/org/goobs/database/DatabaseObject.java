@@ -6,6 +6,7 @@ import java.util.*;
 
 import org.goobs.database.Database.DBClassInfo;
 import org.goobs.exec.Log;
+import org.goobs.utils.MetaClass;
 import org.goobs.utils.Utils;
 
 public abstract class DatabaseObject {
@@ -38,14 +39,8 @@ public abstract class DatabaseObject {
 		}
 	}
 
-	protected Field[] getDeclaredFields(){
-		Class c = this.getClass();
-		Field[] rtn = new Field[0];
-		while(c != null){
-			rtn = Utils.concat(rtn, c.getDeclaredFields());
-			c = c.getSuperclass();
-		}
-		return rtn;
+	private Field[] getDeclaredFields(){
+		return MetaClass.getDeclaredFields(this.getClass());
 	}
 	
 	@SuppressWarnings({"rawtypes", "unchecked"})
@@ -60,7 +55,7 @@ public abstract class DatabaseObject {
 			dbInfo.put(clazz,  m);
 		}
 		if(!m.containsKey(db)){
-			if(args == null){ throw new DatabaseException("Constructor arguments needed when creating new type (forgot to call Database.registerType?)"); }
+			if(args == null){ throw new DatabaseException("Constructor arguments needed when creating new type (forgot to call Database.registerType?); class=" + clazz); }
 			Class<?>[] types = new Class<?>[args.length];
 			for(int i=0; i<types.length; i++){
 				types[i] = args[i].getClass();
@@ -165,10 +160,10 @@ public abstract class DatabaseObject {
 			throw new DatabaseException("Primary key does not exist for class (needed for foreign key lookup): " + this.getClass());
 		}
 		//(others)
-		if(parentClass.getAnnotation(Table.class) == null){ throw new DatabaseException("No @Table annotation for parent of foreign key: " + parentClass); }
-		String parentTable = parentClass.getAnnotation(Table.class).name();
-		if(childClass.getAnnotation(Table.class) == null){ throw new DatabaseException("No @Table annotation for child of foreign key: " + childClass); }
-		String childTable = childClass.getAnnotation(Table.class).name();
+		if(MetaClass.findAnnotation(parentClass, Table.class) == null){ throw new DatabaseException("No @Table annotation for parent of foreign key: " + parentClass); }
+		String parentTable = MetaClass.findAnnotation(parentClass, Table.class).name();
+		if(MetaClass.findAnnotation(childClass, Table.class) == null){ throw new DatabaseException("No @Table annotation for child of foreign key: " + childClass); }
+		String childTable = MetaClass.findAnnotation(childClass, Table.class).name();
 		//--Build Query
 		StringBuilder b = new StringBuilder();
 		b.append("SELECT ").append(parentCentric ? "child" : "parent").append(".* FROM ")
@@ -257,7 +252,9 @@ public abstract class DatabaseObject {
 		}
 		return (D) this;
 	}
-	
+
+	protected void preFlush(Database db){ }
+
 	@SuppressWarnings("unchecked")
 	public final <T extends DatabaseObject> T flush(){
 		if(database == null){ 
@@ -266,6 +263,7 @@ public abstract class DatabaseObject {
 		if(flag(flags,FLAG_READ_ONLY)){ 
 			throw new IllegalStateException("Cannot flush a read-only object");
 		}
+		this.preFlush(this.database);
 		database.flush(dbInfo.get(this.getClass()).get(database), this);
 		return (T) this;
 	}
@@ -284,17 +282,17 @@ public abstract class DatabaseObject {
 					if(parent != null){ parent.deepFlush(); }
 				}
 			}
-			flush();
+			this.flush();
 			for(Field f : getDeclaredFields()){
 				Child link = f.getAnnotation(Child.class);
-				if(link != null && f.get(this) != null){  //moved null check up here
-					boolean accessible = f.isAccessible();
+				boolean accessible = f.isAccessible();
 					if(!accessible){ f.setAccessible(true); }
+				if(link != null && f.get(this) != null){  //moved null check up here
 					if(f.getType().isArray()){
 						DatabaseObject[] array = (DatabaseObject[]) f.get(this);
 						for(DatabaseObject o : array){
 							//(set foreign key)
-							Field toSet = f.getType().getComponentType().getField(link.childField());
+							Field toSet = MetaClass.findField(f.getType().getComponentType(), link.childField());
 							boolean access = toSet.isAccessible();
 							if(!access){ toSet.setAccessible(true); }
 							toSet.set(o, this);
@@ -313,8 +311,8 @@ public abstract class DatabaseObject {
 						//(flush)
 						obj.deepFlush();
 					}
-					if(!accessible){ f.setAccessible(false); }
 				}
+				if(!accessible){ f.setAccessible(false); }
 			}
 			setFlag(FLAG_FLUSHING, false);
 			return (T) this;
@@ -347,10 +345,10 @@ public abstract class DatabaseObject {
     }
 
 	public String tableName(){
-		if( this.getClass().getAnnotation(Table.class) == null ){
+		if( MetaClass.findAnnotation(this.getClass(), Table.class) == null ){
 			throw new IllegalStateException("Database object has no Table annotation");
 		} else {
-			return this.getClass().getAnnotation(Table.class).name();
+			return MetaClass.findAnnotation(this.getClass(), Table.class).name();
 		}
 	}
 

@@ -154,7 +154,7 @@ public class ConfigFile {
 					lastWhitespace = false;
 				}
 			}else if(inList){
-				//--In a List
+				//--In a DBList
 				if(c == escapeChar){
 					//(escaped character)
 					i = handleEscape(file, i, term);
@@ -196,9 +196,9 @@ public class ConfigFile {
 					isLeft = true;
 					inList = false;
 				}else if(c == listStart){
-					throw new IOException("List begin character found in the middle of a list");
+					throw new IOException("DBList begin character found in the middle of a list");
 				}else if(c == '='){
-					throw new IOException("List contains an '=' character");
+					throw new IOException("DBList contains an '=' character");
 				}else{
 					//(default)
 					term.append(c);
@@ -236,13 +236,13 @@ public class ConfigFile {
 				}else if(c == listStart){
 					//(start of a list)
 					if(term.length() != 0){
-						throw new IOException("List begin character found in the middle of a non-list term: " + term.toString());
+						throw new IOException("DBList begin character found in the middle of a non-list term: " + term.toString());
 					}else{
 						if(!lastWhitespace){ throw new IllegalStateException("Unexpected lastWhitepsace"); }	//internal
 						inList = true;
 					}
 				}else if(c == listEnd){
-					throw new IOException("List stop character found in the middle of a term");
+					throw new IOException("DBList stop character found in the middle of a term");
 				}else if(c == '='){
 					throw new IOException("Multiple '=' characters in a line");
 				}else{
@@ -345,7 +345,7 @@ public class ConfigFile {
 		if(o instanceof List){
 			return (List <Object>) o;
 		}else{
-			throw new IllegalArgumentException("Value associated with '" + key + "' is not a List");
+			throw new IllegalArgumentException("Value associated with '" + key + "' is not a DBList");
 		}
 	}
 	
@@ -359,7 +359,7 @@ public class ConfigFile {
 			}
 			return rtn;
 		}else{
-			throw new IllegalArgumentException("Value associated with '" + key + "' is not a List");
+			throw new IllegalArgumentException("Value associated with '" + key + "' is not a DBList");
 		}
 	}
 	
@@ -372,12 +372,12 @@ public class ConfigFile {
 				try {
 					rtn.add(new Integer(Integer.parseInt(elem.toString())));
 				} catch (NumberFormatException e) {
-					throw new IllegalArgumentException("List associated with key '" + key + "' has non-integer term '" + elem + "'");
+					throw new IllegalArgumentException("DBList associated with key '" + key + "' has non-integer term '" + elem + "'");
 				}
 			}
 			return rtn;
 		}else{
-			throw new IllegalArgumentException("Value associated with '" + key + "' is not a List");
+			throw new IllegalArgumentException("Value associated with '" + key + "' is not a DBList");
 		}
 	}
 	
@@ -390,12 +390,12 @@ public class ConfigFile {
 				try {
 					rtn.add(new Double(Double.parseDouble(elem.toString())));
 				} catch (NumberFormatException e) {
-					throw new IllegalArgumentException("List associated with key '" + key + "' has non-double term '" + elem + "'");
+					throw new IllegalArgumentException("DBList associated with key '" + key + "' has non-double term '" + elem + "'");
 				}
 			}
 			return rtn;
 		}else{
-			throw new IllegalArgumentException("Value associated with '" + key + "' is not a List");
+			throw new IllegalArgumentException("Value associated with '" + key + "' is not a DBList");
 		}
 	}
 
@@ -403,7 +403,7 @@ public class ConfigFile {
 	* Exports the config file as a string of command line
 	* options; The command line format is: <br/>
 	* -key value <br/>
-	* List values are represented as -key a,b,c,d.
+	* DBList values are represented as -key a,b,c,d.
 	*
 	* @return A string array of command line options
 	*/

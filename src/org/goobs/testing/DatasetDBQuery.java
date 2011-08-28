@@ -4,9 +4,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.goobs.database.Database;
+import org.goobs.database.DatabaseObject;
 import org.goobs.utils.Range;
 
-public class DatasetDBQuery <D extends Datum> extends Dataset<D>{
+public class DatasetDBQuery <D extends DatabaseObject & Datum> extends Dataset<D>{
 	/**
 	 * 
 	 */
