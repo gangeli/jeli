@@ -7,7 +7,6 @@ import java.util.*;
 import org.goobs.database.Database.DBClassInfo;
 import org.goobs.exec.Log;
 import org.goobs.utils.MetaClass;
-import org.goobs.utils.Utils;
 
 public abstract class DatabaseObject {
 
@@ -258,7 +257,7 @@ public abstract class DatabaseObject {
 	@SuppressWarnings("unchecked")
 	public final <T extends DatabaseObject> T flush(){
 		if(database == null){ 
-			throw new IllegalStateException("Cannot flush a database object created with 'new'");
+			throw new IllegalStateException("Cannot flush a database object created with 'new:' " + this.getClass());
 		}
 		if(flag(flags,FLAG_READ_ONLY)){ 
 			throw new IllegalStateException("Cannot flush a read-only object");

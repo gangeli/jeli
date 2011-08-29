@@ -17,10 +17,13 @@ public abstract class NestedElement extends DatabaseObject {
 	protected Class valueType;
 	@Key(name="value", type=java.lang.String.class)
 	protected Object value;
+  @Parent(localField="source", parentField="tid")
+  protected CoreMapDataset.DatasetTask source;
 
-	public NestedElement(Class type, Object value){
+	public NestedElement(Class type, Object value, CoreMapDataset.DatasetTask task){
 		this.valueType = type;
 		this.value = value;
+    this.source = task;
 	}
 
 	protected void preFlush(Database db){
@@ -30,7 +33,7 @@ public abstract class NestedElement extends DatabaseObject {
 			value = ""+((DBCoreMap) value).eid;
 		} else if(value instanceof CoreMap) {
 			//--Case: CoreMap
-			DBCoreMap val = db.emptyObject(DBCoreMap.class, (CoreMap) value).deepFlush();
+			DBCoreMap val = db.emptyObject(DBCoreMap.class, (CoreMap) value, source).deepFlush();
 			value = ""+val.eid;
 		} else if(value instanceof DBList){
 			//--Case: DB List
@@ -38,7 +41,7 @@ public abstract class NestedElement extends DatabaseObject {
 			value = ""+((DBList) value).eid;
 		} else if(value instanceof java.util.List) {
 			//--Case: List
-			DBList val = db.emptyObject(DBList.class, value).deepFlush();
+			DBList val = db.emptyObject(DBList.class, value, source).deepFlush();
 			value = ""+val.eid;
 		}
 	}
@@ -84,9 +87,9 @@ public abstract class NestedElement extends DatabaseObject {
 		@Parent(localField="parent",parentField="eid")
 		private DBList parent;
 
-		private ListElem(){ super(null,null); }
-		public ListElem(int index, Object val){
-			super(val.getClass(), val);
+		private ListElem(){ super(null,null,null); }
+		public ListElem(int index, Object val, CoreMapDataset.DatasetTask task){
+			super(val.getClass(), val, task);
 			this.index = index;
 		}
 
@@ -100,10 +103,10 @@ public abstract class NestedElement extends DatabaseObject {
 		protected ListElem[] elements;
 		private List<Object> elems;
 
-		private DBList(){ super(java.util.List.class, null); }
+		private DBList(){ super(java.util.List.class, null, null); }
 		@SuppressWarnings("unchecked")
-		public DBList(java.util.List impl){
-			super(java.util.List.class, null);
+		public DBList(java.util.List impl, CoreMapDataset.DatasetTask task){
+			super(java.util.List.class, null, task);
 			this.elems = impl;
 		}
 
@@ -126,7 +129,7 @@ public abstract class NestedElement extends DatabaseObject {
 			this.elements = new ListElem[this.elems.size()];
 			int i=0;
 			for(Object o: elems){
-				elements[i] = db.emptyObject(ListElem.class,i,o);
+				elements[i] = db.emptyObject(ListElem.class,i,o, this.source);
 				i += 1;
 			}
 		}
@@ -142,9 +145,9 @@ public abstract class NestedElement extends DatabaseObject {
 		@Parent(localField="parent",parentField="eid")
 		private Map parent;
 
-		private MapElem(){ super(null,null); }
-		public MapElem(Class key, Object value){
-			super(value.getClass(), value);
+		private MapElem(){ super(null,null,null); }
+		public MapElem(Class key, Object value, CoreMapDataset.DatasetTask task){
+			super(value.getClass(), value, task);
 			this.key = key;
 		}
 
@@ -159,9 +162,9 @@ public abstract class NestedElement extends DatabaseObject {
 		@Child(localField="eid",childField="parent")
 		protected MapElem[] elements;
 
-		private Map(){ super(java.util.Map.class, null); }
-		protected Map(Class valueType, Object value){
-			super(valueType, value);
+		private Map(){ super(java.util.Map.class, null,null); }
+		protected Map(Class valueType, Object value, CoreMapDataset.DatasetTask task){
+			super(valueType, value, task);
 		}
 
 		@Override public String toString(){ return "Map["+this.eid+"]"; }

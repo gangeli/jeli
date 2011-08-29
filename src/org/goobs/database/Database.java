@@ -21,11 +21,17 @@ import java.util.regex.Pattern;
 
 import org.goobs.io.Console;
 import org.goobs.io.TextConsole;
+import org.goobs.stanford.JavaNLPTasks;
 import org.goobs.utils.Decodable;
 import org.goobs.utils.MetaClass;
 import org.goobs.utils.Pair;
 import org.goobs.utils.Utils;
 
+/*
+TODO
+  - Unique flag
+  - Fix the hack in ResultSetIterator
+ */
 public final class Database implements Decodable{
 	
 	public static boolean FORCEDBUPDATE = false;
@@ -110,8 +116,8 @@ public final class Database implements Decodable{
 		}
 		@Override
 		public boolean hasNext() {
-			if(done){ return false; }
 			try {
+        if(done){ return false; }
 				if(next == null){
 					if(rs.next()){
 						//(create a class)
@@ -136,6 +142,7 @@ public final class Database implements Decodable{
 					return true;
 				}
 			} catch (SQLException e) {
+        if(e.getMessage().equals("This ResultSet is closed.")){ done = true; return false; } //TODO strange hack with Postgres on getObjectsByKey()?
 				throw new DatabaseException(e);
 			}
 		}
@@ -843,6 +850,7 @@ public final class Database implements Decodable{
 	}
 
 	public <E extends DatabaseObject> int deleteObjectsWhere(Class<E> classType, String whereClause) {
+    if(!this.hasTable(classType)){ return 0; }
 		//--Prepare query
 		StringBuilder query = new StringBuilder();
 		Table table = MetaClass.findAnnotation(classType, Table.class);
@@ -1194,6 +1202,10 @@ public final class Database implements Decodable{
 		for(int i=0; i<info.fields.length; i++){
 			try {
 				Field f = info.fields[i];
+				Class ftype = f.getType();
+				if(f.getAnnotation(Key.class) != null && f.getAnnotation(Key.class).type() != Object.class){
+					ftype = f.getAnnotation(Key.class).type();
+				}
 				boolean restore = true;
 				if(!f.isAccessible()){ f.setAccessible(true); restore = false; }
 				if(f.getAnnotation(Parent.class) != null){
@@ -1224,7 +1236,7 @@ public final class Database implements Decodable{
 					Object o = f.get(instance);
 					if(o == null){ info.onCreate.setString(slot, null); }
 					else { info.onCreate.setString(slot, ((Decodable) f.get(instance)).encode()); }
-				} else if(nonNative(f.getType()) && !Class.class.isAssignableFrom(f.getType()) && Serializable.class.isAssignableFrom(f.getType())){
+				} else if(nonNative(ftype) && !Class.class.isAssignableFrom(ftype) && Serializable.class.isAssignableFrom(ftype)){
 					//(case: non-native serializable)
 					if(type == SQLITE) throw new DatabaseException("Cannot write serializable objects to sqlite database (try Decodable instead?)");
 					info.onCreate.setBytes(slot, Utils.obj2bytes((Serializable) f.get(instance)));
@@ -1277,6 +1289,10 @@ public final class Database implements Decodable{
 		for(int i=0; i<info.fields.length; i++){
 			try {
 				Field f = info.fields[i];
+				Class ftype = f.getType();
+				if(f.getAnnotation(Key.class) != null && f.getAnnotation(Key.class).type() != Object.class){
+					ftype = f.getAnnotation(Key.class).type();
+				}
 				boolean restore = true;
 				if(!f.isAccessible()){ f.setAccessible(true); restore = false; }
 				if(f.getAnnotation(Parent.class) != null){
@@ -1288,18 +1304,18 @@ public final class Database implements Decodable{
 					}else{
 						Field toFillFrom;
 						try {
-							toFillFrom = f.getType().getField(fkey.parentField());
+              toFillFrom = MetaClass.findField(f.getType(), fkey.parentField());
 						} catch (SecurityException e) {
 							throw new DatabaseException(e);
 						} catch (NoSuchFieldException e) {
-							throw new DatabaseException("Foreign key references non-existent field: " + fkey.parentField());
+							throw new DatabaseException("Foreign key references non-existent field (" + f + "): " + fkey.parentField());
 						}
 						boolean accessible = toFillFrom.isAccessible();
 						if(!accessible){ toFillFrom.setAccessible(true); }
 						info.onUpdate.setInt(i+1, toFillFrom.getInt(target));
 						if(!accessible){ toFillFrom.setAccessible(false); }
 					}
-				}else if(nonNative(f.getType()) && f.getType() != Class.class && f.getType() instanceof Serializable){
+				}else if(nonNative(ftype) && ftype != Class.class && ftype instanceof Serializable){
 					if(type == SQLITE) throw new DatabaseException("Cannot write serializable objects to sqlite database (try Decodable?)");
 					info.onUpdate.setBytes(i+1, Utils.obj2bytes((Serializable) f.get(instance)));
 				}else{
@@ -1366,7 +1382,7 @@ public final class Database implements Decodable{
 
 
     private void prepareStatement() throws SQLException{
-        if(conn == null) throw new DatabaseException("Querying without an open database connection");
+      if(conn == null) throw new DatabaseException("Querying without an open database connection");
 	    if(lastStatement != null){ lastStatement.close(); }
 	    lastStatement = conn.createStatement();
     }

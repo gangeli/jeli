@@ -39,9 +39,9 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 	}
 
 	@Table(name="task")
-	private static class DatasetTask extends DatabaseObject{
- 		@PrimaryKey(name="aid")
-		private int aid;
+	protected static class DatasetTask extends DatabaseObject{
+ 		@PrimaryKey(name="tid")
+		private int tid;
 		@Index
 		@Key(name="name", length=127)
 		private String name;
@@ -52,12 +52,12 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 		@Key(name="last_run")
 		private Date lastRun = new Date();
 
-		@Child(localField="aid", childField="condition")
+		@Child(localField="tid", childField="allows")
 		private Dependency[] conditions;
 
 		public DatasetTask(){ }
-		public DatasetTask(Task t, DatasetTask[] depends){
-			this.name = t.name();
+		public DatasetTask(CoreMapDataset dataset, Task t, DatasetTask[] depends){
+			this.name = dataset.name + "-" +t.name();
 			this.task = t.getClass();
 			this.conditions = new Dependency[depends.length];
 			for(int i=0; i<depends.length; i++){
@@ -65,6 +65,16 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 			}
 
 		}
+
+    @Override
+    public void preFlush(Database db){
+      super.preFlush(db);
+      if(this.conditions != null){
+        for(Dependency d : this.conditions){
+         db.registerObject(d);
+        }
+      }
+    }
 
 		public DatasetTask perform(){
 			this.lastRun = new Date();
@@ -76,22 +86,29 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 	private static class Dependency extends DatabaseObject{
 		@PrimaryKey(name="pid")
 		private int pid;
-		@Parent(localField="condition", parentField="aid")
-		private DatasetTask condition;
-		@Parent(localField="allows", parentField="aid")
-		private DatasetTask allows;
+		@Parent(localField="condition", parentField="tid")
+		public DatasetTask condition;
+		@Parent(localField="allows", parentField="tid")
+		public  DatasetTask allows;
 
-		public Dependency(){ }
-		public Dependency(DatasetTask allows, DatasetTask condition){
+		private Dependency(){ }
+		private Dependency(DatasetTask allows, DatasetTask condition){
 			this.allows = allows;
 			this.condition = condition;
 		}
+
+    @Override public void preFlush(Database db){
+      super.preFlush(db);
+    }
+
+
 	}
 
 	private Dataset dataset;
 	private Database db;
 
 	private DBCoreMap[] maps;
+	private String name;;
 
 	/**
 	 * Constructor for reading a dataset from the database
@@ -100,6 +117,7 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 	 * @param lazy If true, datums are loaded on demand rather than up front
 	 */
 	public CoreMapDataset(String name, Database db, boolean lazy){
+		this.name = name;
 		//(ensure databse)
 		if(!db.isConnected()){ db.connect(); }
 		//(set variables)
@@ -143,15 +161,26 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 	 * Note that a separate constructor exists for DBCoreMaps
 	 */
 	public CoreMapDataset(String name, Database db, CoreMap[] coreMaps){
+    //(create root source)
+    DatasetTask rootSource = db.getObjectByKey(DatasetTask.class, "name", name+"-ROOT");
+    if(rootSource == null){
+      rootSource = db.emptyObject(DatasetTask.class);
+      rootSource.name = name+"-ROOT";
+      rootSource.task = Task.class;
+      rootSource.flush();
+    }
+    //(convert maps)
 		DBCoreMap[] data = new DBCoreMap[coreMaps.length];
 		for(int i=0; i<coreMaps.length; i++){
-			data[i] = db.emptyObject(DBCoreMap.class, coreMaps[i]);
+			data[i] = db.emptyObject(DBCoreMap.class, coreMaps[i], rootSource);
 		}
+    //(construct dataset)
 		construct(name,db,data);
 	}
 
 	private void construct(String name, Database db, DBCoreMap[] coreMaps) {
 		//--Set Up
+		this.name = name;
 		this.db = db;
 		this.dataset = db.getObjectByKey(Dataset.class,"name",name);
 		if(this.dataset != null){ throw new IllegalArgumentException("Dataset already exists: " + name); }
@@ -205,27 +234,33 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 		//--Delete Task
 		DatasetTask toForget = db.getObjectByKey(DatasetTask.class, "class", task.getClass());
 		if(toForget != null){
-			db.deleteObjectsWhere(Dependency.class, "condition='"+toForget.aid+"'");
-			db.deleteObjectsWhere(Dependency.class, "allows='"+toForget.aid+"'");
-			db.deleteObjectById(DatasetTask.class, toForget.aid);
+			db.deleteObjectsWhere(Dependency.class, "condition='"+toForget.tid +"'");
+			db.deleteObjectsWhere(Dependency.class, "allows='"+toForget.tid +"'");
+			db.deleteObjectById(DatasetTask.class, toForget.tid);
 		}
 	}
 
 	@SuppressWarnings({"unchecked"})
   private <E extends Task> void runTask(E task){
 		//--Perform Task
+    DatasetTask dbTask = db.getObjectByKey(DatasetTask.class, "class", task.getClass());
 		db.beginTransaction();
+    //(clear previous annotation)
+    db.deleteObjectsWhere(NestedElement.MapElem.class, "source='" + dbTask.tid + "'");
+    db.deleteObjectsWhere(NestedElement.Map.class, "source='" + dbTask.tid + "'");
+    db.deleteObjectsWhere(NestedElement.ListElem.class, "source='" + dbTask.tid + "'");
+    db.deleteObjectsWhere(NestedElement.DBList.class, "source='" + dbTask.tid + "'");
 		//(perform)
 		task.perform(this);
 		//(flush result)
 		for(int i=0; i<numExamples(); i++){
-			this.get(i).deepFlush();
+      this.get(i).setSource(dbTask).deepFlush();
 		}
 		//(update time)
-		DatasetTask dbTask = db.getObjectByKey(DatasetTask.class, "class", task.getClass()).perform();
+		dbTask.perform();
 		db.endTransaction();
 		//--Run Downstream
-		Iterator<Dependency> iter = db.getObjectsByKey(Dependency.class, "condition", dbTask.aid);
+		Iterator<Dependency> iter = db.getObjectsByKey(Dependency.class, "condition", dbTask.tid);
 		while(iter.hasNext()){
 			DatasetTask toPerform = ((Dependency) iter.next().refreshLinks()).allows;
 			Task downstream = MetaClass.create(toPerform.task).createInstance();
@@ -281,7 +316,7 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 			for(Class<? extends Task> depend : toRemove){
 				DatasetTask condition = db.getObjectByKey(DatasetTask.class, "task", toAdd);
 				if(condition != null){ throw new DependencyException("New dependency of " + taskClass + " on " + depend + " cannot be removed, since the dependency is not in the database"); }
-				db.deleteObjectsWhere(Dependency.class,"allows='"+toCreate.aid+"' AND condition='"+condition.aid+"'");
+				db.deleteObjectsWhere(Dependency.class,"allows='"+toCreate.tid +"' AND condition='"+condition.tid +"'");
 			}
 		} else {
 			//(get dependencies)
@@ -291,7 +326,7 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 				dependencies[i] = db.getObjectByKey(DatasetTask.class, "class", depends[i]);
 			}
 			//(save object)
-			DatasetTask dbTask = db.emptyObject(DatasetTask.class,task,dependencies).flush();
+			DatasetTask dbTask = db.emptyObject(DatasetTask.class,this,task,dependencies).deepFlush();
 		}
 		//--Run Task
 		runTask(task);
