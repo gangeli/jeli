@@ -973,6 +973,7 @@ public final class Database implements Decodable{
 				throw new DatabaseException("No such indexed key: " + key + "; in class: " + clazz); 
 			}
 			//(run query)
+			if(value instanceof Class){ value = ((Class) value).getName(); }
 			psmt.setObject(1, value);
 			psmt.execute();
 			ResultSet results = psmt.getResultSet();
@@ -1063,6 +1064,7 @@ public final class Database implements Decodable{
 						keys.put(key.localField(), f);
 						foreignKeys.add(key.localField());
 						hasKey = true;
+						hasIndex = true;
 					}
 					//(index)
 					if(ann.annotationType() == Index.class){
@@ -1297,7 +1299,7 @@ public final class Database implements Decodable{
 						info.onUpdate.setInt(i+1, toFillFrom.getInt(target));
 						if(!accessible){ toFillFrom.setAccessible(false); }
 					}
-				}else if(nonNative(f.getType()) && f.getType() instanceof Serializable){
+				}else if(nonNative(f.getType()) && f.getType() != Class.class && f.getType() instanceof Serializable){
 					if(type == SQLITE) throw new DatabaseException("Cannot write serializable objects to sqlite database (try Decodable?)");
 					info.onUpdate.setBytes(i+1, Utils.obj2bytes((Serializable) f.get(instance)));
 				}else{

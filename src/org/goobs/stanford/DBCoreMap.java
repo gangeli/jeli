@@ -1,16 +1,17 @@
-package org.goobs.testing;
+package org.goobs.stanford;
 
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.util.ArrayCoreMap;
 import edu.stanford.nlp.util.CoreMap;
 import org.goobs.database.Database;
 import org.goobs.database.DatabaseException;
+import org.goobs.testing.Datum;
 
 import java.util.ArrayList;
 import java.util.Set;
 
 
-public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum{
+public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
 
 	private CoreMap impl;
 

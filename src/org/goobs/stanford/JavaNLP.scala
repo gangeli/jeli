@@ -1,18 +1,14 @@
-package org.goobs.slib
+package org.goobs.stanford
 
 import java.util.AbstractList
-import java.util.Iterator
-import java.lang.reflect.ParameterizedType
 
 import scala.collection.JavaConversions._
 
 import edu.stanford.nlp.util.CoreMap
 import edu.stanford.nlp.util.ArrayCoreMap
-import edu.stanford.nlp.util.TypesafeMap
 import edu.stanford.nlp.ling.Word
 import edu.stanford.nlp.ling.HasWord
 import edu.stanford.nlp.ling.CoreLabel
-import edu.stanford.nlp.ling.CoreAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation
@@ -20,7 +16,6 @@ import edu.stanford.nlp.ling.CoreAnnotations.AnswerAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation
 
-import org.goobs.database._
 
 object JavaNLP {
 	val WORD      = classOf[TextAnnotation]

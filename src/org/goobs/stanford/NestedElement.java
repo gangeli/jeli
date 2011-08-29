@@ -1,14 +1,12 @@
-package org.goobs.testing;
+package org.goobs.stanford;
 
 
 import edu.stanford.nlp.util.CoreMap;
 import org.goobs.database.*;
 import org.goobs.utils.Utils;
 
-import javax.swing.text.html.parser.Element;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 public abstract class NestedElement extends DatabaseObject {
