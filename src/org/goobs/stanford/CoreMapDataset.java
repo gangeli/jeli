@@ -4,6 +4,7 @@ package org.goobs.stanford;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.util.CoreMap;
 import org.goobs.database.*;
+import org.goobs.exec.Log;
 import org.goobs.testing.Dataset;
 import org.goobs.utils.MetaClass;
 import org.goobs.utils.Range;
@@ -179,7 +180,10 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 	}
 
 	private void construct(String name, Database db, DBCoreMap[] coreMaps) {
+		Log.startTrack("Flushing Data");
+		db.beginTransaction();
 		//--Set Up
+		Log.log("setup");
 		this.name = name;
 		this.db = db;
 		this.dataset = db.getObjectByKey(Dataset.class,"name",name);
@@ -188,19 +192,26 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 		this.dataset.name = name;
 		//--Data
 		//(flush data)
+		int index = 0;
 		for(DBCoreMap map : coreMaps){
+			String str = map.toString();
+			Log.log("flushing " + index++ + " / " + coreMaps.length + ": " + str.substring(0,Math.min(str.length(),20)));
 			if(!map.isInDatabase()){ map.deepFlush(); }
 		}
 		//(create dataset)
+		Log.log("creating dataset");
 		this.dataset.maps = new String[coreMaps.length];
 		for(int i=0; i<coreMaps.length; i++){
 			dataset.maps[i] = ""+coreMaps[i].eid;
 			coreMaps[i].setId(i);
 		}
 		//(flush dataset)
+		Log.log("flushing dataset");
 		this.dataset.flush();
+		db.endTransaction();
 		//(set maps)
 		this.maps = coreMaps;
+		Log.end_track();
 	}
 
 	@Override
@@ -344,28 +355,29 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 	}
 
 	public static void main(String[] args){
-		Database.ConnInfo psql = Database.ConnInfo.psql("localhost", "java", "what?why42?", "junit");
+		Database.ConnInfo psql = Database.ConnInfo.psql("localhost", "research", "what?why42?", "data");
 		Database db = new Database(psql).connect();
 		db.clear();
-
-		Annotation a = new Annotation("this is a sample sentence. This is another sentence");
-		Annotation b = new Annotation("Some more sentences. Yes, this is another sentence as well.");
-		CoreMapDataset data = new CoreMapDataset("trivial", db, new CoreMap[]{ a, b });
-
-		System.out.println("----------------------\nRunning CORE annotator");
-		data.runAndRegisterTask(new JavaNLPTasks.Core());
-		System.out.println(data);
-		System.out.println("----------------------\nRunning NER annotator");
-		data.runAndRegisterTask( new JavaNLPTasks.NER() );
-		System.out.println(data);
-    System.out.println("----------------------\nRunning CORE annotator again");
-		data.runAndRegisterTask(new JavaNLPTasks.Core());
-		System.out.println(data);
-
-		System.out.println("----------------------\nReloading Data");
-		db.disconnect();
-		db.connect();
-		System.out.println( new CoreMapDataset("trivial", db, false) );
+//
+//		Annotation a = new Annotation("this ( is a sample sentence. This is another sentence");
+//		Annotation b = new Annotation("Some more sentences. Yes, this is another sentence as well.");
+//		CoreMapDataset data = new CoreMapDataset("trivial", db, new CoreMap[]{ a, b });
+//
+//		System.out.println("----------------------\nRunning CORE annotator");
+//		data.runAndRegisterTask(new JavaNLPTasks.Core());
+//		System.out.println(data);
+//		System.out.println("----------------------\nRunning NER annotator");
+//		data.runAndRegisterTask( new JavaNLPTasks.NER() );
+//		System.out.println(data);
+//    System.out.println("----------------------\nRunning CORE annotator again");
+//		data.runAndRegisterTask(new JavaNLPTasks.Core());
+//		System.out.println(data);
+//
+//		System.out.println("----------------------\nReloading Data");
+//		db.disconnect();
+//		db.connect();
+//		System.out.println( new CoreMapDataset("trivial", db, false) );
 	}
+
 
 }

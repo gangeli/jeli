@@ -19,6 +19,7 @@ import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation
 
 object JavaNLP {
 	val WORD      = classOf[TextAnnotation]
+	val TEXT      = classOf[TextAnnotation]
 	val POS       = classOf[PartOfSpeechAnnotation]
 	val LEMMA     = classOf[LemmaAnnotation]
 	val ANSWER    = classOf[AnswerAnnotation]

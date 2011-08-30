@@ -23,6 +23,7 @@ import java.util.regex.Matcher;
 import org.goobs.database.Database;
 import org.goobs.database.DatabaseObject;
 import org.goobs.io.LazyFileIterator;
+import org.goobs.stanford.CoreMapDataset;
 import org.goobs.testing.*;
 import org.goobs.testing.DatabaseDataset;
 import org.goobs.utils.Marker;
@@ -537,11 +538,18 @@ public final class Execution {
 		return logger;
 	}
 	
-	public static final <D extends DatabaseObject & Datum> Dataset<D> getDataset(Class<D> type){
+	public static <D extends DatabaseObject & Datum> Dataset<D> getDataset(Class<D> type){
 		return getDataset(type,false);
 	}
-	public static final <D extends DatabaseObject & Datum> Dataset<D> getDataset(Class<D> type, boolean lazy){
+	public static <D extends DatabaseObject & Datum> Dataset<D> getDataset(Class<D> type, boolean lazy){
 		return new DatabaseDataset<D>(dataDB, type, lazy);
+	}
+
+	public static CoreMapDataset getDataset(String name){
+		return getDataset(name,false);
+	}
+	public static CoreMapDataset getDataset(String name, boolean lazy){
+		return new CoreMapDataset(name, dataDB, lazy);
 	}
 
 	private static String execDirFull = null;

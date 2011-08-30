@@ -3,7 +3,6 @@ package org.goobs.stanford;
 
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
-import edu.stanford.nlp.util.ArrayCoreMap;
 import edu.stanford.nlp.util.CoreMap;
 import edu.stanford.nlp.util.TypesafeMap;
 
@@ -45,18 +44,18 @@ public class JavaNLPTasks {
 		}
 		@Override public String name() { return "JavaNLP-"+this.getClass().getSimpleName(); }
 		@SuppressWarnings({"unchecked"})
-    @Override public Class<? extends Task>[] dependencies() { return new Class[0]; }
+    @Override public Class<? extends Task<?>>[] dependencies() { return new Class[0]; }
 
 		protected abstract String getAnnotators();
 	}
 
 	public static class Core extends JavaNLPTask {
-		@Override protected String getAnnotators() { return "tokenize, ssplit"; }
+		@Override protected String getAnnotators() { return "tokenize, ssplit, pos, lemma"; }
 	}
 
 	public static class NER extends JavaNLPTask {
-		@Override protected String getAnnotators() { return "tokenize, ssplit, pos, lemma"; }
+		@Override protected String getAnnotators() { return "tokenize, ssplit, pos, lemma, ner"; }
 		@SuppressWarnings({"unchecked"})
-    @Override public Class<? extends Task>[] dependencies() { return new Class[]{Core.class}; }
+    @Override public Class<? extends Task<?>>[] dependencies() { return new Class[]{Core.class}; }
 	}
 }

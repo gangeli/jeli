@@ -505,6 +505,16 @@ public class Utils {
 			} catch (NumberFormatException e) {
 				return null;
 			}
+		} else if(java.util.Calendar.class.isAssignableFrom(clazz)){
+			//(case: date)
+			try {
+				Date d = new Date(Long.parseLong(value));
+				GregorianCalendar cal = new GregorianCalendar();
+				cal.setTime(d);
+				return (E) cal;
+			} catch (NumberFormatException e) {
+				return null;
+			}
 		}else if(clazz.isArray()){
 			if(value == null){ return null; }
 			Class <?> subType = clazz.getComponentType();

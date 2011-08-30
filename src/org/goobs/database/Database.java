@@ -1289,7 +1289,7 @@ public final class Database implements Decodable{
 		for(int i=0; i<info.fields.length; i++){
 			try {
 				Field f = info.fields[i];
-				Class ftype = f.getType();
+				Class<?> ftype = f.getType();
 				if(f.getAnnotation(Key.class) != null && f.getAnnotation(Key.class).type() != Object.class){
 					ftype = f.getAnnotation(Key.class).type();
 				}
@@ -1416,7 +1416,7 @@ public final class Database implements Decodable{
 		}
 	}
 	
-	private static final void obj2db(PreparedStatement stmt, int slot, Object obj) throws SQLException{
+	private static void obj2db(PreparedStatement stmt, int slot, Object obj) throws SQLException{
 		if(obj instanceof Boolean){ //boolean
 			stmt.setBoolean(slot, (boolean) ((Boolean) obj));
 		}else if(obj instanceof Byte){								//Integer Fields
@@ -1451,6 +1451,8 @@ public final class Database implements Decodable{
 			stmt.setString(slot, obj.toString());
 		}else if(obj instanceof Date){
 			stmt.setObject(slot, new java.sql.Timestamp(((Date) obj).getTime()));
+		}else if(obj instanceof Calendar){
+			stmt.setObject(slot, new java.sql.Timestamp(((Calendar) obj).getTimeInMillis()));
 		} else if(obj instanceof Class){
 			stmt.setString(slot, ((Class) obj).getName());
 		}else if(obj != null && obj.getClass().isArray()){
@@ -1496,10 +1498,10 @@ public final class Database implements Decodable{
 				throw new DatabaseException("Cannot decode Decodable; no empty constructor: " + type.getName());
 			}
 			return d.decode(o.toString(), null);
-		}else if(isEnum(type)){				//enumerable
+		}else if(isEnum(type)){                                   //enumerable
 			if(o == null){ return null; }
 			return str2enum(type, o.toString());
-		}else if(java.util.Date.class.isAssignableFrom(type)){		//date
+		}else if(java.util.Date.class.isAssignableFrom(type)){    //date
 			if(o == null){ return null; }
 			if(o instanceof java.sql.Timestamp){
 				return new java.util.Date( ((java.sql.Timestamp) o).getTime() );
@@ -1508,7 +1510,20 @@ public final class Database implements Decodable{
 			}else{
 				throw new DatabaseException("Unknown SQL 'date' type: " + o.getClass());
 			}
-		}else if(type.isArray()){									//array
+		}else if(java.util.Date.class.isAssignableFrom(type)){    //calendar
+			if(o == null){ return null; }
+			if(o instanceof java.sql.Timestamp){
+				GregorianCalendar cal = new GregorianCalendar();
+				cal.setTime(new Date( ((java.sql.Timestamp) o).getTime() ));
+				return cal;
+			} else if(o instanceof java.sql.Date){
+				GregorianCalendar cal = new GregorianCalendar();
+				cal.setTime(new Date( ((java.sql.Date) o).getTime() ));
+				return cal;
+			}else{
+				throw new DatabaseException("Unknown SQL 'calendar' type: " + o.getClass());
+			}
+		}else if(type.isArray()){                                  //array
 			if(o == null){ return null; }
 			String[] strings = Utils.decodeArray(o.toString());
 			if(isEnum(type.getComponentType())){
@@ -1733,7 +1748,7 @@ public final class Database implements Decodable{
 			return "FLOAT8";
 		}else if(clazz == float.class || Float.class.isAssignableFrom(clazz)){
 			return "FLOAT4";
-		}else if(Date.class.isAssignableFrom(clazz)){
+		}else if(Date.class.isAssignableFrom(clazz) || Calendar.class.isAssignableFrom(clazz)){
 			switch(databaseType){
 			case MYSQL:
 				return "DATETIME";

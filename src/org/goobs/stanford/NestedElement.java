@@ -7,6 +7,7 @@ import org.goobs.utils.Utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
 
 public abstract class NestedElement extends DatabaseObject {
@@ -43,6 +44,8 @@ public abstract class NestedElement extends DatabaseObject {
 			//--Case: List
 			DBList val = db.emptyObject(DBList.class, value, source).deepFlush();
 			value = ""+val.eid;
+		} else if(value  instanceof Calendar){
+			value = ""+((Calendar) value).getTimeInMillis();
 		}
 	}
 
