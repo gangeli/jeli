@@ -8,10 +8,7 @@ import org.goobs.database.DatabaseException;
 import org.goobs.testing.Datum;
 
 import javax.swing.text.html.parser.Element;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
 
 /*
 	TODO
@@ -20,6 +17,8 @@ import java.util.Set;
  */
 
 public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
+
+	private static HashMap<Long,DBCoreMap> updateMarker = new HashMap<Long,DBCoreMap>();
 
 	private CoreMap impl;
   private Set<Class> added = new HashSet<Class>();
@@ -65,12 +64,21 @@ public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
 			if(this.database == null){
 				throw new DatabaseException("CoreMap is not in database!");
 			}
+			//(ensure transaction)
+			if(updateMarker.get(Thread.currentThread().getId()) == null){
+				updateMarker.put(Thread.currentThread().getId(), this);
+				this.database.beginTransaction();
+			}
 			//(ensure valid state)
 			this.refreshLinks();
 			impl = new ArrayCoreMap(0);
 			//(populate map)
 			for (NestedElement.MapElem elem : elements) {
 				impl.set(elem.key(), elem.value(this.database));
+			}
+			if(updateMarker.get(Thread.currentThread().getId()) == this){
+				this.database.endTransaction();
+				updateMarker.remove(Thread.currentThread().getId());
 			}
 		}
 	}
@@ -82,9 +90,7 @@ public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
 			ArrayList<Object> elems = new ArrayList<Object>();
       if(this.elements != null){
       	for(MapElem elem : this.elements){
-					System.out.println("checking " + elem.key() + " " + this.removed.contains(elem.key()) + " " + this.added.contains(elem.key()));
 					if(!this.removed.contains(elem.key()) && !added.contains(elem.key())){
-						System.out.println("KEEPING " + elem.key());
 						elems.add(elem);
 						added.remove(elem.key());
 						removed.remove(elem.key());

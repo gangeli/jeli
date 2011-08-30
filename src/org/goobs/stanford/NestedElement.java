@@ -34,6 +34,7 @@ public abstract class NestedElement extends DatabaseObject {
 			value = ""+((DBCoreMap) value).eid;
 		} else if(value instanceof CoreMap) {
 			//--Case: CoreMap
+			db.registerType(DBCoreMap.class, CoreMap.class, CoreMapDataset.DatasetTask.class);
 			DBCoreMap val = db.emptyObject(DBCoreMap.class, (CoreMap) value, source).deepFlush();
 			value = ""+val.eid;
 		} else if(value instanceof DBList){
@@ -42,6 +43,7 @@ public abstract class NestedElement extends DatabaseObject {
 			value = ""+((DBList) value).eid;
 		} else if(value instanceof java.util.List) {
 			//--Case: List
+			db.registerType(DBList.class, java.util.List.class, CoreMapDataset.DatasetTask.class);
 			DBList val = db.emptyObject(DBList.class, value, source).deepFlush();
 			value = ""+val.eid;
 		} else if(value  instanceof Calendar){

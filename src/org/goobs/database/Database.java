@@ -579,9 +579,34 @@ public final class Database implements Decodable{
 	 * OBJECT MAPPING
 	 */
 
-	private String indexQuery(Annotation index, Field f, String table, int unique){
+	private String indexQuery(Index.Type type, String table, String fields, int uniqueID){
+		StringBuilder b = new StringBuilder();
+		//--Begin Statement
+		if(type == Index.Type.RTREE){
+			b.append("CREATE SPATIAL INDEX ");
+			throw new DatabaseException("Yeah, RTREE isn't really implemented. I don't think I even know what it does really. Sorry.");
+		}else{
+			b.append("CREATE INDEX ");
+		}
+		//--Create Index
+		b.append(table.toLowerCase()).append("_").append(fields.replaceAll(",","_")).append("_").append(uniqueID);
+		if(this.type == MYSQL){
+			b.append(" USING ").append(type.name())
+				.append(" ON ").append(table).append("(").append(fields).append(");");
+		}else if(this.type == SQLITE){
+			b.append(" ON ").append(table).append("(").append(fields).append(");");
+		}else{ //psql syntax
+			b.append(" ON ").append(table)
+				.append(" USING ").append(type.name())
+				.append(" (").append(fields).append(");");
+		}
+		return b.toString();
+	}
+
+	private String indexQuery(Annotation index, Field f, String table, int uniqueID){
 		Index.Type type;
 		String fields;
+		//--Get fields
 		if(index instanceof CompoundIndex){
 			type = ((CompoundIndex) index).type();
 			StringBuilder b = new StringBuilder();
@@ -609,36 +634,15 @@ public final class Database implements Decodable{
 		}else{
 			throw new IllegalArgumentException("Called indexQuery() with non-index annotation");
 		}
-
-		StringBuilder b = new StringBuilder();
-
-		//(r-tree special case)
-		if(type == Index.Type.RTREE){
-			b.append("CREATE SPATIAL INDEX ");
-			throw new DatabaseException("Yeah, RTREE isn't really implemented. I don't think I even know what it does really. Sorry.");
-		}else{
-			b.append("CREATE INDEX ");
-		}
-		
-		//(create index)
-		b.append(table.toLowerCase()).append("_").append(fields.replaceAll(",","_")).append("_").append(unique);
-		if(this.type == MYSQL){
-			b.append(" USING ").append(type.name())
-				.append(" ON ").append(table).append("(").append(fields).append(");");
-		}else if(this.type == SQLITE){
-			b.append(" ON ").append(table).append("(").append(fields).append(");");
-		}else{ //psql syntax
-			b.append(" ON ").append(table)
-				.append(" USING ").append(type.name())
-				.append(" (").append(fields).append(");");
-		}
-		return b.toString();
+		//--Create Query
+		return indexQuery(type,table,fields,uniqueID);
 	}
 	
 	/**
 	 * Create a table if that table does not exist. If the table exists,
 	 * then do nothing.
 	 * @param toCreate the class of the table to ensure is in the database
+	 * @return returns itself
 	 */
 	@SuppressWarnings({"unchecked"})
 	public <E extends DatabaseObject> boolean ensureTable(Class<E> toCreate){
@@ -691,7 +695,10 @@ public final class Database implements Decodable{
 					query.append(typeJava2sql(type,f, -1));
 					foreignKeys.add(f);
 					entered = true;
-					if(((Parent) ann).indexType() != Index.Type.NONE){ indexQuery(ann,f, table, nextIndexIdentifier++); }
+					if(((Parent) ann).indexType() != Index.Type.NONE){
+						Parent pann = (Parent) ann;
+						indexes.add( indexQuery(pann.indexType(), table, pann.localField(), nextIndexIdentifier++) );
+					}
 				}else if(ann instanceof Key){
 					if(entered) throw new DatabaseException("Multiple keys for field: " + f + " in class " + toCreate);
 					if(printComma) query.append(",");
@@ -809,12 +816,15 @@ public final class Database implements Decodable{
 
 		Pair<Field,Object> key = Pair.make(f, value);
 		WeakReference<Object> rtn = interner.get(key);
-		if(rtn == null || rtn.get() == null){
+		Object toSet = null;
+		if(rtn != null){ toSet = rtn.get(); }
+		if(toSet == null){
+			toSet = fact.createInstance();
 			if(rtn != null && rtn.get() == null){ interner.remove(key); }
-			rtn = new WeakReference<Object>(fact.createInstance());
+			rtn = new WeakReference<Object>(toSet);
 			interner.put(key, rtn);
 		}
-		return (E) rtn.get();
+		return (E) toSet;
 
 	}
 
@@ -832,7 +842,7 @@ public final class Database implements Decodable{
 			rtn = mkObject(classType, info.primaryKey, pk, new MetaClass(classType).createFactory());
 		}
 		//--Process Object
-		if(!rtn.isInDatabase()){
+		if(rtn != null && !rtn.isInDatabase()){
 			populateObject(info, rs, rtn);
 			rtn.init(this, classType, null, DatabaseObject.FLAG_IN_DB);
 		}
@@ -840,12 +850,15 @@ public final class Database implements Decodable{
 		return rtn;
 	}
 	
-	public <E extends DatabaseObject> void registerType(Class<E> type, Object...args){
-		this.emptyObject(type, args); //make new object; don't save it
+	public <E extends DatabaseObject> void registerType(Class<E> classType, Class...args){
+		DBClassInfo<E> info = DatabaseObject.getInfo(classType, this);
+		if(info != null){
+			DatabaseObject.register(this, classType, createObjectInfo(classType, args));
+		}
 	}
 
-	public <E extends DatabaseObject> E registerObject(E obj){
-		obj.init(this, obj.getClass(), null, DatabaseObject.FLAG_NONE);
+	public <E extends DatabaseObject> E registerObject(E obj, Object...args){
+		obj.init(this, obj.getClass(), args, DatabaseObject.FLAG_NONE);
 		return obj;
 	}
 

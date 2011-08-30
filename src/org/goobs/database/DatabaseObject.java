@@ -63,7 +63,19 @@ public abstract class DatabaseObject {
 		}
 		return (E) this;
 	}
-	
+
+
+	protected static void register(Database db, Class clazz, DBClassInfo info){
+		Map<Database,DBClassInfo> m = dbInfo.get(clazz);
+		if(m == null){
+			m = new IdentityHashMap<Database,DBClassInfo>();
+			dbInfo.put(clazz,  m);
+		}
+		if(!m.containsKey(db)){
+			m.put(db, info);
+		}
+
+	}
 	@SuppressWarnings("unchecked")
 	protected <E> DBClassInfo<E> getInfo(){
 		return dbInfo.get(this.getClass()).get(database);

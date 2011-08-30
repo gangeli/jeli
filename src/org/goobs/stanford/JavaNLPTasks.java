@@ -50,11 +50,11 @@ public class JavaNLPTasks {
 	}
 
 	public static class Core extends JavaNLPTask {
-		@Override protected String getAnnotators() { return "tokenize, ssplit, pos, lemma"; }
+		@Override protected String getAnnotators() { return "tokenize, ssplit"; }
 	}
 
 	public static class NER extends JavaNLPTask {
-		@Override protected String getAnnotators() { return "tokenize, ssplit, pos, lemma, ner"; }
+		@Override protected String getAnnotators() { return "tokenize, ssplit, pos, lemma"; }
 		@SuppressWarnings({"unchecked"})
     @Override public Class<? extends Task<?>>[] dependencies() { return new Class[]{Core.class}; }
 	}

@@ -262,7 +262,9 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
     db.deleteObjectsWhere(NestedElement.ListElem.class, "source='" + dbTask.tid + "'");
     db.deleteObjectsWhere(NestedElement.DBList.class, "source='" + dbTask.tid + "'");
 		//(perform)
+		db.endTransaction();
 		task.perform(this);
+		db.beginTransaction();
 		//(flush result)
 		for(int i=0; i<numExamples(); i++){
       this.get(i).setSource(dbTask).deepFlush();
@@ -355,28 +357,31 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 	}
 
 	public static void main(String[] args){
-		Database.ConnInfo psql = Database.ConnInfo.psql("localhost", "research", "what?why42?", "data");
+		Database.ConnInfo psql = Database.ConnInfo.psql("localhost", "java", "what?why42?", "junit");
 		Database db = new Database(psql).connect();
 		db.clear();
-//
-//		Annotation a = new Annotation("this ( is a sample sentence. This is another sentence");
-//		Annotation b = new Annotation("Some more sentences. Yes, this is another sentence as well.");
-//		CoreMapDataset data = new CoreMapDataset("trivial", db, new CoreMap[]{ a, b });
-//
-//		System.out.println("----------------------\nRunning CORE annotator");
-//		data.runAndRegisterTask(new JavaNLPTasks.Core());
-//		System.out.println(data);
-//		System.out.println("----------------------\nRunning NER annotator");
-//		data.runAndRegisterTask( new JavaNLPTasks.NER() );
-//		System.out.println(data);
-//    System.out.println("----------------------\nRunning CORE annotator again");
-//		data.runAndRegisterTask(new JavaNLPTasks.Core());
-//		System.out.println(data);
-//
-//		System.out.println("----------------------\nReloading Data");
-//		db.disconnect();
-//		db.connect();
-//		System.out.println( new CoreMapDataset("trivial", db, false) );
+
+		Annotation a = new Annotation("this ( is a sample sentence. This is another sentence");
+		Annotation b = new Annotation("Some more sentences. Yes, this is another sentence as well.");
+		CoreMapDataset data = new CoreMapDataset("trivial", db, new CoreMap[]{ a, b });
+
+		System.out.println("----------------------\nRunning CORE annotator");
+		data.runAndRegisterTask(new JavaNLPTasks.Core());
+		System.out.println(data);
+		System.out.println("----------------------\nRunning NER annotator");
+		db.disconnect();
+		db.connect();
+		data = new CoreMapDataset("trivial", db, false);
+		data.runAndRegisterTask( new JavaNLPTasks.NER() );
+		System.out.println(data);
+    System.out.println("----------------------\nRunning CORE annotator again");
+		data.runAndRegisterTask(new JavaNLPTasks.Core());
+		System.out.println(data);
+
+		System.out.println("----------------------\nReloading Data");
+		db.disconnect();
+		db.connect();
+		System.out.println( new CoreMapDataset("trivial", db, false) );
 	}
 
 
