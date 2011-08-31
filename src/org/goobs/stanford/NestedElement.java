@@ -17,9 +17,11 @@ public abstract class NestedElement extends DatabaseObject {
 	@Key(name="value_type")
 	protected Class valueType;
 	@Key(name="value", type=java.lang.String.class)
-	protected Object value;
+	private Object value;
   @Parent(localField="source", parentField="tid")
   protected CoreMapDataset.DatasetTask source;
+
+	protected boolean changed = false;
 
 	public NestedElement(Class type, Object value, CoreMapDataset.DatasetTask task){
 		this.valueType = type;
@@ -27,15 +29,16 @@ public abstract class NestedElement extends DatabaseObject {
     this.source = task;
 	}
 
-	protected void preFlush(Database db){
+	protected boolean preFlush(Database db){
+		if(this.isInDatabase() && !changed){ return false; }
 		if(value instanceof DBCoreMap){
 			//--Case: DB CoreMap
 			((DBCoreMap) value).deepFlush();
 			value = ""+((DBCoreMap) value).eid;
 		} else if(value instanceof CoreMap) {
 			//--Case: CoreMap
-			db.registerType(DBCoreMap.class, CoreMap.class, CoreMapDataset.DatasetTask.class);
-			DBCoreMap val = db.emptyObject(DBCoreMap.class, (CoreMap) value, source).deepFlush();
+			db.registerType(DBCoreMap.class, DBCoreMap.class, CoreMapDataset.DatasetTask.class);
+			DBCoreMap val = db.emptyObject(DBCoreMap.class, value, source).deepFlush();
 			value = ""+val.eid;
 		} else if(value instanceof DBList){
 			//--Case: DB List
@@ -49,6 +52,7 @@ public abstract class NestedElement extends DatabaseObject {
 		} else if(value  instanceof Calendar){
 			value = ""+((Calendar) value).getTimeInMillis();
 		}
+		return true;
 	}
 
 	@SuppressWarnings({"unchecked"})
@@ -67,7 +71,9 @@ public abstract class NestedElement extends DatabaseObject {
 			//--Case DB List
 			if(value == null){ throw new IllegalStateException("Value is null but should not be: " + this); }
 			if(value instanceof String){
-				value = db.getObjectById(DBList.class, Integer.parseInt(value.toString())).toList(db);
+				DBList lst = db.getObjectById(DBList.class, Integer.parseInt(value.toString()));
+				if(lst == null){ throw new IllegalStateException("No such list: " + value + ":: " + this.getClass() + ":: " + this.eid); }
+				value = lst.toList(db);
 			}
 		} else if(java.util.List.class.isAssignableFrom(this.valueType)) {
 			//--Case: Regular List
@@ -79,8 +85,13 @@ public abstract class NestedElement extends DatabaseObject {
 			//--Case: Everything Else
 			value =  Utils.cast(value.toString(), valueType);
 		}
+		changed = true;
 		return value;
 	}
+
+
+
+
 
 
 
@@ -102,6 +113,14 @@ public abstract class NestedElement extends DatabaseObject {
 		@Override public int compareTo(ListElem listElem) { return this.index-listElem.index; }
 	}
 
+
+
+
+
+
+
+
+
 	@Table(name="list")
 	public static class DBList extends NestedElement {
 		@Child(localField="eid",childField="parent")
@@ -116,31 +135,46 @@ public abstract class NestedElement extends DatabaseObject {
 		}
 
 		public java.util.List toList(Database db){
-			this.refreshLinks();
 			if(this.elems == null){
+				this.refreshLinks();
 				Arrays.sort(elements);
 				elems = new ArrayList<Object>();
 				for(ListElem e : elements){
 					elems.add(e.value(db));
 				}
 			}
+//			this.changed = true;                           //TODO mutable lists
 			return elems;
 		}
 
 		@Override
-		protected void preFlush(Database db){
-			super.preFlush(db);
+		protected boolean preFlush(Database db){
+			if(!super.preFlush(db)){ return false; }
 			//(create elements)
-			this.elements = new ListElem[this.elems.size()];
-			int i=0;
-			for(Object o: elems){
-				elements[i] = db.emptyObject(ListElem.class,i,o, this.source);
-				i += 1;
+			if(this.elems != null){
+				this.elements = new ListElem[this.elems.size()];
+				int i=0;
+				for(Object o: elems){
+					elements[i] = db.emptyObject(ListElem.class,i,o, this.source);
+					i += 1;
+				}
+				System.out.println("Flushing a list? Don't do that, bro");
+				if(this.isInDatabase()){ throw new IllegalStateException("For now, lists are immutable"); }
+				return true;
+			} else {
+				return false;
 			}
 		}
 
 		@Override public String toString(){ return "DBList["+this.eid+"]"; }
 	}
+
+
+
+
+
+
+
 
 	@Table(name="map_element")
 	public static class MapElem extends NestedElement {
@@ -148,7 +182,7 @@ public abstract class NestedElement extends DatabaseObject {
 		@Index
 		private Class key;
 		@Parent(localField="parent",parentField="eid")
-		private Map parent;
+		private DBCoreMap parent;
 
 		private MapElem(){ super(null,null,null); }
 		public MapElem(Class key, Object value, CoreMapDataset.DatasetTask task){
@@ -160,19 +194,6 @@ public abstract class NestedElement extends DatabaseObject {
 
 		@Override public String toString(){ return "MapElement["+this.eid+" in " + parent + "]"; }
 
-	}
-
-	@Table(name="map")
-	public static abstract class Map extends NestedElement {
-		@Child(localField="eid",childField="parent")
-		protected MapElem[] elements;
-
-		private Map(){ super(java.util.Map.class, null,null); }
-		protected Map(Class valueType, Object value, CoreMapDataset.DatasetTask task){
-			super(valueType, value, task);
-		}
-
-		@Override public String toString(){ return "Map["+this.eid+"]"; }
 	}
 
 }

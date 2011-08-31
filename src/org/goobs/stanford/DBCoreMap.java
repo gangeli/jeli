@@ -3,8 +3,10 @@ package org.goobs.stanford;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.util.ArrayCoreMap;
 import edu.stanford.nlp.util.CoreMap;
+import org.goobs.database.Child;
 import org.goobs.database.Database;
 import org.goobs.database.DatabaseException;
+import org.goobs.database.Table;
 import org.goobs.testing.Datum;
 
 import javax.swing.text.html.parser.Element;
@@ -16,7 +18,11 @@ import java.util.*;
 		- clean up old annotations when they have been updated
  */
 
-public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
+@Table(name="map")
+public class DBCoreMap extends NestedElement implements CoreMap, Datum {
+
+	@Child(localField="eid",childField="parent")
+	protected MapElem[] elements;
 
 	private static HashMap<Long,DBCoreMap> updateMarker = new HashMap<Long,DBCoreMap>();
 
@@ -70,10 +76,13 @@ public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
 				this.database.beginTransaction();
 			}
 			//(ensure valid state)
-			this.refreshLinks();
-			impl = new ArrayCoreMap(0);
+			if(this.elements == null){
+				this.refreshLinks();
+			}
 			//(populate map)
+			impl = new ArrayCoreMap(0);
 			for (NestedElement.MapElem elem : elements) {
+				elem.refreshLinks();
 				impl.set(elem.key(), elem.value(this.database));
 			}
 			if(updateMarker.get(Thread.currentThread().getId()) == this){
@@ -84,7 +93,7 @@ public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void updateElements(Database db){
+	private boolean updateElements(Database db){
 		if(this.elements == null && this.impl == null){ throw new IllegalStateException("flushing but was never initialized! (forgot refreshLinks()?)"); }
 		else if(this.impl != null){
 			ArrayList<Object> elems = new ArrayList<Object>();
@@ -110,6 +119,9 @@ public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
 				iter.remove();
 			}
 			this.elements = elems.toArray(new NestedElement.MapElem[elems.size()]);
+			return true;
+		} else {
+			return false;
 		}
 	}
 
@@ -119,9 +131,8 @@ public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
   }
 
 	@Override
-	protected void preFlush(Database db){
-		super.preFlush(db);
-		updateElements(db);
+	protected boolean preFlush(Database db){
+		return super.preFlush(db) && updateElements(db);
 	}
 
 	@Override
@@ -140,6 +151,7 @@ public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
 	public <VALUEBASE, VALUE extends VALUEBASE, KEY extends Key<CoreMap, VALUEBASE>> VALUE set(Class<KEY> keyClass, VALUE value) {
 		this.updateMap();
     added.add(keyClass);
+		this.changed = true;
 		return impl.set(keyClass, value);
 	}
 
@@ -147,6 +159,7 @@ public class DBCoreMap extends NestedElement.Map implements CoreMap, Datum {
 	public <VALUE, KEY extends Key<CoreMap, VALUE>> VALUE remove(Class<KEY> keyClass) {
 		this.updateMap();
     removed.add(keyClass);
+		this.changed = true;
 		return impl.remove(keyClass);
 	}
 

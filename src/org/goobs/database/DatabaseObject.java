@@ -264,18 +264,22 @@ public abstract class DatabaseObject {
 		return (D) this;
 	}
 
-	protected void preFlush(Database db){ }
+	protected boolean preFlush(Database db){ return true; }
+
+	@SuppressWarnings({"unchecked"})
+	private void uncheckedFlush(){
+		if(database == null){
+			throw new IllegalStateException("Cannot flush a database object created with 'new:' " + this.getClass());
+		}
+		if(flag(flags,FLAG_READ_ONLY)){
+			throw new IllegalStateException("Cannot flush a read-only object");
+		}
+		database.flush(dbInfo.get(this.getClass()).get(database), this);
+	}
 
 	@SuppressWarnings("unchecked")
 	public final <T extends DatabaseObject> T flush(){
-		if(database == null){ 
-			throw new IllegalStateException("Cannot flush a database object created with 'new:' " + this.getClass());
-		}
-		if(flag(flags,FLAG_READ_ONLY)){ 
-			throw new IllegalStateException("Cannot flush a read-only object");
-		}
-		this.preFlush(this.database);
-		database.flush(dbInfo.get(this.getClass()).get(database), this);
+		if(this.preFlush(this.database)){ uncheckedFlush(); }
 		return (T) this;
 	}
 	
@@ -284,6 +288,7 @@ public abstract class DatabaseObject {
 		if(isSet(FLAG_FLUSHING)){ return (T) this; }
 		setFlag(FLAG_FLUSHING, true);
 		try {
+			if(!this.preFlush(this.database)){ return (T) this; }
 			for(Field f : getDeclaredFields()){
 				Parent key = f.getAnnotation(Parent.class);
 				if(key != null){
@@ -293,7 +298,7 @@ public abstract class DatabaseObject {
 					if(parent != null){ parent.deepFlush(); }
 				}
 			}
-			this.flush();
+			this.uncheckedFlush();
 			for(Field f : getDeclaredFields()){
 				Child link = f.getAnnotation(Child.class);
 				boolean accessible = f.isAccessible();

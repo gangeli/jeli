@@ -27,6 +27,8 @@ import org.goobs.utils.MetaClass;
 import org.goobs.utils.Pair;
 import org.goobs.utils.Utils;
 
+import javax.management.relation.RelationTypeNotFoundException;
+
 /*
 TODO
   - Unique flag
@@ -697,7 +699,7 @@ public final class Database implements Decodable{
 					entered = true;
 					if(((Parent) ann).indexType() != Index.Type.NONE){
 						Parent pann = (Parent) ann;
-						indexes.add( indexQuery(pann.indexType(), table, pann.localField(), nextIndexIdentifier++) );
+						indexes.add(indexQuery(pann.indexType(), table, pann.localField(), nextIndexIdentifier++));
 					}
 				}else if(ann instanceof Key){
 					if(entered) throw new DatabaseException("Multiple keys for field: " + f + " in class " + toCreate);
@@ -781,7 +783,6 @@ public final class Database implements Decodable{
 
 	@SuppressWarnings({"unchecked"})
 	public <E extends DatabaseObject> E emptyObject(Class<E> classType, Object... args){
-		DBClassInfo<E> info = DatabaseObject.getInfo(classType, this);
 		E rtn = (E) new MetaClass(classType).createInstance(args);
 		rtn.init(this, classType, args, DatabaseObject.FLAG_NONE);
 		return rtn;

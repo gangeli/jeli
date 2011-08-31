@@ -64,17 +64,17 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 			for(int i=0; i<depends.length; i++){
 				this.conditions[i] = new Dependency(this, depends[i]);
 			}
-
 		}
 
     @Override
-    public void preFlush(Database db){
-      super.preFlush(db);
+    public boolean preFlush(Database db){
+      if(!super.preFlush(db)){ return false; }
       if(this.conditions != null){
         for(Dependency d : this.conditions){
          db.registerObject(d);
         }
       }
+			return true;
     }
 
 		public DatasetTask perform(){
@@ -97,10 +97,6 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 			this.allows = allows;
 			this.condition = condition;
 		}
-
-    @Override public void preFlush(Database db){
-      super.preFlush(db);
-    }
 
 
 	}
@@ -196,7 +192,9 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 		for(DBCoreMap map : coreMaps){
 			String str = map.toString();
 			Log.log("flushing " + index++ + " / " + coreMaps.length + ": " + str.substring(0,Math.min(str.length(),20)));
-			if(!map.isInDatabase()){ map.deepFlush(); }
+			if(!map.isInDatabase()){
+				map.deepFlush(); }
+
 		}
 		//(create dataset)
 		Log.log("creating dataset");
@@ -223,7 +221,8 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 	public DBCoreMap get(int id) {
 		if(id < 0 || id > maps.length){ throw new IllegalArgumentException("ID is out of range: " + id); }
 		if(maps[id] == null){
-			maps[id] = db.getObjectById(DBCoreMap.class,Integer.parseInt(dataset.maps[id])).refreshLinks();
+			maps[id] = db.getObjectById(DBCoreMap.class,Integer.parseInt(dataset.maps[id]));
+			if(maps[id] == null){ throw new IllegalStateException("No such map: " + dataset.maps[id]); }
 		}
 		maps[id].setId(id);
 		return maps[id];
@@ -232,6 +231,10 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 	@Override
 	public Range range() {
 		return new Range(0,numExamples());
+	}
+
+	private void clearCache(){
+		maps = new DBCoreMap[numExamples()];
 	}
 
 	@SuppressWarnings({"unchecked"})
@@ -255,12 +258,14 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
   private <E extends Task> void runTask(E task){
 		//--Perform Task
     DatasetTask dbTask = db.getObjectByKey(DatasetTask.class, "class", task.getClass());
+		if(dbTask == null){ throw new IllegalArgumentException("Called runTask() without creating it first"); }
 		db.beginTransaction();
     //(clear previous annotation)
     db.deleteObjectsWhere(NestedElement.MapElem.class, "source='" + dbTask.tid + "'");
-    db.deleteObjectsWhere(NestedElement.Map.class, "source='" + dbTask.tid + "'");
+    db.deleteObjectsWhere(DBCoreMap.class, "source='" + dbTask.tid + "'");
     db.deleteObjectsWhere(NestedElement.ListElem.class, "source='" + dbTask.tid + "'");
     db.deleteObjectsWhere(NestedElement.DBList.class, "source='" + dbTask.tid + "'");
+		clearCache();
 		//(perform)
 		db.endTransaction();
 		task.perform(this);
@@ -339,7 +344,7 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 				dependencies[i] = db.getObjectByKey(DatasetTask.class, "class", depends[i]);
 			}
 			//(save object)
-			DatasetTask dbTask = db.emptyObject(DatasetTask.class,this,task,dependencies).deepFlush();
+			db.emptyObject(DatasetTask.class,this,task,dependencies).deepFlush();
 		}
 		//--Run Task
 		runTask(task);
@@ -372,11 +377,12 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 		db.disconnect();
 		db.connect();
 		data = new CoreMapDataset("trivial", db, false);
+		System.out.println(data);
 		data.runAndRegisterTask( new JavaNLPTasks.NER() );
 		System.out.println(data);
-    System.out.println("----------------------\nRunning CORE annotator again");
-		data.runAndRegisterTask(new JavaNLPTasks.Core());
-		System.out.println(data);
+//    System.out.println("----------------------\nRunning CORE annotator again");
+//		data.runAndRegisterTask(new JavaNLPTasks.Core());
+//		System.out.println(data);
 
 		System.out.println("----------------------\nReloading Data");
 		db.disconnect();
