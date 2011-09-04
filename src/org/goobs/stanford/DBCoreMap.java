@@ -27,8 +27,8 @@ public class DBCoreMap extends NestedElement implements CoreMap, Datum {
 	private static HashMap<Long,DBCoreMap> updateMarker = new HashMap<Long,DBCoreMap>();
 
 	private CoreMap impl;
-  private Set<Class> added = new HashSet<Class>();
-  private Set<Class> removed = new HashSet<Class>();
+  private Set<Class> addedSet = new HashSet<Class>();
+  private Set<Class> changedSet = new HashSet<Class>();
 
 	private int id = -1;
 
@@ -42,7 +42,7 @@ public class DBCoreMap extends NestedElement implements CoreMap, Datum {
 			super(CoreMap.class, null, source);
 			impl = new ArrayCoreMap(map);
 			for(Class key : impl.keySet()){
-				added.add(key);
+				addedSet.add(key);
 			}
 		}
 
@@ -94,31 +94,43 @@ public class DBCoreMap extends NestedElement implements CoreMap, Datum {
 
 	@SuppressWarnings("unchecked")
 	private boolean updateElements(Database db){
+		if(this.isInDatabase() && this.elements == null){ this.refreshLinks(); }
 		if(this.elements == null && this.impl == null){ throw new IllegalStateException("flushing but was never initialized! (forgot refreshLinks()?)"); }
 		else if(this.impl != null){
-			ArrayList<Object> elems = new ArrayList<Object>();
+			ArrayList<MapElem> elems = new ArrayList<MapElem>();
+			//(get fields in database)
+			HashMap<Class,MapElem> inDatabase = new HashMap<Class, MapElem>();
       if(this.elements != null){
       	for(MapElem elem : this.elements){
-					if(!this.removed.contains(elem.key()) && !added.contains(elem.key())){
-						elems.add(elem);
-						added.remove(elem.key());
-						removed.remove(elem.key());
-					}
+					inDatabase.put(elem.key(),elem);
+					elems.add(elem);
 				}
       }
-			Iterator<Class> iter = added.iterator();
-			while(iter.hasNext()){
-				Class key = iter.next();
+			//(update changed elements)
+			for(Class key : changedSet){
+				assert inDatabase.get(key) != null;
+				assert impl.get(key) != null;
+				assert !(impl.get(key) instanceof List);
+				inDatabase.get(key).setValue(impl.get(key));
+			}
+			//(update new elements)
+			for(Class key : addedSet){
+				assert inDatabase.get(key) == null;
+				assert impl.get(key) != null;
+				//(get value)
 				Object val = impl.get(key);
 				if(val instanceof CoreMap) {
 					val = db.emptyObject(DBCoreMap.class, (CoreMap) val, this.source);
 				} else if(val instanceof java.util.List) {
 					val = db.emptyObject(DBList.class, val, this.source);
 				}
+				//(add element)
 				elems.add( db.emptyObject(NestedElement.MapElem.class,key,val,this.source) );
-				iter.remove();
 			}
+			//(set elements)
 			this.elements = elems.toArray(new NestedElement.MapElem[elems.size()]);
+			this.addedSet = new HashSet<Class>();
+			this.changedSet = new HashSet<Class>();
 			return true;
 		} else {
 			return false;
@@ -150,7 +162,14 @@ public class DBCoreMap extends NestedElement implements CoreMap, Datum {
 	@Override
 	public <VALUEBASE, VALUE extends VALUEBASE, KEY extends Key<CoreMap, VALUEBASE>> VALUE set(Class<KEY> keyClass, VALUE value) {
 		this.updateMap();
-    added.add(keyClass);
+		if(this.containsKey(keyClass)){
+			assert !addedSet.contains(keyClass);
+			assert !(this.get(keyClass) instanceof List);
+			changedSet.add(keyClass);
+		} else {
+			assert !changedSet.contains(keyClass);
+    	addedSet.add(keyClass);
+		}
 		this.changed = true;
 		return impl.set(keyClass, value);
 	}
@@ -158,7 +177,6 @@ public class DBCoreMap extends NestedElement implements CoreMap, Datum {
 	@Override
 	public <VALUE, KEY extends Key<CoreMap, VALUE>> VALUE remove(Class<KEY> keyClass) {
 		this.updateMap();
-    removed.add(keyClass);
 		this.changed = true;
 		return impl.remove(keyClass);
 	}
@@ -182,16 +200,16 @@ public class DBCoreMap extends NestedElement implements CoreMap, Datum {
 	}
 
 	@Override
-	public String toString() {
-    this.updateMap();
-		return impl.toString();
-  }
-
-	@Override
 	public int getID() {
 		if(this.id < 0){ throw new IllegalStateException("This is not a top-level CoreMap"); }
 		return this.id;
 	}
+
+	@Override
+	public String toString() {
+    this.updateMap();
+		return impl.toString();
+  }
 
   @Override
   public boolean equals(Object obj) {

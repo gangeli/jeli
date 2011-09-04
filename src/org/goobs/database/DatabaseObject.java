@@ -265,6 +265,7 @@ public abstract class DatabaseObject {
 	}
 
 	protected boolean preFlush(Database db){ return true; }
+	protected void postFlush(Database db){ }
 
 	@SuppressWarnings({"unchecked"})
 	private void uncheckedFlush(){
@@ -275,6 +276,7 @@ public abstract class DatabaseObject {
 			throw new IllegalStateException("Cannot flush a read-only object");
 		}
 		database.flush(dbInfo.get(this.getClass()).get(database), this);
+		this.postFlush(database);
 	}
 
 	@SuppressWarnings("unchecked")

@@ -34,7 +34,7 @@ import org.goobs.utils.Utils;
  *	TODO better options logging to file
 */
 
-public final class Execution {	
+public class Execution {
 	
 	private static final String LOG_TAG = "EXEC";
 	
@@ -64,7 +64,47 @@ public final class Execution {
 	protected static String execDir;
 	
 	private static ResultLogger logger;
-	
+
+	/*
+	 * ----------
+	 * LOGGING
+	 * ----------
+	 */
+
+	public static class LogInterface {
+		protected void setup(){ }
+		protected void err(Object tag, Object obj){
+			Log.err(obj);
+		}
+		protected void log(String tag, Object obj){
+			Log.log(obj);
+		}
+		protected void debug(String tag, Object obj){
+			Log.debug(obj);
+		}
+		protected void warn(String tag, Object obj){
+			Log.warn(obj);
+		}
+		protected RuntimeException fail(Object msg){
+			return Log.fail(msg);
+		}
+		protected void exit(ExitCode code){
+			Log.exit(code);
+		}
+		protected void startTrack(String name){
+			Log.startTrack(name);
+		}
+		protected void endTrack(String check){
+			Log.endTrack();
+		}
+	}
+
+	private static LogInterface log = new LogInterface();
+	public static void changeLogInterface(LogInterface newInterface){
+		log = newInterface;
+	}
+
+
 	/*
 	 * ----------
 	 * OPTIONS
@@ -106,7 +146,7 @@ public final class Execution {
 			//--Permissions
 			boolean accessState = true;
 			if(Modifier.isFinal( f.getModifiers() )){
-				Log.err(LOG_TAG,"Option cannot be final: " + f);
+				log.err(LOG_TAG,"Option cannot be final: " + f);
 				System.exit(ExitCode.BAD_OPTION.code);
 			}
 			if(!f.isAccessible()){
@@ -121,7 +161,7 @@ public final class Execution {
 					Object[] array = (Object[]) objVal;
 					// error check
 					if(!f.getType().isArray()){
-						Log.err(LOG_TAG,"Setting an array to a non-array field. field: " + f + " value: " + Arrays.toString(array) + " src: " + value);
+						log.err(LOG_TAG,"Setting an array to a non-array field. field: " + f + " value: " + Arrays.toString(array) + " src: " + value);
 						System.exit(ExitCode.BAD_OPTION.code);
 					}
 					// create specific array
@@ -136,7 +176,7 @@ public final class Execution {
 					f.set(null, objVal);
 				}
 			} else {
-				Log.err(LOG_TAG,"Cannot assign option field: " + f + " value: " + value + "; invalid type");
+				log.err(LOG_TAG,"Cannot assign option field: " + f + " value: " + value + "; invalid type");
 				System.exit(ExitCode.BAD_OPTION.code);
 			}
 			//--Permissions
@@ -144,13 +184,13 @@ public final class Execution {
 				f.setAccessible(false);
 			}
 		} catch (IllegalArgumentException e) {
-			Log.err(LOG_TAG,"Cannot assign option field: " + f.getDeclaringClass().getCanonicalName() + "." + f.getName() + " value: " + value + " cause: " + e.getMessage());
+			log.err(LOG_TAG,"Cannot assign option field: " + f.getDeclaringClass().getCanonicalName() + "." + f.getName() + " value: " + value + " cause: " + e.getMessage());
 			System.exit(ExitCode.BAD_OPTION.code);
 		} catch (IllegalAccessException e) {
-			Log.err(LOG_TAG,"Cannot access option field: " + f.getDeclaringClass().getCanonicalName() + "." + f.getName());
+			log.err(LOG_TAG,"Cannot access option field: " + f.getDeclaringClass().getCanonicalName() + "." + f.getName());
 			System.exit(ExitCode.BAD_OPTION.code);
 		} catch (Exception e){
-			Log.err(LOG_TAG,"Cannot assign option field: " + f.getDeclaringClass().getCanonicalName() + "." + f.getName() + " value: " + value + " cause: " + e.getMessage());
+			log.err(LOG_TAG,"Cannot assign option field: " + f.getDeclaringClass().getCanonicalName() + "." + f.getName() + " value: " + value + " cause: " + e.getMessage());
 			System.exit(ExitCode.BAD_OPTION.code);
 		}
 	}
@@ -172,9 +212,9 @@ public final class Execution {
 					false, 
 					ClassLoader.getSystemClassLoader());
 		} catch (ClassNotFoundException e) {
-			throw Log.internal("Could not load class at path: " + path);
+			throw log.fail("Could not load class at path: " + path);
 		} catch (NoClassDefFoundError ex) {
-			Log.debug(LOG_TAG,"Class at path " + path + " is unloadable");
+			log.debug(LOG_TAG,"Class at path " + path + " is unloadable");
 			return null;
 		}
 	}
@@ -202,7 +242,7 @@ public final class Execution {
 						System.err.println("The library strongly integrates with the Scala runtime, ");
 						System.err.println("however it could not find the Scala library (scala-library.jar) ");
 						System.err.println("at the path given by the command line option '" + SCALA_PATH + "': " + path);
-						Log.exit(ExitCode.BAD_OPTION);
+						log.exit(ExitCode.BAD_OPTION);
 					}
 					URL url = new File(path).toURI().toURL();
 					URLClassLoader sysloader = (URLClassLoader) ClassLoader.getSystemClassLoader();
@@ -214,14 +254,14 @@ public final class Execution {
 					method.setAccessible(savedAccessible);
 					Class.forName("scala.None",false, ClassLoader.getSystemClassLoader());
 				} catch (Exception ex) {
-					throw Log.fail(ex);
+					throw log.fail(ex);
 				}//end try catch
 			}else{
 				//(case: we cannot find the scala library at all)
 				System.err.println("The library strongly integrates with the Scala runtime, ");
 				System.err.println("however it could not find the Scala library (scala-library.jar) in the classpath, ");
 				System.err.println("and the '" + SCALA_PATH + "' command line argument is not set.");
-				Log.exit(ExitCode.BAD_OPTION);
+				log.exit(ExitCode.BAD_OPTION);
 			}
 		}
 		options.remove(SCALA_PATH);
@@ -246,7 +286,7 @@ public final class Execution {
 			boolean isIgnored = false;
 			for(String pattern : ignoredClasspath){
 				if(entry.matches(pattern)){ 
-					Log.debug(LOG_TAG,"Ignoring options in classpath element: " + entry);
+					log.debug(LOG_TAG,"Ignoring options in classpath element: " + entry);
 					isIgnored = true;
 					break;
 				}
@@ -289,12 +329,12 @@ public final class Execution {
 								.internal("Could not load class in jar: "
 										+ f + " at path: " + clazz);
 							} catch (NoClassDefFoundError ex) {
-								Log.debug(LOG_TAG,"Could not scan class: " + clazz + " (in jar: " + f + ")");
+								log.debug(LOG_TAG,"Could not scan class: " + clazz + " (in jar: " + f + ")");
 							}
 						}
 					}
 				} catch (IOException e) {
-					throw Log.internal("Could not open jar file: " + f +
+					throw log.fail("Could not open jar file: " + f +
 						"(are you sure the file exists?)");
 				}
 			} else {
@@ -326,7 +366,7 @@ public final class Execution {
 			try {
 				fields = c.getDeclaredFields();
 			} catch (Throwable e) {
-				Log.debug(LOG_TAG,"Could not check fields for class: " + c.getName() + "  (caused by " + e.getClass() + ": " + e.getMessage() + ")");
+				log.debug(LOG_TAG,"Could not check fields for class: " + c.getName() + "  (caused by " + e.getClass() + ": " + e.getMessage() + ")");
 				continue;
 			}
 			
@@ -335,7 +375,7 @@ public final class Execution {
 				if(o != null){
 					//(check if field is static)
 					if((f.getModifiers() & Modifier.STATIC) == 0){
-						Log.err(LOG_TAG,"Option can only be applied to static field: " + c + "." + f);
+						log.err(LOG_TAG,"Option can only be applied to static field: " + c + "." + f);
 						System.exit(ExitCode.BAD_OPTION.code);
 					}
 					//(required marker)
@@ -351,10 +391,10 @@ public final class Execution {
 						String name1 = canFill.get(name).getDeclaringClass().getCanonicalName() + "." + canFill.get(name).getName();
 						String name2 = f.getDeclaringClass().getCanonicalName() + "." + f.getName();
 						if(!name1.equals(name2)){
-							Log.err(LOG_TAG,"Multiple declarations of option " + name + ": " + name1 + " and " + name2);
+							log.err(LOG_TAG,"Multiple declarations of option " + name + ": " + name1 + " and " + name2);
 							System.exit(ExitCode.BAD_OPTION.code);
 						}else{
-							Log.warn(LOG_TAG,"Class is in classpath multiple times: " + canFill.get(name).getDeclaringClass().getCanonicalName());
+							log.err(LOG_TAG,"Class is in classpath multiple times: " + canFill.get(name).getDeclaringClass().getCanonicalName());
 						}
 					}
 					canFill.put(name, f);
@@ -394,7 +434,7 @@ public final class Execution {
 				// split the key
 				int lastDotIndex = rawKey.lastIndexOf('.');
 				if(lastDotIndex < 0){
-					Log.err(LOG_TAG,"Unrecognized option: " + key);
+					log.err(LOG_TAG,"Unrecognized option: " + key);
 					System.exit(ExitCode.BAD_OPTION.code);
 				}
 				String className = rawKey.substring(0, lastDotIndex);
@@ -404,14 +444,14 @@ public final class Execution {
 				try {
 					clazz = ClassLoader.getSystemClassLoader().loadClass(className);
 				} catch (Exception e) {
-					Log.err(LOG_TAG,"Could not set option: " + rawKey + "; no such class: " + className);
+					log.err(LOG_TAG,"Could not set option: " + rawKey + "; no such class: " + className);
 					System.exit(ExitCode.BAD_OPTION.code);
 				}
 				// get the field
 				try {
 					target = clazz.getField(fieldName);
 				} catch (Exception e) {
-					Log.err(LOG_TAG,"Could not set option: " + rawKey + "; no such field: " + fieldName + " in class: " + className);
+					log.err(LOG_TAG,"Could not set option: " + rawKey + "; no such field: " + fieldName + " in class: " + className);
 					System.exit(ExitCode.BAD_OPTION.code);
 				}
 				fillField(target, value);
@@ -422,7 +462,7 @@ public final class Execution {
 		boolean good = true;
 		for(String key : required.keySet()){
 			if(!required.get(key).isSet()){
-				Log.err(LOG_TAG,"Missing required option: " + interner.get(key) + "   <in class: " + canFill.get(key).getDeclaringClass() + ">");
+				log.err(LOG_TAG,"Missing required option: " + interner.get(key) + "   <in class: " + canFill.get(key).getDeclaringClass() + ">");
 				required.get(key).set();	//don't duplicate error messages
 				good = false;
 			}
@@ -465,9 +505,9 @@ public final class Execution {
 					}
 					if(!accessSave){ f.setAccessible(false); }
 				} catch (IllegalArgumentException e) {
-					Log.fail(e);
+					throw log.fail(e);
 				} catch (IllegalAccessException e) {
-					Log.fail(e);
+					throw log.fail(e);
 				}
 			}
 			logger.logOption(key, value, f.getDeclaringClass().getName() + "." + f.getName());
@@ -479,7 +519,7 @@ public final class Execution {
 			try {
 				fields = c.getDeclaredFields();
 			} catch (Throwable e) {
-				Log.debug(LOG_TAG,"Could not check fields for class: " + c.getName() + "  (caused by " + e.getClass() + ": " + e.getMessage() + ")");
+				log.debug(LOG_TAG,"Could not check fields for class: " + c.getName() + "  (caused by " + e.getClass() + ": " + e.getMessage() + ")");
 				continue;
 			}
 			//(get parameters for fields)
@@ -487,7 +527,7 @@ public final class Execution {
 				Param p = f.getAnnotation(Param.class);
 				if(p != null){
 					if( (f.getModifiers() & Modifier.STATIC) == 0){
-						throw Log.fail("Cannot set a non-static field as an input parameter: " + f);
+						throw log.fail("Cannot set a non-static field as an input parameter: " + f);
 					}
 					//(get name)
 					String name = null;
@@ -502,9 +542,9 @@ public final class Execution {
 					try {
 						logger.logParameter(name, "" + f.get(null));
 					} catch (IllegalArgumentException e) {
-						throw Log.fail(e);
+						throw log.fail(e);
 					} catch (IllegalAccessException e) {
-						throw Log.fail(e);
+						throw log.fail(e);
 					}
 				}
 			}
@@ -532,7 +572,7 @@ public final class Execution {
 	
 	public static final ResultLogger getLogger(){
 		if(logger == null){ 
-			Log.warn(LOG_TAG, "In-memory logging only (log database options were not set?)");
+			log.warn(LOG_TAG, "In-memory logging only (log database options were not set?)");
 			logger = new InMemoryLogger();
 		}
 		return logger;
@@ -613,7 +653,7 @@ public final class Execution {
 				w.write(b.toString());
 				w.close();
 			}
-		} catch(IOException e){	Log.warn("Could not write options file"); }
+		} catch(IOException e){	log.warn(LOG_TAG,"Could not write options file"); }
 	}
 
 	/*
@@ -627,7 +667,6 @@ public final class Execution {
 	}
 	public static final void exec(Runnable toRun, String[] args, boolean exit) {
 		//--Init
-		Log.start_track("init");
 		//(cleanup)
 		ignoredClasspath = new String[0];
 		runName = "<unnamed>";
@@ -638,28 +677,30 @@ public final class Execution {
 		//(bootstrap)
 		Map<String,String> options = parseOptions(args); //get options
 		fillOptions(BOOTSTRAP_CLASSES, options, false); //bootstrap
+		log.setup();
+		log.startTrack("init");
 		//(fill options)
 		Class<?>[] visibleClasses = getVisibleClasses(options); //get classes
 		Map<String,Field> optionFields = fillOptions(visibleClasses, options);//fill
 		initDatabase(visibleClasses, options, optionFields); //database
 		dumpOptions(options); //file dump
-		Log.end_track();
+		log.endTrack("init");
 		//--Run Program
 		try {
-			Log.startTrack("main");
+			log.startTrack("main");
 			toRun.run();
-			Log.endTrack(); //ends main
-			Log.startTrack("flushing");
+			log.endTrack("main"); //ends main
+			log.startTrack("flushing");
 			if(logger != null){ logger.save(); }
 		} catch (Exception e) { //catch everything
 			e.printStackTrace();
 			System.err.flush();
 			if(logger != null){ logger.suggestFlush(); } //not a save!
-			Log.exit(ExitCode.FATAL_EXCEPTION);
+			log.exit(ExitCode.FATAL_EXCEPTION);
 		}
-		Log.endTrack();
+		log.endTrack("flushing");
 		if(exit){
-			Log.exit(ExitCode.OK,false); //soft exit
+			log.exit(ExitCode.OK); //soft exit
 		}
 	}
 	

@@ -2,6 +2,7 @@ package org.goobs.stanford;
 
 
 import edu.stanford.nlp.pipeline.Annotation;
+import edu.stanford.nlp.util.ArrayCoreMap;
 import edu.stanford.nlp.util.CoreMap;
 import org.goobs.database.*;
 import org.goobs.exec.Log;
@@ -106,6 +107,8 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 
 	private DBCoreMap[] maps;
 	private String name;;
+
+	private CoreMapDataset(){}
 
 	/**
 	 * Constructor for reading a dataset from the database
@@ -214,7 +217,7 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 
 	@Override
 	public int numExamples() {
-		return dataset.maps.length;
+		return maps.length;
 	}
 
 	@Override
@@ -351,6 +354,18 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 		return this;
 	}
 
+	public CoreMapDataset deepCopy(){
+		CoreMapDataset rtn = new CoreMapDataset();
+		rtn.name = this.name;
+		rtn.db = this.db;
+		rtn.maps = new DBCoreMap[this.maps.length];
+		for(int i=0; i<this.maps.length; i++){
+			rtn.maps[i] = new DBCoreMap(this.maps[i], this.maps[i].source);
+		}
+		return rtn;
+	}
+
+	@Override public int hashCode(){ return numExamples(); } //don't judge :/
 	@Override
 	public String toString(){
 		StringBuilder b = new StringBuilder();
@@ -361,7 +376,27 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 		return b.toString();
 	}
 
+	@Override
+	public boolean equals(Object o){
+		if(o instanceof CoreMapDataset){
+			CoreMapDataset other = (CoreMapDataset) o;
+			if(this.numExamples() != other.numExamples()){ return false; }
+			for(int i=0; i<numExamples(); i++){
+				if(!this.get(i).equals(other.get(i))){ return false; }
+			}
+			return true;
+		}
+		return false;
+	}
+
 	public static void main(String[] args){
+//		Database.ConnInfo dataInfo = Database.ConnInfo.psql("localhost", "research", "what?why42?", "data");
+//		Database dbData = new Database(dataInfo);
+//		dbData.connect();
+//		dbData.ensureTable(Dependency.class);
+//		System.exit(0);
+
+
 		Database.ConnInfo psql = Database.ConnInfo.psql("localhost", "java", "what?why42?", "junit");
 		Database db = new Database(psql).connect();
 		db.clear();
@@ -372,14 +407,18 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 
 		System.out.println("----------------------\nRunning CORE annotator");
 		data.runAndRegisterTask(new JavaNLPTasks.Core());
-		System.out.println(data);
+		CoreMapDataset afterCore = data;
 		System.out.println("----------------------\nRunning NER annotator");
 		db.disconnect();
 		db.connect();
-		data = new CoreMapDataset("trivial", db, false);
-		System.out.println(data);
+		data = new CoreMapDataset("trivial", db);
+//		if(!afterCore.equals(data)){
+//			throw new IllegalStateException("Did not reload data correctly");
+//		}
+		CoreMapDataset beforeNER = (CoreMapDataset) data.deepCopy();
+//		if(!afterCore.equals(beforeNER)){ throw new IllegalStateException("Did not deepCopy data correctly"); }
 		data.runAndRegisterTask( new JavaNLPTasks.NER() );
-		System.out.println(data);
+		CoreMapDataset afterNER = data;
 //    System.out.println("----------------------\nRunning CORE annotator again");
 //		data.runAndRegisterTask(new JavaNLPTasks.Core());
 //		System.out.println(data);
@@ -387,7 +426,9 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 		System.out.println("----------------------\nReloading Data");
 		db.disconnect();
 		db.connect();
-		System.out.println( new CoreMapDataset("trivial", db, false) );
+		CoreMapDataset reloaded = new CoreMapDataset("trivial", db);
+//		if(!afterNER.equals(reloaded)){ throw new IllegalStateException("Did not retrieve dataset correctly after NER task"); }
+		System.out.println( reloaded );
 	}
 
 

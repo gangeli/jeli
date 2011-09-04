@@ -1,14 +1,14 @@
 package org.goobs.stanford;
 
 
+import edu.stanford.nlp.ling.*;
+import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.util.CoreMap;
+import edu.stanford.nlp.util.TypesafeMap;
 import org.goobs.database.*;
 import org.goobs.utils.Utils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.List;
+import java.util.*;
 
 public abstract class NestedElement extends DatabaseObject {
 
@@ -21,12 +21,13 @@ public abstract class NestedElement extends DatabaseObject {
   @Parent(localField="source", parentField="tid")
   protected CoreMapDataset.DatasetTask source;
 
-	protected boolean changed = false;
+	protected boolean changed;
 
 	public NestedElement(Class type, Object value, CoreMapDataset.DatasetTask task){
 		this.valueType = type;
 		this.value = value;
     this.source = task;
+		this.changed = !this.isInDatabase();
 	}
 
 	protected boolean preFlush(Database db){
@@ -55,12 +56,21 @@ public abstract class NestedElement extends DatabaseObject {
 		return true;
 	}
 
+	protected void postFlush(Database db){
+		this.changed = false;
+	}
+
 	@SuppressWarnings({"unchecked"})
 	public Object value(Database db){
 		if(DBCoreMap.class.isAssignableFrom(this.valueType)) {
 			//--Case: DB CoreMap
 			if(value instanceof String){
 				value = db.getObjectById(DBCoreMap.class, Integer.parseInt(value.toString()));
+			}
+		} else if(CoreLabel.class.isAssignableFrom(this.valueType)){
+			//--Case: CoreLabel
+			if(value instanceof String){
+				value = new MyCoreLabel( db.getObjectById(DBCoreMap.class, Integer.parseInt(value.toString())) );
 			}
 		} else if(CoreMap.class.isAssignableFrom(this.valueType)) {
 			//--Case: Regular CoreMap
@@ -85,8 +95,13 @@ public abstract class NestedElement extends DatabaseObject {
 			//--Case: Everything Else
 			value =  Utils.cast(value.toString(), valueType);
 		}
-		changed = true;
+		this.changed = true;
 		return value;
+	}
+
+	protected void setValue(Object obj){
+		this.value = obj;
+		this.changed = true;
 	}
 
 
@@ -143,27 +158,27 @@ public abstract class NestedElement extends DatabaseObject {
 					elems.add(e.value(db));
 				}
 			}
-//			this.changed = true;                           //TODO mutable lists
+			this.changed = true;
 			return elems;
 		}
 
 		@Override
 		protected boolean preFlush(Database db){
 			if(!super.preFlush(db)){ return false; }
-			//(create elements)
-			if(this.elems != null){
+			if(this.elems != null && !this.isInDatabase()){
+				//(create elements)
 				this.elements = new ListElem[this.elems.size()];
 				int i=0;
 				for(Object o: elems){
 					elements[i] = db.emptyObject(ListElem.class,i,o, this.source);
 					i += 1;
 				}
-				System.out.println("Flushing a list? Don't do that, bro");
 				if(this.isInDatabase()){ throw new IllegalStateException("For now, lists are immutable"); }
-				return true;
-			} else {
-				return false;
+			} else if(this.elems != null && this.elements.length != this.elems.size()){
+				//(mutable list) //TODO mutable lists
+				throw new IllegalStateException("Lists are immutable (for now)!");
 			}
+			return true;
 		}
 
 		@Override public String toString(){ return "DBList["+this.eid+"]"; }
@@ -196,4 +211,44 @@ public abstract class NestedElement extends DatabaseObject {
 
 	}
 
+
+
+	protected static class MyAnnotation extends Annotation {
+		private CoreMap impl;
+
+		@SuppressWarnings({"deprecation"})
+    public MyAnnotation(CoreMap impl){ super(); this.impl = impl; }
+
+		@Override public <VALUE, KEY extends TypesafeMap.Key<CoreMap, VALUE>> boolean has(Class<KEY> keyClass) { return impl.has(keyClass); }
+		@Override public <VALUE, KEY extends TypesafeMap.Key<CoreMap, VALUE>> VALUE get(Class<KEY> keyClass) { return impl.get(keyClass); }
+		@Override public <VALUEBASE, VALUE extends VALUEBASE, KEY extends TypesafeMap.Key<CoreMap, VALUEBASE>> VALUE set(Class<KEY> keyClass, VALUE value) {
+			if(value instanceof java.util.List && this.has(keyClass)){ return null; } //TODO hack
+			return impl.set(keyClass, value);
+		}
+		@Override public <VALUE, KEY extends TypesafeMap.Key<CoreMap, VALUE>> VALUE remove(Class<KEY> keyClass) { return impl.remove(keyClass); }
+		@Override public Set<Class<?>> keySet() { return impl.keySet(); }
+		@Override public <VALUE, KEY extends TypesafeMap.Key<CoreMap, VALUE>> boolean containsKey(Class<KEY> keyClass) { return impl.containsKey(keyClass); }
+		@Override public int size() { return impl.size(); }
+		@Override public String toString() { return impl.toString();}
+  	@Override public boolean equals(Object obj) { return impl.equals(obj); }
+		@Override public int hashCode(){ return impl.hashCode(); }
+	}
+
+	protected static class MyCoreLabel extends CoreLabel{
+		private CoreMap impl;
+
+		public MyCoreLabel(CoreMap impl) {
+			this.impl = impl;
+		}
+		@Override public <VALUE, KEY extends TypesafeMap.Key<CoreMap, VALUE>> boolean has(Class<KEY> keyClass) { return impl.has(keyClass); }
+		@Override public <VALUE, KEY extends TypesafeMap.Key<CoreMap, VALUE>> VALUE get(Class<KEY> keyClass) { return impl.get(keyClass); }
+		@Override public <VALUEBASE, VALUE extends VALUEBASE, KEY extends TypesafeMap.Key<CoreMap, VALUEBASE>> VALUE set(Class<KEY> keyClass, VALUE value) { return impl.set(keyClass, value); }
+		@Override public <VALUE, KEY extends TypesafeMap.Key<CoreMap, VALUE>> VALUE remove(Class<KEY> keyClass) { return impl.remove(keyClass); }
+		@Override public Set<Class<?>> keySet() { return impl.keySet(); }
+		@Override public <VALUE, KEY extends TypesafeMap.Key<CoreMap, VALUE>> boolean containsKey(Class<KEY> keyClass) { return impl.containsKey(keyClass); }
+		@Override public int size() { return impl.size(); }
+		@Override public String toString() { return impl.toString();}
+  	@Override public boolean equals(Object obj) { return impl.equals(obj); }
+		@Override public int hashCode(){ return impl.hashCode(); }
+	}
 }
