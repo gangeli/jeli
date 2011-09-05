@@ -22,7 +22,7 @@ ${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/*.java)	$(wildcard ${SRC}/*.scala)
 	mkdir -p ${BUILD}
 	mkdir -p ${DIST}
 	javac -Xlint:unchecked -Xlint:deprecation -d $(BUILD) -cp $(CP):${JAVANLP} `find $(SRC) -name "*.java"`
-	scalac -deprecation -d ${BUILD} -cp ${CP}:${JAVANLP} `find ${SRC} -name "*.scala"` `find ${SRC} -name "*.java"`
+	etc/scalac -deprecation -d ${BUILD} -cp ${CP}:${JAVANLP} `find ${SRC} -name "*.scala"` `find ${SRC} -name "*.java"`
 	jar cf ${DIST}/${DIST_LIB}.jar -C $(BUILD) .
 	jar uf ${DIST}/${DIST_LIB}.jar -C $(SRC) .
 	
