@@ -1,10 +1,12 @@
 package org.goobs.stanford;
 
+import edu.stanford.nlp.io.IOUtils;
 import edu.stanford.nlp.util.CoreMap;
 import org.goobs.testing.Dataset;
 import org.goobs.utils.Range;
 
 import java.io.*;
+import java.util.Arrays;
 
 public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements Serializable{
 	private String file;
@@ -23,28 +25,32 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 
 	public SerializedCoreMapDataset(String file){
 		this.file = file;
-		try {
-			FileInputStream fos = new FileInputStream(this.file);
-			ObjectInputStream out = new ObjectInputStream(fos);
-			SerializedCoreMapDataset term = (SerializedCoreMapDataset) out.readObject();
+		if(new File(file).isDirectory()){
+			File[] maps = new File(file).listFiles(new FileFilter() {
+				@Override
+				public boolean accept(File file) {
+					return file.length() > 0;
+				}
+			});
+			Arrays.sort(maps);
+			this.maps = new CoreMapDatum[maps.length];
+			for(int i=0; i<maps.length; i++){
+				System.out.println("loading " + maps[i].getPath());
+				this.maps[i] = new CoreMapDatum( (CoreMap) readObject(maps[i].getPath()), i);
+			}
+		} else {
+			SerializedCoreMapDataset term = readObject(this.file);
 			this.file = term.file;
 			this.maps = term.maps;
-			out.close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException(e);
 		}
 	}
 
+
 	private void save(){
-		try {
-			FileOutputStream fos = new FileOutputStream(this.file);
-			ObjectOutputStream out = new ObjectOutputStream(fos);
-			out.writeObject(this);
-			out.close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
+		if(new File(file).isDirectory()){
+			throw new IllegalStateException("Cannot save to a dataset created from a directory");
+		} else {
+			writeObject(this.file, this);
 		}
 	}
 
@@ -61,5 +67,34 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 		task.perform(this);
 		this.save();
 		return this;
+	}
+
+
+	@SuppressWarnings({"unchecked"})
+	private static <T> T readObject(String file){
+		try{
+			return (T) IOUtils.readObjectFromFile(file);
+//			FileInputStream fos = new FileInputStream(file);
+//			ObjectInputStream out = new ObjectInputStream(fos);
+//			T term = (T) out.readObject();
+//			out.close();
+//			return term;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private static <T> void writeObject(String file, T object){
+		try{
+			IOUtils.writeObjectToFile(object, file);
+//			FileOutputStream fos = new FileOutputStream(file);
+//			ObjectOutputStream out = new ObjectOutputStream(fos);
+//			out.writeObject(object);
+//			out.close();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }
