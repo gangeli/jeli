@@ -6,11 +6,16 @@ import org.goobs.testing.Dataset;
 import org.goobs.utils.Range;
 
 import java.io.*;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 
 public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements Serializable{
 	private String file;
+
+	private boolean isPiecewise = false;
 	private CoreMapDatum[] maps;
+	private WeakReference<CoreMapDatum>[] weakMaps;
+	private File[] files;
 
 	public SerializedCoreMapDataset(String file, CoreMap[] maps){
 		//(create dataset)
@@ -23,22 +28,27 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 		save();
 	}
 
+	@SuppressWarnings({"unchecked"})
 	public SerializedCoreMapDataset(String file){
 		this.file = file;
 		if(new File(file).isDirectory()){
-			File[] maps = new File(file).listFiles(new FileFilter() {
+			this.isPiecewise = true;
+			//(get files)
+			this.files = new File(file).listFiles(new FileFilter() {
 				@Override
 				public boolean accept(File file) {
 					return file.length() > 0;
 				}
 			});
-			Arrays.sort(maps);
-			this.maps = new CoreMapDatum[maps.length];
-			for(int i=0; i<maps.length; i++){
-				System.out.println("loading " + maps[i].getPath());
-				this.maps[i] = new CoreMapDatum( (CoreMap) readObject(maps[i].getPath()), i);
+			Arrays.sort(files);
+			//(load files)
+			this.weakMaps = (WeakReference<CoreMapDatum>[]) new WeakReference[files.length];
+			for(int i=0; i<files.length; i++){
+				System.out.println("loading " + files[i].getPath());
+				this.weakMaps[i] = new WeakReference<CoreMapDatum>( new CoreMapDatum( (CoreMap) readObject(files[i].getPath()), i) );
 			}
 		} else {
+			this.isPiecewise = false;
 			SerializedCoreMapDataset term = readObject(this.file);
 			this.file = term.file;
 			this.maps = term.maps;
@@ -54,9 +64,28 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 		}
 	}
 
-	@Override public int numExamples() { return maps.length; }
+	@Override public int numExamples() {
+		if(isPiecewise){
+			return weakMaps.length;
+		} else {
+			return maps.length;
+		}
+	}
 
-	@Override public CoreMapDatum get(int id) { return maps[id]; }
+	@Override public CoreMapDatum get(int id) {
+		if(isPiecewise){
+			WeakReference<CoreMapDatum> ref = weakMaps[id];
+			CoreMapDatum rtn = ref.get();
+			if(rtn == null){
+				CoreMap impl = readObject(files[id].getPath());
+				rtn = new CoreMapDatum(impl, id);
+				weakMaps[id] = new WeakReference<CoreMapDatum>(rtn);
+			}
+			return rtn;
+		} else {
+			return maps[id];
+		}
+	}
 
 	@Override
 	public Range range() { return new Range(0,numExamples()); }
