@@ -12,6 +12,11 @@ import java.util.Properties;
 
 public class StanfordExecutionLogInterface extends Execution.LogInterface {
 
+	@Override protected void bootstrap(){
+		Redwood.hideChannel(Redwood.DBG);
+		Redwood.dontPrintChannels();
+	}
+
 	@Override
 	public void setup(){
 		//(tweak stanford)
@@ -22,6 +27,7 @@ public class StanfordExecutionLogInterface extends Execution.LogInterface {
 		} catch (IOException e) {
 			Static.err("Could not create log file: " + e.getMessage());
 		}
+		props.setProperty("log.neatExit", "true");
 		//(init stanford)
 		StanfordRedwoodSetup.setup(props);
 		//(tweaks)

@@ -44,8 +44,7 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 			//(load files)
 			this.weakMaps = (WeakReference<CoreMapDatum>[]) new WeakReference[files.length];
 			for(int i=0; i<files.length; i++){
-				System.out.println("loading " + files[i].getPath());
-				this.weakMaps[i] = new WeakReference<CoreMapDatum>( new CoreMapDatum( (CoreMap) readObject(files[i].getPath()), i) );
+				this.weakMaps[i] = new WeakReference<CoreMapDatum>( null );
 			}
 		} else {
 			this.isPiecewise = false;

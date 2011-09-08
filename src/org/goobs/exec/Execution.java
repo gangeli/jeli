@@ -49,11 +49,8 @@ public class Execution {
 		Log.class,
 	};
 
-	@Option(name="ignoreClasspath", 
-		gloss="Do not try to load options from anything matching these")
+	@Option(name="ignoreClasspath", gloss="Do not try to load options from anything matching these")
 	private static String[] ignoredClasspath = new String[0];
-	
-
 	@Option(name="execName", gloss="Assigns a name for this particular run")
 	private static String runName;
 	@Option(name="execOutput",gloss="Database to store parameters and results in")
@@ -62,6 +59,8 @@ public class Execution {
 	private static Database dataDB;
 	@Option(name="execDir", gloss="Directory to log stuff to")
 	protected static String execDir;
+	@Option(name="numThreads", gloss="Number of threads on machine")
+	public static int numThreads = 1;
 	
 	private static ResultLogger logger;
 
@@ -72,6 +71,7 @@ public class Execution {
 	 */
 
 	public static class LogInterface {
+		protected void bootstrap(){ }
 		protected void setup(){ }
 		protected void err(Object tag, Object obj){
 			Log.err(obj);
@@ -100,9 +100,6 @@ public class Execution {
 	}
 
 	private static LogInterface log = new LogInterface();
-	public static void changeLogInterface(LogInterface newInterface){
-		log = newInterface;
-	}
 
 
 	/*
@@ -662,11 +659,18 @@ public class Execution {
 	 * ----------
 	 */
 	
-	public static final void exec(Runnable toRun, String[] args) {
-		exec(toRun, args, true);
+	public static void exec(Runnable toRun, String[] args) {
+		exec(toRun, args, true, new LogInterface());
 	}
-	public static final void exec(Runnable toRun, String[] args, boolean exit) {
+	public static void exec(Runnable toRun, String[] args, boolean exit){
+		exec(toRun,args,exit,new LogInterface());
+	}
+	public static void exec(Runnable toRun, String[] args, LogInterface logger){
+		exec(toRun,args,true,logger);
+	}
+	public static void exec(Runnable toRun, String[] args, boolean exit, LogInterface logInterface) {
 		//--Init
+		log = logInterface;
 		//(cleanup)
 		ignoredClasspath = new String[0];
 		runName = "<unnamed>";
@@ -677,7 +681,7 @@ public class Execution {
 		//(bootstrap)
 		Map<String,String> options = parseOptions(args); //get options
 		fillOptions(BOOTSTRAP_CLASSES, options, false); //bootstrap
-		log.setup();
+		log.bootstrap();
 		log.startTrack("init");
 		//(fill options)
 		Class<?>[] visibleClasses = getVisibleClasses(options); //get classes
@@ -685,6 +689,7 @@ public class Execution {
 		initDatabase(visibleClasses, options, optionFields); //database
 		dumpOptions(options); //file dump
 		log.endTrack("init");
+		log.setup();
 		//--Run Program
 		try {
 			log.startTrack("main");
