@@ -28,6 +28,8 @@ public class StanfordExecutionLogInterface extends Execution.LogInterface {
 			Static.err("Could not create log file: " + e.getMessage());
 		}
 		props.setProperty("log.neatExit", "true");
+		props.setProperty("log.console.trackColor", "BLUE");
+		props.setProperty("log.console.trackStyle", "BOLD");
 		//(init stanford)
 		StanfordRedwoodSetup.setup(props);
 		//(tweaks)

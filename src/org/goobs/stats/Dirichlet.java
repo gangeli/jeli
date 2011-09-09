@@ -43,6 +43,45 @@ public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Dec
 		throw new RuntimeException("NOT IMPLEMENTED");
 	}
 
+	@Override
+	public String toString(){
+		//--Get Info
+		//(variables)
+		int keyCount = 0;
+		double lastKeyValue = Double.NaN;
+		boolean keysSame = true;
+		//(loop)
+		for(DOMAIN key : counts){
+			if(Double.isNaN(lastKeyValue)){
+				lastKeyValue = counts.getCount(key);
+			}
+			if(counts.getCount(key) != lastKeyValue){
+				keysSame = false;
+			}
+			keyCount += 1;
+		}
+		//--Print
+		if(keyCount == 0){
+			//(case: empty)
+			return "Dirichlet()";
+		} else if(keysSame){
+			//(case: same)
+			return "Dirichlet( "+lastKeyValue+" )";
+		} else if(keyCount < 5){
+			//(case: reasonable domain)
+			StringBuilder b = new StringBuilder();
+			b.append("Dirichlet( ");
+			for(DOMAIN key : counts){
+				b.append(key).append(":").append(counts.getCount(key));
+			}
+			b.append(")");
+			return b.toString();
+		}else{
+			//(case: not reasonably sized)
+			return "Dirichlet( ... )";
+		}
+	}
+
 	public static <D> Dirichlet<D> ZERO(){
 		return new Dirichlet<D>(CountStores.<D>MAP());
 	}
@@ -55,7 +94,24 @@ public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Dec
 			@SuppressWarnings({"CloneDoesntCallSuperClone"})
 			@Override public CountStore<D> clone() throws CloneNotSupportedException { return this; }
 			@Override public CountStore<D> clear() { throw new RuntimeException("NOT IMPLEMENTED"); }
-			@Override public Iterator<D> iterator() { throw new RuntimeException("NOT IMPLEMENTED"); }
+			@Override public Iterator<D> iterator() {
+				return new Iterator<D>(){
+					boolean returned = false;
+					@Override
+					public boolean hasNext() {
+						return !returned;
+					}
+					@Override
+					public D next() {
+						returned = true;
+						return null;
+					}
+					@Override
+					public void remove() {
+						throw new RuntimeException("NOT IMPLEMENTED");
+					}
+				};
+			}
 		};
 	}
 
