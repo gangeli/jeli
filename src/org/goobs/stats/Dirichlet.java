@@ -14,6 +14,10 @@ public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Dec
 		this.counts = alpha;
 	}
 
+	public boolean isZero(){
+		return counts.totalCount() == 0;
+	}
+
 	@Override
 	public Multinomial<DOMAIN> posterior(Multinomial<DOMAIN> empirical) {
 		try {
@@ -88,6 +92,7 @@ public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Dec
 
 	private static <D> CountStore<D> symmetricStore(final double count){
 		return new CountStore<D>() {
+			@Override public double totalCount(){ return count; }
 			@Override public double getCount(D key) {return count; }
 			@Override public void setCount(D key, double count) { throw new RuntimeException("NOT IMPLEMENTED");	}
 			@Override public CountStore<D> emptyCopy() { return symmetricStore(0);	}

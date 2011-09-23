@@ -10,6 +10,8 @@ public class CountStores {
 	public static <D> CountStore<D> MAP(){
 		return new CountStore<D>(){
 			private Map<D,Double> map = new HashMap<D,Double>();
+			private double totalCount = 0.0;
+			@Override public double totalCount(){ return totalCount; }
 			@Override
 			public double getCount(D key) {
 				Double count = map.get(key);
@@ -21,6 +23,7 @@ public class CountStores {
 			}
 			@Override
 			public void setCount(D key, double count) {
+				totalCount += (count - getCount(key));
 				map.put(key, count);
 			}
 			@Override
@@ -36,6 +39,7 @@ public class CountStores {
 			@Override
 			public CountStore<D> clear() {
 				map.clear();
+				totalCount = 0.0;
 				return this;
 			}
 
@@ -53,6 +57,14 @@ public class CountStores {
 			@Override public double getCount(Integer key) { return counts[key]; }
 			@Override	public void setCount(Integer key, double count) { counts[key] = count; }
 			@Override public CountStore<Integer> emptyCopy() { return ARRAY(capacity); }
+			@Override
+			public double totalCount(){
+				double count = 0.0;
+				for(int i=0; i<counts.length; i++){
+					count += counts[i];
+				}
+				return count;
+			}
 			@Override
 			public CountStore<Integer> clone() throws CloneNotSupportedException {
 				CountStore<Integer> cloned = emptyCopy();

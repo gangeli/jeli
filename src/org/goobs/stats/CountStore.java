@@ -7,4 +7,5 @@ public interface CountStore<D> extends Iterable<D>, Cloneable{
 	public CountStore<D> emptyCopy();
 	public CountStore<D> clone() throws CloneNotSupportedException;
 	public CountStore<D> clear();
+	public double totalCount();
 }
