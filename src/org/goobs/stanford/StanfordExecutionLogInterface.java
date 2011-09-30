@@ -13,7 +13,7 @@ import java.util.Properties;
 public class StanfordExecutionLogInterface extends Execution.LogInterface {
 
 	@Override protected void bootstrap(){
-		Redwood.hideChannel(Redwood.DBG);
+		Redwood.hideChannels(Redwood.DBG);
 		Redwood.dontPrintChannels();
 	}
 
@@ -33,7 +33,7 @@ public class StanfordExecutionLogInterface extends Execution.LogInterface {
 		StanfordRedwoodSetup.setup(props);
 		//(tweaks)
 		Redwood.dontPrintChannels();
-		Redwood.hideChannel(Redwood.DBG);
+		Redwood.hideChannels(Redwood.DBG);
 	}
 
 	@Override
