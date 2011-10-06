@@ -32,6 +32,21 @@ public class Multinomial <DOMAIN> implements BayesianDistribution<DOMAIN,Multino
 		setCount(key, counts.getCount(key) + value);
 	}
 
+  public Multinomial<DOMAIN> initUniform(){
+    for(DOMAIN key : counts){
+      setCount(key, 1.0);
+    }
+    return this;
+  }
+
+  public Multinomial<DOMAIN> initRandom(){
+    Random r = new Random();
+    for(DOMAIN key : counts){
+      setCount(key, r.nextDouble());
+    }
+    return this;
+  }
+
 	@SuppressWarnings({"CloneDoesntCallSuperClone"})
 	public Multinomial<DOMAIN> clone() throws CloneNotSupportedException {
 		Multinomial<DOMAIN> rtn = new Multinomial<DOMAIN>(this.counts.clone());

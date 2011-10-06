@@ -1,5 +1,7 @@
 package org.goobs.slib
 
+import util.matching.Regex
+
 class Def[C](implicit desired : Manifest[C]) {
 	def unapply[X](c : X)(implicit m : Manifest[X]) : Option[C] = {
 		def sameArgs = desired.typeArguments.zip(m.typeArguments).forall{
@@ -11,4 +13,17 @@ class Def[C](implicit desired : Manifest[C]) {
 			None
 		}
 	}
+}
+
+object Static {
+	case class RichRegex(base:Regex){
+		def apply(str:String):Boolean = {
+			base.pattern.matcher(str).matches;
+			}
+	}
+	case class RichString(str:String){
+		def matches(r:Regex) = r(str)
+	}
+	implicit def regex2RichRegex(r:Regex):RichRegex = RichRegex(r)
+	implicit def string2RichString(str:String) = RichString(str);
 }
