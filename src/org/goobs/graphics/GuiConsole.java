@@ -1,4 +1,4 @@
-package org.goobs.gui;
+package org.goobs.graphics;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -246,7 +246,7 @@ public class GuiConsole implements Console {
 	}
 	
 	public synchronized Console show() {
-		System.out.print("creating gui console...");
+		System.out.print("creating graphics console...");
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				createAndShowGUI();

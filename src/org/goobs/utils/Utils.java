@@ -1,15 +1,11 @@
 package org.goobs.utils;
 
+import org.goobs.exec.Log;
+
 import java.io.*;
-import java.lang.reflect.Array;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
-import java.lang.reflect.WildcardType;
+import java.lang.reflect.*;
 import java.text.DecimalFormat;
 import java.util.*;
-
-import org.goobs.exec.Log;
 
 public class Utils {
 
@@ -597,7 +593,7 @@ public class Utils {
 		StringBuilder out = new StringBuilder();
 		out.append(array[0].toString());
 		for(int x=1; x < k; x++){
-			out.append(glue).append(array[x].toString());
+			out.append(glue).append(array[x] == null ? "null" : array[x].toString());
 		}
 		return out.toString();
 	}

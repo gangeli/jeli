@@ -1,4 +1,4 @@
-package org.goobs.gui;
+package org.goobs.graphics;
 import java.awt.Color;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;

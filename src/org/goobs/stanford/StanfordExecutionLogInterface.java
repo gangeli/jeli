@@ -1,11 +1,11 @@
 package org.goobs.stanford;
 
 import edu.stanford.nlp.util.logging.Redwood;
-import edu.stanford.nlp.util.logging.StanfordRedwoodSetup;
+import edu.stanford.nlp.util.logging.StanfordRedwoodConfiguration;
 import org.goobs.exec.Execution;
 import org.goobs.exec.ExitCode;
 
-import edu.stanford.nlp.util.logging.Redwood.Static;
+import edu.stanford.nlp.util.logging.Redwood.Util;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -13,8 +13,7 @@ import java.util.Properties;
 public class StanfordExecutionLogInterface extends Execution.LogInterface {
 
 	@Override protected void bootstrap(){
-		Redwood.hideChannels(Redwood.DBG);
-		Redwood.dontPrintChannels();
+		Redwood.hideOnlyChannels(Redwood.DBG);
 	}
 
 	@Override
@@ -25,40 +24,39 @@ public class StanfordExecutionLogInterface extends Execution.LogInterface {
 		try {
 			props.setProperty("log.file",Execution.touch("log").getPath());
 		} catch (IOException e) {
-			Static.err("Could not create log file: " + e.getMessage());
+			Util.err("Could not create log file: " + e.getMessage());
 		}
 		props.setProperty("log.neatExit", "true");
 		props.setProperty("log.console.trackStyle", "BOLD");
 		//(init stanford)
-		StanfordRedwoodSetup.setup(props);
+    StanfordRedwoodConfiguration.apply(props);
 		//(tweaks)
-		Redwood.dontPrintChannels();
-		Redwood.hideChannels(Redwood.DBG);
+		Redwood.hideOnlyChannels(Redwood.DBG);
 	}
 
 	@Override
 	protected void err(Object tag, Object obj){
-		Static.err(tag,obj);
+		Util.err(tag,obj);
 	}
 	protected void log(String tag, Object obj){
-		Static.log(tag,obj);
+		Util.log(tag,obj);
 	}
 	protected void debug(String tag, Object obj){
-		Static.debug(tag,obj);
+		Util.debug(tag,obj);
 	}
 	protected void warn(String tag, Object obj){
-		Static.warn(tag, obj);
+		Util.warn(tag, obj);
 	}
 	protected RuntimeException fail(Object msg){
-		return Static.fail(msg);
+		return Util.fail(msg);
 	}
 	protected void exit(ExitCode code){
-		Static.exit(code.code);
+		Util.exit(code.code);
 	}
 	protected void startTrack(String name){
-		Static.startTrack(name);
+		Util.startTrack(name);
 	}
 	protected void endTrack(String check){
-		Static.endTrack(check);
+		Util.endTrack(check);
 	}
 }
