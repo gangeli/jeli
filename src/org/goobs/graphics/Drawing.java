@@ -1,8 +1,11 @@
 package org.goobs.graphics;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -270,6 +273,35 @@ public class Drawing {
   // USE METHODS
   //---------------
 
+  public void save(File path, int width, int height){
+    try {
+      ImageIO.write(this.render(width, height), "PNG", path);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+  public void save(String path, int width, int height){ save(new File(path), width, height);}
+  public void save(File file, int largestDimension){
+    //--Variables
+    int width;
+    int height;
+    //--Calculate Width/Height
+    if(maxX-minX > maxY-minY){
+      //(case: width greater)
+      width = largestDimension;
+      height = (int) ((maxY-minY) * ((double) largestDimension) / (maxX-minX));
+    } else {
+      //(case: height greater)
+      height = largestDimension;
+      width = (int) ((maxX-minX) * ((double) largestDimension) / (maxY-minY));
+    }
+    //--Preview
+    save(file,width,height);
+  }
+  public void save(String file, int largestDimension){ save(new File(file),largestDimension); }
+  public void save(File file){ save(file, (int) (maxX-minX), (int) (maxY-minY)); }
+  public void save(String file){ save(new File(file)); }
+
   public void preview(int width, int height){
     new Viewer(this, width, height).setVisible(true);
   }
@@ -292,7 +324,7 @@ public class Drawing {
   }
   public void preview(){ preview((int) (maxX-minX), (int) (maxY-minY)); }
 
-  public Image render(int width, int height){
+  public BufferedImage render(int width, int height){
     //(error check)
     if(this.actions.isEmpty()){
       throw new IllegalStateException("Cannot render a blank image");
@@ -318,22 +350,22 @@ public class Drawing {
 
   private static int translateX(double x, double minX, double maxX, int width){
     double ratio = ((double) width) / (maxX-minX);
-    return (int) ((x - minX) * ratio);
+    return (int) Math.round((x - minX) * ratio);
   }
 
   private static int translateY(double y, double minY, double maxY, int height){
     double ratio = ((double) height) / (maxY-minY);
-    int translated = (int) ((y - minY) * ratio);
+    int translated = (int) Math.round((y - minY) * ratio);
     return height - translated;
   }
 
   private static int translateDX(double v, double minX, double maxX, int width) {
     double ratio = ((double) width) / (maxX-minX);
-    return (int) (v*ratio);
+    return (int) Math.round(v*ratio);
   }
   private static int translateDY(double v, double minY, double maxY, int height){
     double ratio = ((double) height) / (maxY-minY);
-    return (int) (v*ratio);
+    return (int) Math.round(v*ratio);
   }
 
 

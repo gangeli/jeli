@@ -166,7 +166,7 @@ public class MetaClass {
 				}
 			}
 			// (filter:min)
-			this.constructor = (Constructor<Type>) Utils.argmin(potentials, distances, 0);
+			this.constructor = (Constructor<Type>)Utils.argmin(potentials, distances, 0);
 			if (this.constructor == null) {
 				StringBuilder b = new StringBuilder();
 				b.append(classname).append("(");

@@ -1,5 +1,10 @@
 package org.goobs.internet;
 
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -7,8 +12,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-
-import com.sun.net.httpserver.*;
 
 public class WebServer {
 	
@@ -27,16 +30,20 @@ public class WebServer {
 		this.port = port;
 	}
 
-	public void start(){
+	public WebServer start(){
 		try {
 			server = HttpServer.create(new InetSocketAddress(port), 0);
 			server.start();
 		} catch (IOException e) {
 			throw new RuntimeException("Could not start web server: " + e.getMessage());
 		}
+    return this;
 	}
 
-	public void register(final String uri, final WebServerHandler handler){
+	public WebServer register(final String uri, final WebServerHandler handler){
+    if(server == null){
+      throw new IllegalStateException("Start the server before registering listeners");
+    }
 		server.createContext(uri, new HttpHandler(){
 			@Override
 			public void handle(HttpExchange exchange) throws IOException {
@@ -55,6 +62,7 @@ public class WebServer {
 					HttpInfo info = new HttpInfo();
 					Headers responseHeaders = exchange.getResponseHeaders();
 					responseHeaders.set("Content-Type", "text/html");
+          handler.setHeaders(responseHeaders);
 					exchange.sendResponseHeaders(200, 0);
 					Headers requestHeaders = exchange.getRequestHeaders();
 					Set<String> keySet = requestHeaders.keySet();
@@ -75,6 +83,7 @@ public class WebServer {
 				}
 			}
 		});
+    return this;
 	}
 	
 	private byte[] getIcon(){
@@ -104,11 +113,11 @@ public class WebServer {
 	public static void main(String[] args) throws IOException {
 		WebServer server = new WebServer(4242);
 		server.start();
-		server.register("/", new WebServerHandler(){
+		server.register("/", new SimpleHandler(){
 			@Override
 			public String handle(HashMap<String, String> values, HttpInfo info) {
 				return "Done";
 			}
-		});
+    });
 	}
 }
