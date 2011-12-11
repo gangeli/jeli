@@ -1,5 +1,14 @@
 package org.goobs.exec;
 
+import org.goobs.database.Database;
+import org.goobs.database.DatabaseException;
+import org.goobs.database.DatabaseObject;
+import org.goobs.io.LazyFileIterator;
+import org.goobs.stanford.CoreMapDataset;
+import org.goobs.testing.*;
+import org.goobs.utils.Marker;
+import org.goobs.utils.Utils;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -9,25 +18,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.regex.Pattern;
 import java.util.regex.Matcher;
-
-import org.goobs.database.Database;
-import org.goobs.database.DatabaseObject;
-import org.goobs.io.LazyFileIterator;
-import org.goobs.stanford.CoreMapDataset;
-import org.goobs.testing.*;
-import org.goobs.testing.DatabaseDataset;
-import org.goobs.utils.Marker;
-import org.goobs.utils.Utils;
+import java.util.regex.Pattern;
 
 /*
  *	TODO casting to native arrays (in Utils.cast)
@@ -686,7 +681,11 @@ public class Execution {
 		//(fill options)
 		Class<?>[] visibleClasses = getVisibleClasses(options); //get classes
 		Map<String,Field> optionFields = fillOptions(visibleClasses, options);//fill
-		initDatabase(visibleClasses, options, optionFields); //database
+        try {
+		    initDatabase(visibleClasses, options, optionFields); //database
+        } catch(DatabaseException e){
+            log.warn(LOG_TAG,e.getMessage());
+        }
 		dumpOptions(options); //file dump
 		log.endTrack("init");
 		log.setup();
