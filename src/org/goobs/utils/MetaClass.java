@@ -1,17 +1,14 @@
 package org.goobs.utils;
 
 import java.lang.annotation.Annotation;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.lang.reflect.Type;
 
-public class MetaClass {
+public class MetaClass implements Decodable{
 
-	public static class ClassCreationException extends RuntimeException {
+    public static class ClassCreationException extends RuntimeException {
 		private static final long serialVersionUID = -5980065992461870357L;
 
 		private ClassCreationException() {
@@ -308,7 +305,9 @@ public class MetaClass {
 	public MetaClass(String classname) {
 		this.classname = classname;
 	}
-	
+
+    private MetaClass(){}
+
 	/**
 	 * Creates a new MetaClass producing objects of the given type
 	 * 
@@ -447,6 +446,17 @@ public class MetaClass {
 			return false;
 		}
 	}
+
+    @Override
+    public Decodable decode(String encoded, Type[] typeParams) {
+        this.classname = encoded;
+        return this;
+    }
+
+    @Override
+    public String encode() {
+        return this.classname;
+    }
 
 	@Override
 	public String toString() {

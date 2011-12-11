@@ -455,7 +455,7 @@ public class Utils {
 			throw new IllegalArgumentException("Cannot cast to type (unhandled type): " + type);
 		}
 		//--Cast
-		if(clazz.isAssignableFrom(String.class)){
+		if(String.class.isAssignableFrom(clazz)){
 			// (case: String)
 			return (E) value;
 		}else if(Boolean.class.isAssignableFrom(clazz) || boolean.class.isAssignableFrom(clazz)){
@@ -511,7 +511,15 @@ public class Utils {
 			} catch (NumberFormatException e) {
 				return null;
 			}
-		}else if(clazz.isArray()){
+        } else if(File.class.isAssignableFrom(clazz)){
+            return (E) new File(value);
+        } else if(Class.class.isAssignableFrom(clazz)){
+            try {
+                return (E) Class.forName(value);
+            } catch (ClassNotFoundException e) {
+                return null;
+            }
+        } else if(clazz.isArray()){
 			if(value == null){ return null; }
 			Class <?> subType = clazz.getComponentType();
 			// (case: array)

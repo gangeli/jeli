@@ -81,11 +81,13 @@ public class StatCalc {
 		// Return number of items that have been entered.
 		return count;
 	}
+    public int count(){ return getCount(); }
 
 	public double getSum() {
 		// Return the sum of all the items that have been entered.
 		return sum;
 	}
+    public double sum(){ return getSum(); }
 
 	public int getSumInt(){
 		return (int) sum;
@@ -96,6 +98,7 @@ public class StatCalc {
 		// Value is Double.NaN if count == 0.
 		return sum / count;
 	}
+    public double mean(){ return getMean(); }
 
 	public int getMeanInt(){
 		return (int) (sum / count);
@@ -104,6 +107,7 @@ public class StatCalc {
 	public double getMin(){
 		return min;
 	}
+    public double min(){ return getMin(); }
 
 	public int getMinInt(){
 		return (int) min;
@@ -112,6 +116,7 @@ public class StatCalc {
 	public double getMax(){
 		return max;
 	}
+    public double max(){ return getMax(); }
 
 	public int getMaxInt(){
 		return (int) max;
@@ -122,6 +127,7 @@ public class StatCalc {
 		if(this.count == 0) throw new IllegalStateException("No terms in statcalc to get the mode from");
 		return this.modeCounter.argMax();
 	}
+    public double mode(){ return getMode(); }
 	public double getModeCount(){
 		if(this.modeCounter == null) throw new IllegalStateException("Must tell StatCalc to track the mode");
 		if(this.count == 0) throw new IllegalStateException("No terms in statcalc to get the mode from");
@@ -138,5 +144,6 @@ public class StatCalc {
 	}
 
 	public double getStdev(){ return getStandardDeviation(); }
+    public double stdev(){ return getStandardDeviation(); }
 
 } // end of class StatCalc
