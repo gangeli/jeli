@@ -39,7 +39,7 @@ public final class Database implements Decodable{
 	public static boolean FORCEDBUPDATE = false;
 	
 	private static final Pattern PATTERN_CONNINFO 
-		= Pattern.compile(" *([a-zA-Z][a-zA-Z0-9]*)@([a-zA-Z][a-zA-Z0-9]*(\\\\.[a-zA-Z][a-zA-Z0-9]*)*):([a-zA-Z0-9]+)(<.+)? *");
+		= Pattern.compile(" *([a-zA-Z][a-zA-Z0-9]*)@([a-zA-Z][a-zA-Z0-9]*(\\.[a-zA-Z][a-zA-Z0-9]*)*):([a-zA-Z0-9]+)(<.+)? *");
 	
 	protected static final class DBClassInfo<E>{
 		protected MetaClass.ClassFactory <E> factory;

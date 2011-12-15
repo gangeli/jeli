@@ -1,6 +1,6 @@
 package org.goobs.utils;
 
-import java.io.*;
+import java.io.Serializable;
 import java.util.*;
 
 /*
