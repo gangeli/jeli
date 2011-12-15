@@ -16,6 +16,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.*;
@@ -56,6 +57,15 @@ public class Execution {
 	protected static String execDir;
 	@Option(name="numThreads", gloss="Number of threads on machine")
 	public static int numThreads = 1;
+    @Option(name="host", gloss="N of computer we are running on")
+    public static String host = "(unknown)";
+
+    static {
+        try{
+            host = InetAddress.getLocalHost().getHostName();
+        } catch (Exception ignored){ }
+    }
+
 	
 	private static ResultLogger logger;
 

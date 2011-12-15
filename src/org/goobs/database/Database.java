@@ -1,5 +1,12 @@
 package org.goobs.database;
 
+import org.goobs.io.Console;
+import org.goobs.io.TextConsole;
+import org.goobs.utils.Decodable;
+import org.goobs.utils.MetaClass;
+import org.goobs.utils.Pair;
+import org.goobs.utils.Utils;
+
 import java.io.File;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
@@ -8,26 +15,11 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigInteger;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.*;
+import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.goobs.io.Console;
-import org.goobs.io.TextConsole;
-import org.goobs.stanford.JavaNLPTasks;
-import org.goobs.utils.Decodable;
-import org.goobs.utils.MetaClass;
-import org.goobs.utils.Pair;
-import org.goobs.utils.Utils;
-
-import javax.management.relation.RelationTypeNotFoundException;
 
 /*
 TODO
