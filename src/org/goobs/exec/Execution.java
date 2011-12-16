@@ -59,6 +59,8 @@ public class Execution {
 	public static int numThreads = 1;
     @Option(name="host", gloss="N of computer we are running on")
     public static String host = "(unknown)";
+    @Option(name="defaultExitStatus", gloss="default exit status message")
+    public static String exitMessage = "0";
 
     static {
         try{
@@ -712,7 +714,10 @@ public class Execution {
 		} catch (Exception e) { //catch everything
 			log.exception(e);
 			System.err.flush();
-			if(logger != null){ logger.suggestFlush(); } //not a save!
+			if(logger != null){
+                exitMessage = e.getClass().getName() + ": " + e.getMessage();
+                logger.suggestFlush(); // not a save!
+            }
 			log.exit(ExitCode.FATAL_EXCEPTION);
 		}
 		log.endTrack("flushing");
