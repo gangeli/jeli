@@ -102,6 +102,9 @@ public class Execution {
 		protected void endTrack(String check){
 			Log.endTrack();
 		}
+        protected void exception(Exception e){
+            e.printStackTrace();
+        }
 	}
 
 	private static LogInterface log = new LogInterface();
@@ -707,7 +710,7 @@ public class Execution {
 			log.startTrack("flushing");
 			if(logger != null){ logger.save(); }
 		} catch (Exception e) { //catch everything
-			e.printStackTrace();
+			log.exception(e);
 			System.err.flush();
 			if(logger != null){ logger.suggestFlush(); } //not a save!
 			log.exit(ExitCode.FATAL_EXCEPTION);

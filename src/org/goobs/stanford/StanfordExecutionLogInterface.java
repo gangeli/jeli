@@ -59,4 +59,7 @@ public class StanfordExecutionLogInterface extends Execution.LogInterface {
 	protected void endTrack(String check){
 		Util.endTrack(check);
 	}
+    protected void exception(Exception e){
+        Util.log(e);
+    }
 }
