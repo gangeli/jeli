@@ -519,43 +519,6 @@ public class Execution {
 			}
 			logger.logOption(key, value, f.getDeclaringClass().getName() + "." + f.getName());
 		}
-		//--Add Parameters
-		for(Class<?> c : classes){
-			//(get fields for class)
-			Field[] fields = null;
-			try {
-				fields = c.getDeclaredFields();
-			} catch (Throwable e) {
-				log.debug(LOG_TAG,"Could not check fields for class: " + c.getName() + "  (caused by " + e.getClass() + ": " + e.getMessage() + ")");
-				continue;
-			}
-			//(get parameters for fields)
-			for(Field f : fields){
-				Param p = f.getAnnotation(Param.class);
-				if(p != null){
-					if( (f.getModifiers() & Modifier.STATIC) == 0){
-						throw log.fail("Cannot set a non-static field as an input parameter: " + f);
-					}
-					//(get name)
-					String name = null;
-					if(!p.name().equals("")){
-						name = p.name();
-					}else if(f.getAnnotation(Option.class) != null){
-						name = f.getAnnotation(Option.class).name();
-					}else{
-						name = f.getName();
-					}
-					//(save)
-					try {
-						logger.logParameter(name, "" + f.get(null));
-					} catch (IllegalArgumentException e) {
-						throw log.fail(e);
-					} catch (IllegalAccessException e) {
-						throw log.fail(e);
-					}
-				}
-			}
-		}
 		//--Commit
 		outputDB.endTransaction();
 	}
