@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 /*
  *	TODO casting to native arrays (in Utils.cast)
  *	TODO better options logging to file
+ *  TODO options for non-static files
 */
 
 public class Execution {
@@ -631,7 +632,29 @@ public class Execution {
 	 * EXECUTION
 	 * ----------
 	 */
-	
+    
+    public static void fillOptions(Properties props, String[] args){
+        //(convert to map)
+        Map<String,String> options = new HashMap<String,String>();
+        for(String key : props.stringPropertyNames()){
+            options.put(key, props.getProperty(key));
+        }
+        options.putAll(parseOptions(args));
+        //(bootstrap)
+        fillOptions(BOOTSTRAP_CLASSES, options, false); //bootstrap
+        log.bootstrap();
+        log.startTrack("init");
+        //(fill options)
+        Class<?>[] visibleClasses = getVisibleClasses(options); //get classes
+        Map<String,Field> optionFields = fillOptions(visibleClasses, options);//fill
+    }
+    public static void fillOptions(Properties props){
+        fillOptions(props, new String[0]);
+    }
+
+    public static final void exec(Runnable toRun){
+        exec(toRun, new String[0]);
+    }
 	public static void exec(Runnable toRun, String[] args) {
 		exec(toRun, args, true, new LogInterface());
 	}
@@ -687,10 +710,6 @@ public class Execution {
 		if(exit){
 			log.exit(ExitCode.OK); //soft exit
 		}
-	}
-	
-	public static final void exec(Runnable toRun){
-		exec(toRun, new String[0]);
 	}
 
 	private static final String threadRootClass() {
