@@ -25,6 +25,7 @@ public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Dec
 			for(DOMAIN key : empirical){
 				rtn.incrementCount(key, this.counts.getCount(key));
 			}
+			rtn.normalize();
 			return rtn;
 		} catch (CloneNotSupportedException e) {
 			throw new RuntimeException(e);

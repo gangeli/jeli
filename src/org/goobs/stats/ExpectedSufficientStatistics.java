@@ -7,9 +7,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public abstract class ExpectedSufficientStatistics <DOMAIN,DISTRIBUTION extends Distribution<DOMAIN>> implements SufficientStatistics <DOMAIN,DISTRIBUTION> {
 	private Lock updateLock = new ReentrantLock();
 
-	public abstract void registerDatum(DOMAIN datum, double prob);
+	protected abstract void registerDatum(DOMAIN datum, double prob);
 	public abstract void clear();
-
 
 	public void updateEStep(DOMAIN datum, double prob){
 		updateLock.lock();
