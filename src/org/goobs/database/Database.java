@@ -1621,6 +1621,13 @@ public final class Database implements Decodable{
 	@Override
 	public Decodable decode(String encoded, Type[] typeParams) {
 		if(this.isConnected()){ throw new DatabaseException("Decoding into a connected database!"); }
+		//--Clean String
+		while(encoded.charAt(0) == '"' || encoded.charAt(0) == '\''){
+			encoded = encoded.substring(1);
+		}
+		while(encoded.charAt(encoded.length()-1) == '"' || encoded.charAt(encoded.length()-1) == '\''){
+			encoded = encoded.substring(0, encoded.length()-1);
+		}
 		//--Get Type
 		int sep = encoded.indexOf("://");
 		if(sep < 0){ throw new IllegalArgumentException("Invalid database string (no '://'): " + encoded); }
