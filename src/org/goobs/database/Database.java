@@ -288,7 +288,7 @@ public final class Database implements Decodable{
 		}
 		return this;
 	}
-	
+
 	public void disconnect(){
 		internerMap = null;
 		DatabaseObject.clearInfo(this);
@@ -360,6 +360,7 @@ public final class Database implements Decodable{
 		if (conn == null) {
 			throw new DatabaseException("Database has not been connected yet");
 		}
+		ensureConnection();
 		switch(type){
 		case PSQL:
 			try {
@@ -387,6 +388,7 @@ public final class Database implements Decodable{
 			try {
 				String query = "SELECT tbl_name FROM sqlite_master;";
 				if(conn == null) throw new DatabaseException("Querying without an open database connection");
+				ensureConnection();
 				Statement stmt = conn.createStatement();
 				stmt.execute(query);
 				ResultSet results = stmt.getResultSet();
@@ -1202,6 +1204,21 @@ public final class Database implements Decodable{
 		throw new NoSuchMethodError("Not implemented yet");
 	}
 	
+	private void ensureConnection(){
+		if (conn != null) {
+			try {
+				if(!conn.isValid(10000)){
+					conn = null;
+					connect();
+				}
+			} catch (SQLException e) {
+				connect();
+			}
+		} else {
+			connect();
+		}
+	}
+	
 	@SuppressWarnings("unchecked")
 	private <E extends DatabaseObject> void addRow(DBClassInfo<E> info, E instance){
 		int slot = 1;
@@ -1389,6 +1406,7 @@ public final class Database implements Decodable{
 
     private void prepareStatement() throws SQLException{
       if(conn == null) throw new DatabaseException("Querying without an open database connection");
+			ensureConnection();
 	    if(lastStatement != null){ lastStatement.close(); }
 	    lastStatement = conn.createStatement();
     }
