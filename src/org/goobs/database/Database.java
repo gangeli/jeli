@@ -1207,14 +1207,18 @@ public final class Database implements Decodable{
 	private void ensureConnection(){
 		if (conn != null) {
 			try {
-				if(!conn.isValid(10000)){
+				if(conn.getMetaData() == null){
+					//(case: no metadata returned)
 					conn = null;
 					connect();
 				}
 			} catch (SQLException e) {
+				//(case: conn exception'd)
+				conn = null;
 				connect();
 			}
 		} else {
+			//(case; never pretended to be connected)
 			connect();
 		}
 	}
