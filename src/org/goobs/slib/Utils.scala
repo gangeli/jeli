@@ -1,6 +1,8 @@
 package org.goobs.slib
 
-import util.matching.Regex
+import scala.util.matching.Regex
+import scala.collection.immutable.Set
+import scala.collection.Iterator
 
 class Def[C](implicit desired : Manifest[C]) {
 	def unapply[X](c : X)(implicit m : Manifest[X]) : Option[C] = {
@@ -12,6 +14,16 @@ class Def[C](implicit desired : Manifest[C]) {
 		} else {
 			None
 		}
+	}
+}
+
+case class SingletonIterator[A](elem:A) extends Iterator[A] {
+	private var exhausted:Boolean = false
+	override def hasNext:Boolean = !exhausted
+	override def next:A = {
+		if(exhausted){ throw new NoSuchElementException }
+		exhausted = true
+		elem
 	}
 }
 
