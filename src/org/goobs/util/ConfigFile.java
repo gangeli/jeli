@@ -1,21 +1,16 @@
 package org.goobs.util;
 
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import org.goobs.exec.ProcessFactory;
+
+import java.io.*;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.goobs.exec.ProcessFactory;
-
 public class ConfigFile {
 	
-	public static ConfigFile META_CONFIG = new ConfigFile(ConfigFile.class.getResourceAsStream("/lib.conf"));
+	public static ConfigFile META_CONFIG = new ConfigFile(ConfigFile.class.getResourceAsStream("lib.conf"));
 	
 	static{
 		try {

@@ -1,10 +1,10 @@
 package org.goobs.testing;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.LinkedList;
-import java.util.List;
+import org.goobs.exec.ScriptRunner;
+import org.goobs.util.Utils;
+import org.w3c.dom.DOMException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -15,12 +15,11 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-
-import org.goobs.exec.ScriptRunner;
-import org.goobs.util.Utils;
-import org.w3c.dom.DOMException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.LinkedList;
+import java.util.List;
 
 public class MTScorer {
 	
@@ -251,6 +250,7 @@ public class MTScorer {
 		createXML("tstset", tst);
 		//(create the file)
 		InputStream in = MTScorer.class.getResourceAsStream("mteval-v13a.pl");
+		if(in == null){ throw new IllegalStateException("MT Scorer not found"); }
 		File dst = null;
 		try{
 			dst = File.createTempFile("mteval-instance",".pl");

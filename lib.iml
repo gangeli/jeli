@@ -22,24 +22,6 @@
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" name="JavaNLP" level="application" />
-    <orderEntry type="module-library" exported="" scope="RUNTIME">
-      <library name="mysql.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/mysql.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library" exported="" scope="RUNTIME">
-      <library name="postgresql.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/postgresql.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
     <orderEntry type="module-library" exported="">
       <library name="scala-compiler.jar">
         <CLASSES>
@@ -58,10 +40,37 @@
         <SOURCES />
       </library>
     </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/etc/scalatest.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="" scope="RUNTIME">
+      <library name="postgresql.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/etc/postgresql.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
     <orderEntry type="module-library" exported="" scope="RUNTIME">
       <library name="sqlite.jar">
         <CLASSES>
           <root url="jar://$MODULE_DIR$/etc/sqlite.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="" scope="RUNTIME">
+      <library name="mysql.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/etc/mysql.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
