@@ -1,170 +1,243 @@
-<project name="lib" default="dist" basedir=".">
-	<description>
-		Build file for lib
-	</description>
-
-	<property name="src" location="src"/>
-	<property name="lib" location="etc"/>
-	<property name="build" location="bin"/>
-	<property name="dist" location="dist"/>
-
-	<property name="test" location="test"/>
-	<property name="test-src" location="test/src"/>
-	<property name="test-build" location="test/bin"/>
-	<property name="test-raw" location="test/raw"/>
-	<property name="test-out" location="test/result.xml"/>
-
-	<path id="classpath.build">
-		<pathelement location="${lib}/mysql.jar"/>
-		<pathelement location="${lib}/sqlite.jar"/>
-		<pathelement location="${lib}/postgresql.jar"/>
-		<pathelement location="${lib}/jchart2d.jar"/>
-		<pathelement location="${lib}/scala-compiler.jar"/>
-		<pathelement location="${lib}/scala-library.jar"/>
-	</path>
-	<path id="classpath.test">
-			<path refid="classpath.build"/>
-			<pathelement location="${lib}/junit.jar"/>
-			<pathelement location="${build}"/>
-			<pathelement location="${test-build}"/>
-	</path>
-		
-	<taskdef resource="scala/tools/ant/antlib.xml">
-		<classpath>
-			<pathelement location="${lib}/scala-compiler.jar"/>
-			<pathelement location="${lib}/scala-library.jar"/>
-		</classpath>
-	</taskdef>
-
-
-
-	<target name="init">
-		<tstamp/>
-		<mkdir dir="${build}"/>
-	</target>
-
-	<target name="init-test">
-		<mkdir dir="${test-build}"/>
-		<mkdir dir="${test-raw}"/>
-	</target>
-
-	<target name="init-scala">
-		<!--Scala Properties-->
-		<path id="scala.classpath">
-			<pathelement location="${lib}/scala-library.jar"/>
-			<pathelement location="${build}"/>
-		</path>
-	</target>
-
-
-
-	<target name="build" depends="init,init-scala"
-			description="Compile all files">
-		<javac srcdir="${src}" destdir="${build}"
-				debug="true" debuglevel="lines, vars, and source">
-			<classpath refid="classpath.build"/>
-		</javac>
-		<scalac srcdir="${src}" destdir="${build}" 
-				classpathref="classpath.build">
-			<include name="**/*.scala"/>
-		</scalac>
-		<copy todir="${build}/aux">
-			<fileset dir="${src}/aux"/>
-		</copy>
-		<chmod perm="755">
-			<fileset dir="${build}/aux">
-				<include name="**/*.rb"/>
-			</fileset>
-		</chmod>
-	</target>
-	
-	<target name="build-test" depends="init-test,build"
-			description="Compile test files">
-		<javac srcdir="${test-src}" destdir="${test-build}">
-			<classpath refid="classpath.test"/>
-		</javac>
-	</target>
-
-
-
-	<target name="dist" depends="build"
-			description="Package all files">
-		<mkdir dir="${dist}"/>
-		<!--Package Everything-->
-		<jar jarfile="${dist}/lib.jar">
-			<fileset dir="${build}"/>
-			<fileset dir="${src}"/>
-			<!--
-			<zipfileset src="${lib}/junit.jar"/>
-			<zipfileset src="${lib}/mysql.jar"/>
-			<zipfileset src="${lib}/sqlite.jar"/>
-			<zipfileset src="${lib}/postgresql.jar"/>
-			<zipfileset src="${lib}/jchart2d.jar"/>
-			-->
-		</jar>
-		<!--Package Database-->
-		<jar jarfile="${dist}/database.jar">
-			<fileset dir="${build}">
-				<include name="org/goobs/database/*.class"/>
-				<include name="org/goobs/utils/Utils.class"/>
-				<include name="org/goobs/utils/MetaClass*.class"/>
-				<include name="org/goobs/utils/Decodable.class"/>
-				<include name="org/goobs/io/Console.class"/>
-				<include name="org/goobs/io/TextConsole.class"/>
-			</fileset>
-			<fileset dir="${src}">
-				<include name="org/goobs/database/*.java"/>
-				<include name="org/goobs/utils/Utils.java"/>
-				<include name="org/goobs/utils/MetaClass.java"/>
-				<include name="org/goobs/utils/Decodable.java"/>
-				<include name="org/goobs/tests/DatabaseTest.java"/>
-				<include name="org/goobs/io/Console.java"/>
-				<include name="org/goobs/io/TextConsole.java"/>
-			</fileset>
-			<zipfileset src="${lib}/mysql.jar"/>
-			<zipfileset src="${lib}/sqlite.jar"/>
-			<zipfileset src="${lib}/postgresql.jar"/>
-		</jar>
-	</target>
-
-	<!--
-	<target name="test" depends="build"
-			description="Execute unit tests">
-		<junit>
-			<classpath refid="classpath.test"/>
-			<formatter type="brief" usefile="false"/>
-			<test name='org.goobs.tests.DatabaseTest'/>
-		</junit>
-	</target>
-	-->
-
-	<target name="test" depends="dist,build-test"
-			description="Execute unit tests">
-		<junit printsummary="true" failureproperty="junit.failure">
-			<classpath refid="classpath.test"/>
-			<batchtest todir="test/raw">
-				<fileset dir="${test-build}">
-					<exclude name='**/*$*.class'/> <!--nested classes-->
-					<!--TODO experimental classes' tests-->
-					<exclude name='**/ReliableChannelTest.class'/>
-				</fileset>
-				<formatter type="xml"/>
-			</batchtest>
-		</junit>
-		<junitreport todir="test">
-			<fileset dir="test/raw"/>
-			<report todir="${test-out}"/>
-		</junitreport>
-		<fail if="junit.failure" message="Unit test(s) failed.  See reports!"/>
-	</target>
-
-	<target name="clean"
-			description="clean up">
-		<delete dir="${build}"/>
-		<delete dir="${dist}"/>
-		<delete dir="${test-build}"/>
-		<delete dir="${test-raw}"/>
-		<delete dir="${test-out}"/>
-	</target>
-
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="lib" default="all">
+  
+  
+  <property file="build.properties"/>
+  <!-- Uncomment the following property if no tests compilation is needed -->
+  <!-- 
+  <property name="skip.tests" value="true"/>
+   -->
+  
+  <!-- Compiler options -->
+  
+  <property name="compiler.debug" value="on"/>
+  <property name="compiler.generate.no.warnings" value="off"/>
+  <property name="compiler.args" value=""/>
+  <property name="compiler.max.memory" value="128m"/>
+  <patternset id="ignored.files">
+    <exclude name="**/CVS/**"/>
+    <exclude name="**/SCCS/**"/>
+    <exclude name="**/RCS/**"/>
+    <exclude name="**/rcs/**"/>
+    <exclude name="**/.DS_Store/**"/>
+    <exclude name="**/.svn/**"/>
+    <exclude name="**/.pyc/**"/>
+    <exclude name="**/.pyo/**"/>
+    <exclude name="**/*.pyc/**"/>
+    <exclude name="**/*.pyo/**"/>
+    <exclude name="**/.git/**"/>
+    <exclude name="**/*.hprof/**"/>
+    <exclude name="**/_svn/**"/>
+    <exclude name="**/.hg/**"/>
+    <exclude name="**/*.lib/**"/>
+    <exclude name="**/*~/**"/>
+    <exclude name="**/__pycache__/**"/>
+    <exclude name="**/.bundle/**"/>
+    <exclude name="**/*.rbc/**"/>
+  </patternset>
+  <patternset id="library.patterns">
+    <include name="*.zip"/>
+    <include name="*.apk"/>
+    <include name="*.war"/>
+    <include name="*.egg"/>
+    <include name="*.ear"/>
+    <include name="*.swc"/>
+    <include name="*.jar"/>
+  </patternset>
+  <patternset id="compiler.resources">
+    <include name="**/?*.properties"/>
+    <include name="**/?*.xml"/>
+    <include name="**/?*.gif"/>
+    <include name="**/?*.png"/>
+    <include name="**/?*.jpeg"/>
+    <include name="**/?*.jpg"/>
+    <include name="**/?*.html"/>
+    <include name="**/?*.dtd"/>
+    <include name="**/?*.tld"/>
+    <include name="**/?*.ftl"/>
+    <include name="**/?*.pl"/>
+    <include name="**/?*.conf"/>
+  </patternset>
+  
+  <!-- JDK definitions -->
+  
+  <property name="jdk.bin.1.6" value="${jdk.home.1.6}/bin"/>
+  <path id="jdk.classpath.1.6">
+    <fileset dir="${jdk.home.1.6}">
+      <include name="../java-6-sun/jre/lib/plugin.jar"/>
+      <include name="../java-6-sun/jre/lib/resources.jar"/>
+      <include name="../java-6-sun/jre/lib/management-agent.jar"/>
+      <include name="../java-6-sun/jre/lib/rt.jar"/>
+      <include name="../java-6-sun/jre/lib/charsets.jar"/>
+      <include name="../java-6-sun/jre/lib/jce.jar"/>
+      <include name="../java-6-sun/jre/lib/alt-rt.jar"/>
+      <include name="../java-6-sun/jre/lib/deploy.jar"/>
+      <include name="../java-6-sun/jre/lib/jsse.jar"/>
+      <include name="../java-6-sun/jre/lib/javaws.jar"/>
+      <include name="../java-6-sun/jre/lib/ext/sunjce_provider.jar"/>
+      <include name="../java-6-sun/jre/lib/ext/localedata.jar"/>
+      <include name="../java-6-sun/jre/lib/ext/dnsns.jar"/>
+      <include name="../java-6-sun/jre/lib/ext/sunpkcs11.jar"/>
+    </fileset>
+  </path>
+  
+  <property name="project.jdk.home" value="${jdk.home.1.6}"/>
+  <property name="project.jdk.bin" value="${jdk.bin.1.6}"/>
+  <property name="project.jdk.classpath" value="jdk.classpath.1.6"/>
+  
+  
+  <!-- Global Libraries -->
+  
+  <path id="library.javanlp.classpath">
+    <pathelement location="/home/gabor/workspace/javanlp/projects/core/classes"/>
+    <pathelement location="/home/gabor/workspace/javanlp/projects/more/classes"/>
+    <pathelement location="/home/gabor/workspace/javanlp/projects/research/classes"/>
+    <pathelement location="/home/gabor/lib/java/stanford-corenlp-models-current.jar"/>
+    <pathelement location="/home/gabor/workspace/javanlp/projects/core/lib/joda-time.jar"/>
+    <pathelement location="/home/gabor/workspace/javanlp/projects/core/lib/xom-1.2.6.jar"/>
+  </path>
+  
+  <!-- Modules -->
+  
+  
+  <!-- Module lib -->
+  
+  <dirname property="module.lib.basedir" file="${ant.file}"/>
+  
+  
+  <property name="module.jdk.home.lib" value="${project.jdk.home}"/>
+  <property name="module.jdk.bin.lib" value="${project.jdk.bin}"/>
+  <property name="module.jdk.classpath.lib" value="${project.jdk.classpath}"/>
+  
+  <property name="compiler.args.lib" value="${compiler.args}"/>
+  
+  <property name="lib.output.dir" value="${module.lib.basedir}/bin"/>
+  <property name="lib.testoutput.dir" value="${module.lib.basedir}/test/bin"/>
+  
+  <path id="lib.module.bootclasspath">
+    <!-- Paths to be included in compilation bootclasspath -->
+  </path>
+  
+  <path id="lib.module.production.classpath">
+    <path refid="library.javanlp.classpath"/>
+    <pathelement location="${basedir}/etc/scala-compiler.jar"/>
+    <pathelement location="${basedir}/etc/scala-library.jar"/>
+    <pathelement location="${basedir}/etc/scalatest.jar"/>
+    <pathelement location="${basedir}/etc/junit.jar"/>
+    <pathelement location="${basedir}/etc/jchart2d.jar"/>
+    <path refid="${module.jdk.classpath.lib}"/>
+  </path>
+  
+  <path id="lib.runtime.production.module.classpath">
+    <pathelement location="${lib.output.dir}"/>
+    <path refid="library.javanlp.classpath"/>
+    <pathelement location="${basedir}/etc/scala-compiler.jar"/>
+    <pathelement location="${basedir}/etc/scala-library.jar"/>
+    <pathelement location="${basedir}/etc/postgresql.jar"/>
+    <pathelement location="${basedir}/etc/sqlite.jar"/>
+    <pathelement location="${basedir}/etc/mysql.jar"/>
+    <pathelement location="${basedir}/etc/scalatest.jar"/>
+    <pathelement location="${basedir}/etc/junit.jar"/>
+    <pathelement location="${basedir}/etc/jchart2d.jar"/>
+  </path>
+  
+  <path id="lib.module.classpath">
+    <pathelement location="${lib.output.dir}"/>
+    <path refid="library.javanlp.classpath"/>
+    <pathelement location="${basedir}/etc/scala-compiler.jar"/>
+    <pathelement location="${basedir}/etc/scala-library.jar"/>
+    <pathelement location="${basedir}/etc/scalatest.jar"/>
+    <pathelement location="${basedir}/etc/junit.jar"/>
+    <pathelement location="${basedir}/etc/jchart2d.jar"/>
+    <path refid="${module.jdk.classpath.lib}"/>
+  </path>
+  
+  <path id="lib.runtime.module.classpath">
+    <pathelement location="${lib.testoutput.dir}"/>
+    <pathelement location="${lib.output.dir}"/>
+    <path refid="library.javanlp.classpath"/>
+    <pathelement location="${basedir}/etc/scala-compiler.jar"/>
+    <pathelement location="${basedir}/etc/scala-library.jar"/>
+    <pathelement location="${basedir}/etc/postgresql.jar"/>
+    <pathelement location="${basedir}/etc/sqlite.jar"/>
+    <pathelement location="${basedir}/etc/mysql.jar"/>
+    <pathelement location="${basedir}/etc/scalatest.jar"/>
+    <pathelement location="${basedir}/etc/junit.jar"/>
+    <pathelement location="${basedir}/etc/jchart2d.jar"/>
+  </path>
+  
+  
+  <patternset id="excluded.from.module.lib">
+    <patternset refid="ignored.files"/>
+  </patternset>
+  
+  <patternset id="excluded.from.compilation.lib">
+    <patternset refid="excluded.from.module.lib"/>
+  </patternset>
+  
+  <path id="lib.module.sourcepath">
+    <dirset dir="${module.lib.basedir}">
+      <include name="src"/>
+    </dirset>
+  </path>
+  
+  <path id="lib.module.test.sourcepath">
+    <dirset dir="${module.lib.basedir}">
+      <include name="test/src"/>
+    </dirset>
+  </path>
+  
+  
+  <target name="compile.module.lib" depends="compile.module.lib.production,compile.module.lib.tests" description="Compile module lib"/>
+  
+  <target name="compile.module.lib.production" description="Compile module lib; production classes">
+    <mkdir dir="${lib.output.dir}"/>
+    <javac destdir="${lib.output.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.lib}/javac">
+      <compilerarg line="${compiler.args.lib}"/>
+      <bootclasspath refid="lib.module.bootclasspath"/>
+      <classpath refid="lib.module.production.classpath"/>
+      <src refid="lib.module.sourcepath"/>
+      <patternset refid="excluded.from.compilation.lib"/>
+    </javac>
+    
+    <copy todir="${lib.output.dir}">
+      <fileset dir="${module.lib.basedir}/src">
+        <patternset refid="compiler.resources"/>
+        <type type="file"/>
+      </fileset>
+    </copy>
+  </target>
+  
+  <target name="compile.module.lib.tests" depends="compile.module.lib.production" description="compile module lib; test classes" unless="skip.tests">
+    <mkdir dir="${lib.testoutput.dir}"/>
+    <javac destdir="${lib.testoutput.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.lib}/javac">
+      <compilerarg line="${compiler.args.lib}"/>
+      <bootclasspath refid="lib.module.bootclasspath"/>
+      <classpath refid="lib.module.classpath"/>
+      <src refid="lib.module.test.sourcepath"/>
+      <patternset refid="excluded.from.compilation.lib"/>
+    </javac>
+    
+    <copy todir="${lib.testoutput.dir}">
+      <fileset dir="${module.lib.basedir}/test/src">
+        <patternset refid="compiler.resources"/>
+        <type type="file"/>
+      </fileset>
+    </copy>
+  </target>
+  
+  <target name="clean.module.lib" description="cleanup module">
+    <delete dir="${lib.output.dir}"/>
+    <delete dir="${lib.testoutput.dir}"/>
+  </target>
+  
+  <target name="init" description="Build initialization">
+    <!-- Perform any build initialization in this target -->
+  </target>
+  
+  <target name="clean" depends="clean.module.lib" description="cleanup all"/>
+  
+  <target name="build.modules" depends="init, clean, compile.module.lib" description="build all modules"/>
+  
+  <target name="all" depends="build.modules" description="build all"/>
 </project>

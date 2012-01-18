@@ -1,0 +1,4 @@
+#!/bin/bash
+#
+
+scala -cp ..//etc/scalatest.jar:../dist/lib.jar:../dist/lib-test.jar org.scalatest.tools.Runner -p . -o -s org.goobs.tests.CKYParserSpec
