@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.io.FileWriter;
 import java.io.File;
 
-import org.goobs.utils.Stopwatch;
+import org.goobs.util.Stopwatch;
 
 public final class Log {
 	

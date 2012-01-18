@@ -9,7 +9,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.goobs.database.*;
 import static org.goobs.exec.Log.*;
-import org.goobs.utils.SparseList;
+import org.goobs.util.SparseList;
 
 public class DBResultLogger extends ResultLogger{
 

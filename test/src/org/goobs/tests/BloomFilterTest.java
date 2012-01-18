@@ -1,12 +1,13 @@
 package org.goobs.tests;
 
 import static org.junit.Assert.*;
+
+import org.goobs.util.Function;
 import org.junit.*;
 
 import java.util.UUID;
 
-import org.goobs.functional.Function;
-import org.goobs.utils.BloomFilter;
+import org.goobs.util.BloomFilter;
 
 public class BloomFilterTest{
 

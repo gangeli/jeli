@@ -1,6 +1,6 @@
 package org.goobs.stats;
 
-import org.goobs.utils.Decodable;
+import org.goobs.util.Decodable;
 
 import java.lang.reflect.Type;
 import java.util.Iterator;

@@ -2,7 +2,7 @@ package org.goobs.testing;
 
 import org.goobs.database.Database;
 import org.goobs.database.DatabaseObject;
-import org.goobs.utils.Range;
+import org.goobs.util.Range;
 
 /**
  * IMPORTANT: The database must have a primary key that's dense (e.g. max(key) = count(key))

@@ -2,13 +2,12 @@ package org.goobs.stanford;
 
 
 import edu.stanford.nlp.pipeline.Annotation;
-import edu.stanford.nlp.util.ArrayCoreMap;
 import edu.stanford.nlp.util.CoreMap;
 import org.goobs.database.*;
 import org.goobs.exec.Log;
 import org.goobs.testing.Dataset;
-import org.goobs.utils.MetaClass;
-import org.goobs.utils.Range;
+import org.goobs.util.MetaClass;
+import org.goobs.util.Range;
 
 import java.util.*;
 

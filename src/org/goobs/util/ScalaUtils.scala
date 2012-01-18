@@ -1,4 +1,4 @@
-package org.goobs.slib
+package org.goobs.utils
 
 import scala.util.matching.Regex
 import scala.collection.immutable.Set

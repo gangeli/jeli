@@ -6,7 +6,7 @@ import java.util.*;
 
 import org.goobs.database.Database.DBClassInfo;
 import org.goobs.exec.Log;
-import org.goobs.utils.MetaClass;
+import org.goobs.util.MetaClass;
 
 public abstract class DatabaseObject {
 

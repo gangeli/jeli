@@ -1,18 +1,18 @@
-package org.goobs.utils;
+package org.goobs.util;
 
-public class MinHeap <E> extends Heap <E>{
+public class MaxHeap<E> extends Heap <E>{
 	
-	public MinHeap(){
+	public MaxHeap(){
 		super();
 	}
-	public MinHeap(int initialCapacity){
+	public MaxHeap(int initialCapacity){
 		super(initialCapacity);
 	}
-	public MinHeap(int initialCapacity, long maxCapacity){
+	public MaxHeap(int initialCapacity, long maxCapacity){
 		super(initialCapacity, maxCapacity);
 	}
 
-	public E popMin(){
+	public E popMax(){
 		return pop();
 	}
 	
@@ -23,10 +23,10 @@ public class MinHeap <E> extends Heap <E>{
 			int left = leftChild(pos);
 			int right = rightChild(pos);
 			int largest = pos;
-			if(left < size() && score(left) < score(largest)){
+			if(left < size() && score(left) > score(largest)){
 				largest = left;
 			}
-			if(right < size() && score(right) < score(largest)){
+			if(right < size() && score(right) > score(largest)){
 				largest = right;
 			}
 			//(heapify)
@@ -43,7 +43,7 @@ public class MinHeap <E> extends Heap <E>{
 	protected void heapifyUp(int pos) {
 		while(pos != 0){
 			int parent = parent(pos);
-			if(score(parent) < score(pos)){
+			if(score(parent) >= score(pos)){
 				return;	//done heapifying
 			}else{
 				swap(pos, parent);	//swap up

@@ -5,10 +5,10 @@ import static org.junit.Assert.*;
 import java.util.HashMap;
 import java.util.Random;
 
-import org.goobs.utils.Utils;
+import org.goobs.util.Utils;
 import org.junit.*;
 
-import static org.goobs.utils.Utils.*;
+import static org.goobs.util.Utils.*;
 
 public class UtilsTest {
 	

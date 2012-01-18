@@ -1,7 +1,7 @@
 package org.goobs.testing;
 
 import org.goobs.exec.Log;
-import org.goobs.utils.Range;
+import org.goobs.util.Range;
 
 public class DatasetSlice <D extends Datum> extends Dataset <D>{
 	/**

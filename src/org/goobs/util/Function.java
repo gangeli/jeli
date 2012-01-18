@@ -1,4 +1,4 @@
-package org.goobs.functional;
+package org.goobs.util;
 
 import java.io.Serializable;
 

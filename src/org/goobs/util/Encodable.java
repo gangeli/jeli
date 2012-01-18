@@ -1,4 +1,4 @@
-package org.goobs.utils;
+package org.goobs.util;
 
 public class Encodable{
 	public static final char LINE_BREAK = '#';

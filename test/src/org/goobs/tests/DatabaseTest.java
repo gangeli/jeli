@@ -18,9 +18,9 @@ import java.util.List;
 import java.util.Random;
 
 import org.goobs.database.*;
-import org.goobs.utils.Decodable;
-import org.goobs.utils.MetaClass;
-import org.goobs.utils.Utils;
+import org.goobs.util.Decodable;
+import org.goobs.util.MetaClass;
+import org.goobs.util.Utils;
 
 public class DatabaseTest{
 

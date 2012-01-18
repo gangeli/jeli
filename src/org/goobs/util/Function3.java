@@ -1,4 +1,4 @@
-package org.goobs.functional;
+package org.goobs.util;
 
 public interface Function3 <E,F,G,O> {
 

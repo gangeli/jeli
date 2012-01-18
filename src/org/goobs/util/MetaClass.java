@@ -1,4 +1,4 @@
-package org.goobs.utils;
+package org.goobs.util;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;

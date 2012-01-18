@@ -1,6 +1,6 @@
 package org.goobs.tests;
 
-import org.goobs.utils.Range;
+import org.goobs.util.Range;
 import org.junit.*;
 import static org.junit.Assert.*;
 

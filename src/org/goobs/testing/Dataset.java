@@ -3,8 +3,8 @@ package org.goobs.testing;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.goobs.utils.Pair;
-import org.goobs.utils.Range;
+import org.goobs.util.Pair;
+import org.goobs.util.Range;
 
 public abstract class Dataset <D extends Datum> implements java.io.Serializable{
 	/**

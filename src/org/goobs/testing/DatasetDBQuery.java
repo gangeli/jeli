@@ -5,7 +5,7 @@ import java.util.Iterator;
 
 import org.goobs.database.Database;
 import org.goobs.database.DatabaseObject;
-import org.goobs.utils.Range;
+import org.goobs.util.Range;
 
 public class DatasetDBQuery <D extends DatabaseObject & Datum> extends Dataset<D>{
 	/**

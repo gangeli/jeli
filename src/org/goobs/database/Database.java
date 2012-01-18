@@ -2,10 +2,10 @@ package org.goobs.database;
 
 import org.goobs.io.Console;
 import org.goobs.io.TextConsole;
-import org.goobs.utils.Decodable;
-import org.goobs.utils.MetaClass;
-import org.goobs.utils.Pair;
-import org.goobs.utils.Utils;
+import org.goobs.util.Decodable;
+import org.goobs.util.MetaClass;
+import org.goobs.util.Pair;
+import org.goobs.util.Utils;
 
 import java.io.File;
 import java.io.Serializable;

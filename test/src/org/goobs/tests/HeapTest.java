@@ -6,8 +6,8 @@ import org.junit.*;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.goobs.utils.MaxHeap;
-import org.goobs.utils.MinHeap;
+import org.goobs.util.MaxHeap;
+import org.goobs.util.MinHeap;
 
 public class HeapTest{
 

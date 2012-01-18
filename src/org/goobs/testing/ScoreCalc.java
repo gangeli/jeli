@@ -4,8 +4,8 @@ import java.util.Comparator;
 import java.util.ArrayList;
 
 import static org.goobs.exec.Log.*;
-import org.goobs.utils.StatCalc;
-import org.goobs.utils.Pair;
+import org.goobs.util.StatCalc;
+import org.goobs.util.Pair;
 
 public class ScoreCalc <T> {
 	private static enum State{

@@ -18,11 +18,11 @@ JAVANLP=${JAVANLP_HOME}/projects/core/classes:${JAVANLP_HOME}/projects/more/clas
 
 # -- JARS --
 DIST_LIB=lib
-${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/*.java)	$(wildcard ${SRC}/*.scala)
+${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/org/goobs/database/*.java) $(wildcard ${SRC}/org/goobs/database/*.scala) $(wildcard ${SRC}/org/goobs/exec/*.java) $(wildcard ${SRC}/org/goobs/exec/*.scala) $(wildcard ${SRC}/org/goobs/graphics/*.java) $(wildcard ${SRC}/org/goobs/graphics/*.scala) $(wildcard ${SRC}/org/goobs/internet/*.java) $(wildcard ${SRC}/org/goobs/internet/*.scala) $(wildcard ${SRC}/org/goobs/io/*.java) $(wildcard ${SRC}/org/goobs/io/*.scala) $(wildcard ${SRC}/org/goobs/nlp/*.java) $(wildcard ${SRC}/org/goobs/nlp/*.scala) $(wildcard ${SRC}/org/goobs/scheme/*.java) $(wildcard ${SRC}/org/goobs/scheme/*.scala) $(wildcard ${SRC}/org/goobs/stanford/*.java) $(wildcard ${SRC}/org/goobs/stanford/*.scala) $(wildcard ${SRC}/org/goobs/stats/*.java) $(wildcard ${SRC}/org/goobs/stats/*.scala) $(wildcard ${SRC}/org/goobs/testing/*.java) $(wildcard ${SRC}/org/goobs/testing/*.scala) $(wildcard ${SRC}/org/goobs/util/*.java) $(wildcard ${SRC}/org/goobs/util/*.scala)
 	mkdir -p ${BUILD}
 	mkdir -p ${DIST}
 	javac -Xlint:unchecked -Xlint:deprecation -d $(BUILD) -cp $(CP):${JAVANLP} `find $(SRC) -name "*.java"`
-	etc/scalac -deprecation -d ${BUILD} -cp ${CP}:${JAVANLP} `find ${SRC} -name "*.scala"` `find ${SRC} -name "*.java"`
+	fsc -deprecation -d ${BUILD} -cp ${CP}:${JAVANLP} `find ${SRC} -name "*.scala"` `find ${SRC} -name "*.java"`
 	jar cf ${DIST}/${DIST_LIB}.jar -C $(BUILD) .
 	jar uf ${DIST}/${DIST_LIB}.jar -C $(SRC) .
 	

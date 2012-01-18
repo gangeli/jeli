@@ -1,4 +1,4 @@
-package org.goobs.utils;
+package org.goobs.util;
 
 import java.io.Serializable;
 import java.lang.reflect.Type;

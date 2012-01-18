@@ -3,7 +3,7 @@ package org.goobs.tests;
 import static org.junit.Assert.*;
 import org.junit.*;
 
-import org.goobs.utils.MetaClass;
+import org.goobs.util.MetaClass;
 
 public class MetaClassTest{
 	

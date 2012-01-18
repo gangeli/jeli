@@ -1,6 +1,6 @@
 package org.goobs.testing;
 
-import org.goobs.utils.Range;
+import org.goobs.util.Range;
 
 public class ToyDataset<D extends Datum> extends Dataset<D>{
 	private static final long serialVersionUID = 1991110523181106998L;

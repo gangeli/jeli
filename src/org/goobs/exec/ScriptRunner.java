@@ -5,8 +5,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.goobs.utils.ConfigFile;
-import org.goobs.utils.Pair;
+import org.goobs.util.ConfigFile;
+import org.goobs.util.Pair;
 
 public final class ScriptRunner {
 

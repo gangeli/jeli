@@ -9,7 +9,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.goobs.exec.Channel;
-import org.goobs.utils.Pair;
+import org.goobs.util.Pair;
 
 
 public class SchemeThreadPool {

@@ -1,10 +1,8 @@
-package org.goobs.utils;
+package org.goobs.util;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
-
-import org.goobs.functional.Function;
 
 public class BloomFilter <E> implements Set<E>{
 

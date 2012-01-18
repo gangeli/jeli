@@ -6,8 +6,8 @@ import org.goobs.database.DatabaseObject;
 import org.goobs.io.LazyFileIterator;
 import org.goobs.stanford.CoreMapDataset;
 import org.goobs.testing.*;
-import org.goobs.utils.Marker;
-import org.goobs.utils.Utils;
+import org.goobs.util.Marker;
+import org.goobs.util.Utils;
 
 import java.io.File;
 import java.io.FileWriter;

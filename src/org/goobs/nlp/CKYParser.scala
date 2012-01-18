@@ -14,14 +14,14 @@ import scala.collection.mutable.HashSet
 import org.goobs.exec.Execution
 import org.goobs.stanford.JavaNLP._
 import org.goobs.stats._
-import org.goobs.utils.Indexer
-import org.goobs.slib.SingletonIterator
+import org.goobs.util.Indexer
+import org.goobs.util.SingletonIterator
 
 //------------------------------------------------------------------------------
 // GRAMMAR
 //------------------------------------------------------------------------------
 
-case class NodeType(name:Symbol,id:Int,flag:Set[Symbol]){
+case class NodeType(name:Symbol,id:Int,flag:Set[Symbol]) {
 	def isPreterminal:Boolean = flag(NodeType.SYM_PRETERMINAL)
 	def isWord:Boolean = flag(NodeType.SYM_WORD)
 	//--Default Overrides
@@ -54,7 +54,16 @@ object NodeType {
 	private var values:Option[Array[NodeType]] = None
 	private val valuesBuilder = new ArrayBuffer[NodeType]
 
-
+	def count:Int = {
+		assert(valuesBuilder.length == nextId+1, "Sizes don't match")
+		nextId+1
+	}
+	def all:Array[NodeType] = {
+		if(!values.isDefined){
+			values = Some(valuesBuilder.toArray)
+		}
+		values.get
+	}
 	def register(head:NodeType):NodeType = {
 		//(update array)
 		valuesBuilder += head
@@ -122,7 +131,7 @@ object Rule {
 
 }
 
-trait GrammarRule {
+trait GrammarRule extends Serializable {
 	def binarize:Iterator[CKYRule]
 	def parent:NodeType
 	def children:Iterable[NodeType]
@@ -155,7 +164,7 @@ trait CKYRule extends GrammarRule {
 class CKYUnary(_parent:NodeType,_child:NodeType) extends CKYRule {
 	//--Overrides
 	//(required)
-	override def binarize:Iterator[CKYRule] = SingletonIterator(this)
+	override def binarize:Iterator[CKYRule] = new SingletonIterator(this)
 	override def parent:NodeType = _parent
 	override def children:Iterable[NodeType] = Set[NodeType](child)
 	override def isUnary:Boolean = true
@@ -167,6 +176,11 @@ class CKYUnary(_parent:NodeType,_child:NodeType) extends CKYRule {
 
 class CKYClosure(val chain:CKYUnary*) 
 		extends CKYUnary(chain(0).parent,chain.last.child) {
+	//--Error Checks
+	if(chain.length <= 1){ 
+		throw new IllegalArgumentException("Closure must have >1 rule")
+	}
+	//--Overrides
 	override def isClosure:Boolean = true
 }
 
@@ -175,7 +189,7 @@ class CKYBinary(_parent:NodeType,
 	//--Overrides
 	//(required)
 	override def parent:NodeType = _parent
-	override def binarize:Iterator[CKYRule] = SingletonIterator(this)
+	override def binarize:Iterator[CKYRule] = new SingletonIterator(this)
 	override def children:Iterable[NodeType] 
 		= Set[NodeType](leftChild,rightChild)
 	override def isUnary:Boolean = false
@@ -187,13 +201,13 @@ class CKYBinary(_parent:NodeType,
 //------------------------------------------------------------------------------
 // AUXILLIARY
 //------------------------------------------------------------------------------
-trait Sentence {
+trait Sentence extends Serializable{
 	def apply(i:Int):Int
 	def length:Int
 	def gloss(i:Int):String
 }
 
-trait Tree[A]{
+trait Tree[A] extends Serializable {
 	//<<Overrides>>
 	def parent:A
 	def children:Array[_<:Tree[A]]
@@ -282,16 +296,20 @@ trait ParseTree extends Tree[NodeType] {
 }
 
 //------------------------------------------------------------------------------
-// PARSER
+// PARSER FACTORY
 //------------------------------------------------------------------------------
 object CKYParser {
 	// -- Constants --
 	val UNARY:Int = 0
 	val BINARY:Int = 1
 	
-	// -- Utilities --
+	//-----
+	// Multinomial Count Store
+	//-----
 	private def intStore(capacity:Int):CountStore[Int] = {
+		//(data structure)
 		val counts:Array[Double] = new Array[Double](capacity)
+		//(interface)
 		new CountStore[Int] {
 			var totalCnt:Double = 0.0
 			override def getCount(key:Int):Double = counts(key)
@@ -328,11 +346,85 @@ object CKYParser {
 		}
 	}
 
-	// -- Constructors --
+	//-----
+	// Closures
+	//-----
+	private def computeClosures(raw:Iterable[CKYRule]):Array[CKYUnary] = {
+		//--Construct Graph
+		case class Node(parent:NodeType,var neighbors:List[(Node,CKYUnary)]){
+			def this(parent:NodeType) = this(parent,List[(Node,CKYUnary)]())
+			def addNeighbor(n:Node,rule:CKYUnary) = {neighbors = (n,rule)::neighbors}
+			def search(seen:HashMap[NodeType,Boolean],backtrace:List[CKYUnary],
+					tick:(NodeType,List[CKYUnary])=>Any):Unit = {
+				//(overhead)
+				if(seen(parent)){ 
+					throw new IllegalStateException("Cyclic unaries for: " + parent)
+				}
+				seen(parent) = true
+				//(report path)
+				if(backtrace.length > 0){ tick(parent,backtrace) }
+				//(continue searching
+				neighbors.foreach{ case (node,rule) =>
+					assert(rule.parent == this.parent, "graph constructed badly (head)")
+					assert(rule.child == node.parent,  "graph constructed badly (ch)")
+					node.search(seen,rule :: backtrace,tick)
+				}
+				//(pop up)
+				seen(parent) = false
+			}
+		}
+		//(populate graph)
+		val graph = Map( NodeType.all.zip(NodeType.all.map{ new Node(_) }):_* )
+		raw.foreach{ case (rule:CKYRule) => 
+			assert(!rule.parent.isWord, "Unary headed by a Word")
+			assert(rule.isUnary, "Computing closures for non-unary rules")
+			assert(rule.isInstanceOf[CKYUnary], "Unary doesn't inherit CKYUnary")
+			if(!rule.child.isPreterminal){ //don't add lex rules
+				graph(rule.parent)
+					.addNeighbor(graph(rule.child), rule.asInstanceOf[CKYUnary]) 
+			}
+		}
+		//--Search Graph
+		//(variables)
+		var closures = HashSet[CKYUnary]()
+		var closureCount:Int = 0
+		//(search)
+		graph.foreach{ case (startType:NodeType, start:Node) => 
+			start.search(new HashMap[NodeType,Boolean], List[CKYUnary](),
+				(child:NodeType,backtrace:List[CKYUnary]) => {
+					//(variables)
+					val rules:Array[CKYUnary] = backtrace.reverse.toArray
+					//(error checks)
+					assert(rules.length > 0, "backtrace of length 0 returned")
+					assert(rules(0).parent == start.parent, "bad head")
+					assert(rules.last.child == child, "bad child")
+					//(add closure)
+					val toAdd:CKYUnary = 
+						if(rules.length == 1){ rules(0) }
+						else{ new CKYClosure(rules:_*) }
+					closures += toAdd
+					closureCount += 1
+				})
+		}
+		//(return)
+		assert(closures.size == closureCount, "Duplicate rules extracted")
+		closures.toArray
+	}
+
+	//-----
+	// Constructors
+	//-----
 	def apply(numWords:Int, grammar:GrammarRule*):CKYParser = {
 		//--Binarize Grammar
-		val binaryGrammar = new HashSet[CKYRule]
-		grammar.foreach{ (rule:GrammarRule) => binaryGrammar ++= rule.binarize }
+		//(binarize)
+		val rawBinaryGrammar = new HashSet[CKYRule]
+		grammar.foreach{ (rule:GrammarRule) => rawBinaryGrammar ++= rule.binarize }
+		//(compute closures)
+		val closures:Array[CKYUnary] =
+			computeClosures(rawBinaryGrammar.filter( _.isUnary ))
+		val binaryGrammar = new HashSet[CKYRule] ++=
+				rawBinaryGrammar.filter( !_.isUnary ) ++=
+				closures
 		//--Collect Stats
 		//(variables)
 		val nodeTypes = new HashSet[NodeType]
@@ -406,6 +498,9 @@ object CKYParser {
 	}
 }
 
+//------------------------------------------------------------------------------
+// PARSER
+//------------------------------------------------------------------------------
 class CKYParser(
 		//(sizes)
 		numWords:Int,
@@ -423,7 +518,7 @@ class CKYParser(
 		//(misc)
 		paranoid:Boolean = false,
 		kbestCKYAlgorithm:Int = 3
-			) {
+			) extends Serializable {
 
 	//-----
 	// Declarations
@@ -436,8 +531,14 @@ class CKYParser(
 	//-----
 	// Values
 	//-----
-	private val binaryRules = ruleProbIndex.keys.filter{ !_.isUnary }.toArray
-	private val unaryRules  = ruleProbIndex.keys.filter{ _.isUnary }.toArray
+	private val binaryRules:Array[CKYRule] 
+		= ruleProbIndex.keys.filter{ !_.isUnary }.toArray
+	private val unaryRules:Array[CKYRule]  
+		= ruleProbIndex.keys.filter{ _.isUnary }.toArray
+	private val canIndexNodeTypeByID:Boolean = {
+		//TODO
+		false
+	}
 
 	
 	//-----

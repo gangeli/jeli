@@ -2,7 +2,7 @@ package org.goobs.tests;
 import static org.junit.Assert.*;
 import org.junit.*;
 
-import org.goobs.utils.Circle;
+import org.goobs.util.Circle;
 
 public class CircleTest{
 

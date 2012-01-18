@@ -1,6 +1,5 @@
-package org.goobs.utils;
+package org.goobs.util;
 
-import java.lang.reflect.Array;
 import java.lang.reflect.Type;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

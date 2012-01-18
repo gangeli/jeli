@@ -3,7 +3,7 @@ package org.goobs.stanford;
 import edu.stanford.nlp.io.IOUtils;
 import edu.stanford.nlp.util.CoreMap;
 import org.goobs.testing.Dataset;
-import org.goobs.utils.Range;
+import org.goobs.util.Range;
 
 import java.io.*;
 import java.lang.ref.WeakReference;

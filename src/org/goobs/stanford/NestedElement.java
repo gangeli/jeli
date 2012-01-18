@@ -6,7 +6,7 @@ import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.util.CoreMap;
 import edu.stanford.nlp.util.TypesafeMap;
 import org.goobs.database.*;
-import org.goobs.utils.Utils;
+import org.goobs.util.Utils;
 
 import java.util.*;
 
