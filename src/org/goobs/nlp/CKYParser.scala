@@ -556,13 +556,15 @@ object CKYParser {
 	//-----
 	// Closures
 	//-----
-	private def computeClosures(raw:Iterable[CKYRule]):Array[CKYUnary] = {
+	private def computeClosures(raw:Iterable[(CKYRule,Double)]
+			):Array[(CKYUnary,Double)] = {
 		//--Construct Graph
-		case class Node(parent:NodeType,var neighbors:List[(Node,CKYUnary)]){
-			def this(parent:NodeType) = this(parent,List[(Node,CKYUnary)]())
-			def addNeighbor(n:Node,rule:CKYUnary) = {neighbors = (n,rule)::neighbors}
-			def search(seen:HashSet[NodeType],backtrace:List[CKYUnary],
-					tick:(NodeType,List[CKYUnary])=>Any):Unit = {
+		case class Node(parent:NodeType,var neighbors:List[(Node,CKYUnary,Double)]){
+			def this(parent:NodeType) = this(parent,List[(Node,CKYUnary,Double)]())
+			def addNeighbor(n:Node,rule:CKYUnary,count:Double) 
+				= {neighbors = (n,rule,count) :: neighbors}
+			def search(seen:HashSet[NodeType],backtrace:List[(CKYUnary,Double)],
+					tick:(NodeType,List[(CKYUnary,Double)])=>Any):Unit = {
 				//(overhead)
 				if(seen(parent)){ 
 					throw new IllegalStateException("Cyclic unaries for: " + parent)
@@ -570,11 +572,11 @@ object CKYParser {
 				seen(parent) = true
 				//(report path)
 				if(backtrace.length > 0){ tick(parent,backtrace) }
-				//(continue searching
-				neighbors.foreach{ case (node,rule) =>
+				//(continue searching)
+				neighbors.foreach{ case (node,rule,count) =>
 					assert(rule.parent == this.parent, "graph constructed badly (head)")
 					assert(rule.child == node.parent,  "graph constructed badly (ch)")
-					node.search(seen,rule :: backtrace,tick)
+					node.search(seen, (rule,count) :: backtrace,tick)
 				}
 				//(pop up)
 				seen(parent) = false
@@ -582,7 +584,7 @@ object CKYParser {
 		}
 		//(populate graph)
 		val graph = Map( NodeType.all.zip(NodeType.all.map{ new Node(_) }):_* )
-		raw.foreach{ case (rule:CKYRule) => 
+		raw.foreach{ case (rule:CKYRule,count:Double) => 
 			//(asserts)
 			assert(!rule.parent.isWord, "Unary headed by a Word")
 			assert(rule.isUnary, "Computing closures for non-unary rules")
@@ -590,27 +592,32 @@ object CKYParser {
 			//(add neighbor)
 			if(!rule.isLex){ //don't add lex rules
 				graph(rule.parent)
-					.addNeighbor(graph(rule.child), rule.asInstanceOf[CKYUnary]) 
+					.addNeighbor(graph(rule.child), rule.asInstanceOf[CKYUnary], count) 
 			}
 		}
 		//--Search Graph
 		//(variables)
-		var closures = HashSet[CKYUnary]()
+		var closures = HashSet[(CKYUnary,Double)]()
 		var closureCount:Int = 0
 		//(search)
 		graph.foreach{ case (startType:NodeType, start:Node) => 
-			start.search(new HashSet[NodeType], List[CKYUnary](),
-				(child:NodeType,backtrace:List[CKYUnary]) => {
+			start.search(new HashSet[NodeType], List[(CKYUnary,Double)](),
+				(child:NodeType,backtrace:List[(CKYUnary,Double)]) => {
 					//(variables)
-					val rules:Array[CKYUnary] = backtrace.reverse.toArray
+					val rules:Array[(CKYUnary,Double)] = backtrace.reverse.toArray
 					//(error checks)
 					assert(rules.length > 0, "backtrace of length 0 returned")
-					assert(rules(0).parent == start.parent, "bad head")
-					assert(rules.last.child == child, "bad child")
+					assert(rules(0)._1.parent == start.parent, "bad head")
+					assert(rules.last._1.child == child, "bad child")
 					//(add closure)
-					val toAdd:CKYUnary = 
-						if(rules.length == 1){ rules(0) }
-						else{ new CKYClosure(rules:_*) }
+					val toAdd:(CKYUnary,Double) = 
+						if(rules.length == 1){ 
+							rules(0) 
+						} else{ 
+							val ruleList = rules.map{ _._1 }
+							val minCount = rules.map{ _._2 }.min
+							(new CKYClosure(ruleList:_*), minCount)
+						}
 					closures += toAdd
 					closureCount += 1
 				})
@@ -619,50 +626,86 @@ object CKYParser {
 		assert(closures.size == closureCount, "Duplicate rules extracted")
 		closures.toArray
 	}
+	
+	//-----
+	// Scrape Grammar
+	//-----
+	def scrapeGrammar(trees:Iterable[ParseTree]
+			):(HashMap[CKYRule,Double],HashMap[(CKYUnary,Int),Double]) = {
+		// TODO fixme
+		throw new IllegalStateException("Should implement me!")
+		// def traverse(ruleFn:(CKYRule)=>Any,lexFn:(CKYUnary,Int)=>Any):Unit 
+	}
 
 	//-----
 	// Constructors
 	//-----
+	/**
+	*  Define a parser from a set of trees
+	*/
+	def apply(dataset:Iterable[ParseTree]):CKYParser = {
+		//TODO fixme
+		throw new IllegalStateException("Should implement me!")
+	}
+	/**
+	*  Define a parser from a lexicon and fixed grammar rules; fast version
+	*/
 	def apply(numWords:Int, grammar:GrammarRule*):CKYParser
 		= apply(numWords,grammar.toArray)
-	def apply(numWords:Int, grammar:Array[GrammarRule],
+	/**
+	*  Define a parser from a lexicon and fixed grammar rules
+	*/
+	def apply(numWords:Int, grammar:Array[GrammarRule]):CKYParser 
+		= apply(numWords,grammar.map{(_,0.0)})
+	/**
+	*  Define a parser from a lexicon and a grammar with counts
+	*/
+	def apply(numWords:Int, grammar:Array[(GrammarRule,Double)],
+			lexPrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0),
+			rulePrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0),
 			paranoid:Boolean=false,algorithm:Int=3):CKYParser = {
 		//--Binarize Grammar
 		//(binarize)
-		val rawBinaryGrammar = new HashSet[CKYRule]
-		grammar.foreach{ (rule:GrammarRule) => rawBinaryGrammar ++= rule.binarize }
+		val rawBinaryGrammar = new HashSet[(CKYRule,Double)]
+		grammar.foreach{ case (rule:GrammarRule,count:Double) => 
+			rawBinaryGrammar ++= rule.binarize.map{ (_,count) }
+		}
 		//(compute closures)
-		val closures:Array[CKYUnary] =
-			computeClosures(rawBinaryGrammar.filter( _.isUnary ))
-		val binaryGrammar = new HashSet[CKYRule] ++=
-				rawBinaryGrammar.filter( !_.isUnary ) ++=
+		val closures:Array[(CKYUnary,Double)] =
+			computeClosures(rawBinaryGrammar.filter{ 
+					case (rule:GrammarRule,count:Double) =>
+				rule.isUnary 
+			})
+		val binaryGrammar = new HashSet[(CKYRule,Double)] ++=
+				rawBinaryGrammar.filter( !_._1.isUnary ) ++=
 				closures
 		//--Collect Stats
 		//(variables)
 		val nodeTypes = new HashSet[NodeType]
 		val lexicalEntries = new HashSet[CKYUnary]
-		val rules = new HashMap[NodeType,HashSet[CKYRule]]
+		val rules = new HashMap[NodeType,HashMap[CKYRule,Double]]
 		//(non-lexical entries)
-		binaryGrammar.foreach{ (rule:CKYRule) =>
+		binaryGrammar.foreach{ case (rule:CKYRule,count:Double) =>
 			//((collect types))
 			nodeTypes += rule.parent
 			nodeTypes ++= rule.children
 			//((collect rules))
 			assert(!rule.isLex, "Lexical rule in top-level grammar")
 			if(!rules.contains(rule.parent)){
-				rules(rule.parent) = HashSet[CKYRule]()
+				rules(rule.parent) = HashMap[CKYRule,Double]()
 			}
-			rules(rule.parent) += rule
+			assert(!rules(rule.parent).contains(rule), "duplicate rule detected")
+			rules(rule.parent)(rule) = count
 		}
 		//(lexical entries)
-		rawBinaryGrammar.filter{ _.isLex }.foreach{ 
+		rawBinaryGrammar.map{ _._1}.filter{ _.isLex }.foreach{ 
 			case (rule:CKYUnary) =>
 				nodeTypes += rule.parent += rule.child
 				lexicalEntries += rule
 			case _ => throw new IllegalArgumentException("Lexical rule is not unary")
 		}
 		val numNodeTypes:Int = nodeTypes.size
-		//--Create Variables
+		//--Node Type
 		//(node type indexing)
 		val index2NodeType:Array[NodeType] = nodeTypes.toArray
 		val nodeTypeIndex:Map[NodeType,Int] = Map(index2NodeType.zipWithIndex:_*)
@@ -670,11 +713,12 @@ object CKYParser {
 		val ruleProbDomain:Array[Array[CKYRule]] = index2NodeType
 			.map{ (elem:NodeType) =>
 				if(rules.contains(elem)){
-					rules(elem).toArray
+					rules(elem).keys.toArray
 				} else {
 					new Array[CKYRule](0) //case: no rules with given head
 				}
 			}
+		//--Rule Distribution
 		//(rule prob index)
 		val ruleProbIndex:Map[CKYRule,(Int,Int)] = Map({
 			ruleProbDomain.zipWithIndex.foldLeft(List[(CKYRule,(Int,Int))]()){ 
@@ -691,13 +735,26 @@ object CKYParser {
 		val ruleProb = ruleProbDomain.map{ (rules:Array[CKYRule]) => 
 			new Multinomial[Int](intStore(rules.length)).initUniform
 		}
+		//(fill rule prob)
+		ruleProbDomain.zipWithIndex.foreach{ case (ruleArray:Array[CKYRule],i:Int)=> 
+			val ess = ruleProb(i).newStatistics(rulePrior)
+			ruleArray.zipWithIndex.foreach{ case (rule:CKYRule,j:Int) =>
+				val parent = rule.parent
+				val prob = rules(rule.parent)(rule)
+				ess.updateEStep(j,prob)
+			}
+			ruleProb(i) = ess.runMStep
+		}
+
+		//--Lex Distribution
 		//(lex prob domain)
 		val lexProbDomain:Array[CKYUnary] = lexicalEntries.toArray
 		//(lex prob index)
 		val lexProbIndex:Map[CKYUnary,Int] = Map(lexProbDomain.zipWithIndex:_*)
-		//(lex prob)
+		//(lex prob create/fill)
 		val lexProb = lexProbDomain.map{ (rule:CKYRule) => 
-			new Multinomial[Int](intStore(numWords)).initUniform
+			(new Multinomial[Int](intStore(numWords)))
+				.newStatistics(lexPrior).distribution
 		}
 		//--Create Parser
 		new CKYParser(
@@ -1641,4 +1698,53 @@ class CKYParser(
 			throw new IllegalStateException("Returned multiple results for parse")
 		}
 	}
+	
+	//-----
+	// EM
+	//-----
+	def update(trees:Iterable[ParseTree],
+			lexPrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0),
+			rulePrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0)
+				):CKYParser = {
+		//--Extract Grammar
+		val (rules:HashMap[CKYRule,Double],lex:HashMap[(CKYUnary,Int),Double]) 
+			= CKYParser.scrapeGrammar(trees)
+		//--Update Probabilities
+		//(get ESS)
+		val ruleESS = ruleProb.map{ _.newStatistics(rulePrior) }
+		val lexESS = lexProb.map{ _.newStatistics(lexPrior) }
+		//(update rule ESS)
+		rules.foreach{ case (rule:CKYRule,count:Double) =>
+			val (i:Int,j:Int) = ruleProbIndex(rule)
+			ruleESS(i).updateEStep(j,count)
+		}
+		//(update lex ESS)
+		lex.foreach{ case ((rule:CKYUnary,w:Int),count:Double) =>
+			val i:Int = lexProbIndex(rule)
+			lexESS(i).updateEStep(w,count)
+		}
+		//(create new probabilities)
+		val newRuleProb = ruleESS.map{ _.runMStep }
+		val newLexProb  = lexESS.map { _.runMStep }
+		//--Return Parser
+		return new CKYParser(
+				//(sizes)
+				numWords,
+				numNodeTypes,
+				//(probabilities -- data)
+				newRuleProb, //<--changed
+				newLexProb,  //<--changed
+				//(indexing)
+				index2NodeType,
+				nodeTypeIndex,
+				ruleProbDomain,
+				lexProbDomain,
+				ruleProbIndex,
+				lexProbIndex,
+				//(misc)
+				paranoid,
+				kbestCKYAlgorithm
+			)
+	}
+
 }

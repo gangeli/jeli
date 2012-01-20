@@ -145,8 +145,8 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			}
 		}
 		it("should parse simple sentences"){
-			val parser = CKYParser(w2str.length, TOY, true);
-			var sent:Sentence = Sentence(w2str, "I like sugar")
+			val parser = CKYParser.apply(w2str.length, TOY.map{ (_,0.0) }, paranoid=true);
+			val sent:Sentence = Sentence(w2str, "I like sugar")
 			//(parse beam 1)
 			val parse1 = parser.parse(sent,1);
 			parse1 should not be (null)
@@ -154,30 +154,20 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			parse1(0).parent should be (NodeType.ROOT);
 			parse1(0).asParseString(sent) should not be (null)
 			parser.parse(sent) should not be (null)
-			//(parse beam 100)
-			sent = Sentence(w2str, "I like sugar sugar")
-			val parse100 = parser.parse(sent,100)
-			parse100.length should be > (1)
-			parse100.length should be <= (100)
-			parse100.foreach{ (p:ParseTree) =>
-				p.parent should be (NodeType.ROOT)
-			}
-			//(parse beam 100k)
-			val parse100k = parser.parse(sent,100000)
-			parse100.length should be > (1)
-			parse100.length should be <= (100000)
-			parse100.foreach{ (p:ParseTree) =>
-				p.parent should be (NodeType.ROOT)
-			}
 			//(parse another sentence)
-			val sent2:Sentence = Sentence(w2str, "I like like NLP")
-			val parseOther = parser.parse(sent2,100)
-			parseOther.length should be > (1)
-			parseOther.length should be <= (100)
+			val sent2:Sentence = Sentence(w2str, "I like NLP")
+			val parseOther = parser.parse(sent2,1)
+			parseOther.length should be (1)
 			parseOther.foreach{ (p:ParseTree) =>
 				p.parent should be (NodeType.ROOT)
 			}
 		}
+		it("should define a single parse tree"){
+			val parser = CKYParser.apply(w2str.length, TOY.map{ (_,0.0) }, paranoid=true);
+			val sent:Sentence = Sentence(w2str, "I like like sugar")
+			parser.parse(sent,1).length should be (0)
+		}
+		it("should learn a distribution")(pending)
 	}
 	
 	describe("a grammar with closures"){

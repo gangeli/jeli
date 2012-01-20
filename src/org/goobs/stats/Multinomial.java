@@ -265,7 +265,15 @@ public class Multinomial <DOMAIN> implements Bayesian<DOMAIN,Multinomial<DOMAIN>
 
 		@Override
 		public Multinomial<D> distribution() {
-			return this.prior.posterior(posterior);
+			if(posterior.totalCount == 0.0){
+				try {
+					return this.prior.posterior(posterior.clone().initUniform());
+				} catch (CloneNotSupportedException e) {
+					throw new RuntimeException(e);
+				}
+			} else {
+				return this.prior.posterior(posterior);
+			}
 		}
 
 		@Override public boolean equals(Object o){
