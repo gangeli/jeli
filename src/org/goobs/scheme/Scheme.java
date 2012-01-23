@@ -22,97 +22,97 @@ import java.util.List;
 
 public class Scheme {
 
-//	protected static SchemeThreadPool auxPool = new SchemeThreadPool(4);
+	//	protected static SchemeThreadPool auxPool = new SchemeThreadPool(4);
 	protected static SchemeThreadPool auxPool = null;
-	
+
 	private Environment global;
 	private LinkedList<Runnable> exitTasks = new LinkedList<Runnable>();
-	
+
 	public Scheme(){
 		global = new Environment(null);
-		
+
 		//standard primitives
-		global.putBinding(new ScmObject(InternalPrimitive.ADD, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.ADD, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.ADD, this));
-		global.putBinding(new ScmObject(InternalPrimitive.SUBTRACT, ScmObject.BINDING), 
+		global.putBinding(new ScmObject(InternalPrimitive.SUBTRACT, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.SUBTRACT, this));
-		global.putBinding(new ScmObject(InternalPrimitive.MULTIPLY, ScmObject.BINDING), 
+		global.putBinding(new ScmObject(InternalPrimitive.MULTIPLY, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.MULTIPLY, this));
-		global.putBinding(new ScmObject(InternalPrimitive.DIVIDE, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.DIVIDE, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.DIVIDE, this));
-		global.putBinding(new ScmObject(InternalPrimitive.LESS_THAN, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.LESS_THAN, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.LESS_THAN, this));
-		global.putBinding(new ScmObject(InternalPrimitive.GREATER_THAN, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.GREATER_THAN, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.GREATER_THAN, this));
-		global.putBinding(new ScmObject(InternalPrimitive.EQARITH, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.EQARITH, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.EQARITH, this));
-		global.putBinding(new ScmObject(InternalPrimitive.CAR, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.CAR, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.CAR, this));
-		global.putBinding(new ScmObject(InternalPrimitive.CDR, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.CDR, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.CDR, this));
-		global.putBinding(new ScmObject(InternalPrimitive.CONS, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.CONS, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.CONS, this));
-		global.putBinding(new ScmObject(InternalPrimitive.EQ, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.EQ, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.EQ, this));
-		global.putBinding(new ScmObject(InternalPrimitive.EQUAL, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.EQUAL, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.EQUAL, this));
-		global.putBinding(new ScmObject(InternalPrimitive.EVEN, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.EVEN, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.EVEN, this));
-		global.putBinding(new ScmObject(InternalPrimitive.EXIT, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.EXIT, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.EXIT, this));
-		global.putBinding(new ScmObject(InternalPrimitive.FLOOR, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.FLOOR, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.FLOOR, this));
-		global.putBinding(new ScmObject(InternalPrimitive.INPUT, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.INPUT, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.INPUT, this));
-		global.putBinding(new ScmObject(InternalPrimitive.LOAD, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.LOAD, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.LOAD, this));
-		global.putBinding(new ScmObject(InternalPrimitive.MAKEVECT, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.MAKEVECT, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.MAKEVECT, this));
-		global.putBinding(new ScmObject(InternalPrimitive.NOT, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.NOT, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.NOT, this));
-		global.putBinding(new ScmObject(InternalPrimitive.NUMBER, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.NUMBER, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.NUMBER, this));
-		global.putBinding(new ScmObject(InternalPrimitive.PAIR, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.PAIR, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.PAIR, this));
-		global.putBinding(new ScmObject(InternalPrimitive.PRINT, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.PRINT, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.PRINT, this));
-		global.putBinding(new ScmObject(InternalPrimitive.PRINTF, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.PRINTF, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.PRINTF, this));
-		global.putBinding(new ScmObject(InternalPrimitive.PROCEDURE, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.PROCEDURE, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.PROCEDURE, this));
-		global.putBinding(new ScmObject(InternalPrimitive.SLEEP, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.SLEEP, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.SLEEP, this));
-		global.putBinding(new ScmObject(InternalPrimitive.SYMBOL, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.SYMBOL, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.SYMBOL, this));
-		global.putBinding(new ScmObject(InternalPrimitive.VECTOR, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.VECTOR, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.VECTOR, this));
-		global.putBinding(new ScmObject(InternalPrimitive.VECTREF, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.VECTREF, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.VECTREF, this));
-		global.putBinding(new ScmObject(InternalPrimitive.VECTSET, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.VECTSET, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.VECTSET, this));
-		
+
 		//net primitives
-		global.putBinding(new ScmObject(NetPrimitive.NETSEND, ScmObject.BINDING), 
+		global.putBinding(new ScmObject(NetPrimitive.NETSEND, ScmObject.BINDING),
 				new NetPrimitive(NetPrimitive.NETSEND, this));
-		global.putBinding(new ScmObject(NetPrimitive.NETRECV, ScmObject.BINDING), 
+		global.putBinding(new ScmObject(NetPrimitive.NETRECV, ScmObject.BINDING),
 				new NetPrimitive(NetPrimitive.NETRECV, this));
-		
+
 		//meta primitives (access to internal scheme dynamics)
-		global.putBinding(new ScmObject(InternalPrimitive.TYPE, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.TYPE, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.TYPE, this));
-		global.putBinding(new ScmObject(InternalPrimitive.TOLIST, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.TOLIST, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.TOLIST, this));
-		global.putBinding(new ScmObject(InternalPrimitive.SAME_FORM, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.SAME_FORM, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.SAME_FORM, this));
-		global.putBinding(new ScmObject(InternalPrimitive.SET_RESOLVE_BINDINGS, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.SET_RESOLVE_BINDINGS, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.SET_RESOLVE_BINDINGS, this));
-		global.putBinding(new ScmObject(InternalPrimitive.SET_PARALLEL, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(InternalPrimitive.SET_PARALLEL, ScmObject.BINDING),
 				new InternalPrimitive(InternalPrimitive.SET_PARALLEL, this));
-		
+
 		//soft primitives (pseudo primitives)
-		global.putBinding(new ScmObject(SoftPrimitive.MODULO, ScmObject.BINDING), 	
+		global.putBinding(new ScmObject(SoftPrimitive.MODULO, ScmObject.BINDING),
 				new SoftPrimitive(SoftPrimitive.MODULO, this));
-		
+
 		//special forms
 		global.putBinding(new ScmObject("and", ScmObject.BINDING), InternalPrimitive.makeSpecialForm("and"));
 		global.putBinding(new ScmObject("cond", ScmObject.BINDING), InternalPrimitive.makeSpecialForm("cond"));
@@ -128,36 +128,36 @@ public class Scheme {
 		if(auxPool != null){
 			global.putBinding(new ScmObject("let-par", ScmObject.BINDING), InternalPrimitive.makeSpecialForm("let-par"));
 		}
-		
+
 		//special bindings
 		global.putBinding(new ScmObject("nil", ScmObject.BINDING), ScmObject.makeNil());
 		global.putBinding(new ScmObject("true", ScmObject.BINDING), ScmObject.makeTrue());
 		global.putBinding(new ScmObject("false", ScmObject.BINDING), ScmObject.makeFalse());
-		
+
 		try {
-			loadLib("org/goobs/scheme/stdlib.scm");
+			loadLib("stdlib.scm");
 		} catch (SchemeException e) {
 			e.printError();
 		}
 	}
-	
-	
+
+
 	public void addPrimitive(String key, ExternalPrimitive primitive){
 		global.putBinding(new ScmObject(key, ScmObject.BINDING),
 				primitive);
 	}
-	
+
 	public ScmObject probe(String binding){
 		ScmObject bind = new ScmObject(binding, ScmObject.BINDING);
 		ScmObject val = global.getBinding(bind);
 		return val;
 	}
-	
+
 	public String evaluate(String exp) throws SchemeException{
 		exp = preProcess(exp);
 		if(exp.trim().equals("")){
 			return "";
-		}		
+		}
 		ScmObject retVal = evaluateList( ScmObject.specify("( " + exp + " )"), true );
 		StringBuilder b = new StringBuilder();
 		while(!retVal.isNil()){
@@ -166,12 +166,12 @@ public class Scheme {
 		}
 		return b.toString();
 	}
-	
+
 	public ScmObject evaluate(ScmObject exp){
 		exp = ScmObject.makePair(exp, ScmObject.makeNil());
 		return evaluateList(exp, true).car();
 	}
-	
+
 	public ScmObject evaluateMaximally(ScmObject exp){
 		boolean save = Environment.getResolveBindings();
 		Environment.setResolveBindings(false);
@@ -179,7 +179,7 @@ public class Scheme {
 		Environment.setResolveBindings(save);
 		return rtn;
 	}
-	
+
 	public void interactive(String prompt){
 		while(true){
 			try {
@@ -193,11 +193,11 @@ public class Scheme {
 			}
 		}
 	}
-	
+
 	public void addExitTask(Runnable r){
 		exitTasks.add(r);
 	}
-	
+
 	protected List<Runnable> getExitTasks(){
 		return exitTasks;
 	}
@@ -212,20 +212,20 @@ public class Scheme {
 			throw new SchemeException("File not found: " + path);
 		}
 		//parse file
-        String exp = "";
-        try {
-            while(input.available() != 0){
-            	String str = "" + (char) input.read();
-                exp = exp + str;
-            }
-        } catch (Exception e) {
-            throw new SchemeException("Could not load library: " + path);
-        }
-        //evaulate file
-        exp = preProcess(exp);
+		String exp = "";
+		try {
+			while(input.available() != 0){
+				String str = "" + (char) input.read();
+				exp = exp + str;
+			}
+		} catch (Exception e) {
+			throw new SchemeException("Could not load library: " + path);
+		}
+		//evaulate file
+		exp = preProcess(exp);
 		if(exp.trim().equals("")){
 			return ScmObject.makeNil();
-		}		
+		}
 		ScmObject evaluatedList = evaluateList( ScmObject.specify("( " + exp + " )"), multithread );
 		//return
 		ScmObject rtn = ScmObject.makeNil();
@@ -235,7 +235,7 @@ public class Scheme {
 		}
 		return rtn;
 	}
-	
+
 	//exp must be a list
 	private ScmObject evaluateList(ScmObject exp, boolean multiThread) throws SchemeException{
 		if(exp.isNil()){
@@ -252,13 +252,13 @@ public class Scheme {
 				throw e;
 			}
 			e.printStackTrace();
-			throw new SchemeException("[INTERNAL]: JAVA exception caught: " + 
-					e.getClass().getName() + ": " + 
+			throw new SchemeException("[INTERNAL]: JAVA exception caught: " +
+					e.getClass().getName() + ": " +
 					e.getMessage() + "\n  stack trace printed");
 		}
 	}
-	
-	private ScmObject evalImpl(ScmObject exp, boolean multiThread){		
+
+	private ScmObject evalImpl(ScmObject exp, boolean multiThread){
 		try {
 			ScmObject rtn = ScmObject.makeFalse();
 			if(auxPool == null || !multiThread){
@@ -279,19 +279,20 @@ public class Scheme {
 			}
 		}
 	}
-	
+
 	private void loadLib(String name){
-        InputStream input = this.getClass().getClassLoader().getResourceAsStream( name );
-        String exp = "";
-        try {
-            while(input.available() != 0){
-            	String str = "" + (char) input.read();
-                exp = exp + str;
-            }
-        } catch (Exception e) {
-            throw new SchemeException("[INTERNAL]: could not load library: " + name);
-        }
-        evaluate( exp);
+		InputStream input = Scheme.class.getResourceAsStream( name );
+		String exp = "";
+		try {
+			while(input.available() > 0){
+				String str = "" + (char) input.read();
+				exp = exp + str;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new SchemeException("[INTERNAL]: could not load library: " + name);
+		}
+		evaluate( exp);
 	}
 
 	private static String read(InputStream in){
@@ -302,55 +303,55 @@ public class Scheme {
 			throw new SchemeException("could not access keyboard");
 		}
 	}
-	
+
 	//processes the raw string input for comments and matching of parenthesis and quotes
-    private static String preProcess(String str){    	
-    	String rtn = "";
-    	
-    	//simple replacements
-    	str = str.replaceAll("\\( *\\)", "()");
-    	str = str.replaceAll("'\\(\\)", "nil");
-        str = str.replaceAll("'\\(", "(list ");
-        str = str.replaceAll("#\\(", "(" + InternalPrimitive.MAKEVECT + " ");
-        
-        //more complex expressions
-        int paren = 0;
-        for(int i=0; i<str.length(); i++){
-        	if(str.charAt(i) == '(' && i<str.length()-1 && str.charAt(i+1) == ')'){
-        		rtn = rtn + " () ";
-        		i += 1;
-        	}else if(str.charAt(i) == '('){
-                paren++;
-                rtn = rtn + " ( ";
-            }else if(str.charAt(i) == ')'){
-                paren--;
-                rtn = rtn + " ) ";
-            }else if(str.charAt(i) == '"'){
-                rtn = rtn + "\" ";
-                i++;
-                while(str.charAt(i) != '"'){
-                    if(i == str.length()-1){
-                        throw new SchemeException("quotes do not match: " + str);
-                    }
-                    rtn = rtn + str.charAt(i);
-                    i++;
-                }
-                rtn = rtn + " \" ";
-            }else if(str.charAt(i) == ';'){
-                while(i < str.length() && str.charAt(i) != '\n'){
-                    i++;
-                }
-                rtn = rtn + " ";
-            }else{
-                rtn = rtn + str.charAt(i);
-            }
-        }
-        if(paren != 0){
-            throw new SchemeException("parenthesis do not match: " + rtn);
-        }
-        return rtn;
-    }
-	
+	private static String preProcess(String str){
+		String rtn = "";
+
+		//simple replacements
+		str = str.replaceAll("\\( *\\)", "()");
+		str = str.replaceAll("'\\(\\)", "nil");
+		str = str.replaceAll("'\\(", "(list ");
+		str = str.replaceAll("#\\(", "(" + InternalPrimitive.MAKEVECT + " ");
+
+		//more complex expressions
+		int paren = 0;
+		for(int i=0; i<str.length(); i++){
+			if(str.charAt(i) == '(' && i<str.length()-1 && str.charAt(i+1) == ')'){
+				rtn = rtn + " () ";
+				i += 1;
+			}else if(str.charAt(i) == '('){
+				paren++;
+				rtn = rtn + " ( ";
+			}else if(str.charAt(i) == ')'){
+				paren--;
+				rtn = rtn + " ) ";
+			}else if(str.charAt(i) == '"'){
+				rtn = rtn + "\" ";
+				i++;
+				while(str.charAt(i) != '"'){
+					if(i == str.length()-1){
+						throw new SchemeException("quotes do not match: " + str);
+					}
+					rtn = rtn + str.charAt(i);
+					i++;
+				}
+				rtn = rtn + " \" ";
+			}else if(str.charAt(i) == ';'){
+				while(i < str.length() && str.charAt(i) != '\n'){
+					i++;
+				}
+				rtn = rtn + " ";
+			}else{
+				rtn = rtn + str.charAt(i);
+			}
+		}
+		if(paren != 0){
+			throw new SchemeException("parenthesis do not match: " + rtn);
+		}
+		return rtn;
+	}
+
 	private static ScmObject preProcess(ScmObject obj){
 		if(obj.getType() != ScmObject.PAIR){
 			return obj;
@@ -367,8 +368,8 @@ public class Scheme {
 			ScmObject func = preProcess(obj.cdr().car().car());
 			ScmObject args = preProcess(obj.cdr().car().cdr());
 			ScmObject body = preProcess(obj.cdr().cdr());
-			return ScmObject.makePair(define, 
-					ScmObject.makePair(func, 
+			return ScmObject.makePair(define,
+					ScmObject.makePair(func,
 							ScmObject.makePair(ScmObject.makePair(new ScmObject("lambda", ScmObject.BINDING),
 									ScmObject.makePair(args,
 											body)), ScmObject.makeNil())));
@@ -384,10 +385,10 @@ public class Scheme {
 			ScmObject args = letHelper(lst, true);
 			ScmObject vars = letHelper(lst, false);
 			return ScmObject.makePair(ScmObject.makePair(new ScmObject("lambda", ScmObject.BINDING),
-					ScmObject.makePair(args, 
+					ScmObject.makePair(args,
 							body)),
-							vars);
-			
+					vars);
+
 		}
 		//let*
 		if(obj.car().equals(new ScmObject("let*", ScmObject.BINDING))){
@@ -408,7 +409,7 @@ public class Scheme {
 			ScmObject evaldFunc = ScmObject.makePair(nestedFunc, ScmObject.makeNil());
 			return evaldFunc;
 		}
-		
+
 		return ScmObject.makePair(preProcess(obj.car()), preProcess(obj.cdr()));
 	}
 	private static ScmObject letHelper(ScmObject let, boolean car){
@@ -438,27 +439,45 @@ public class Scheme {
 			ScmObject lambda = ScmObject.makePair(new ScmObject("lambda", ScmObject.BINDING),
 					ScmObject.makePair(ScmObject.makePair(term.car(), ScmObject.makeNil()),
 							rest));
-			return ScmObject.makePair(ScmObject.makePair(lambda, 
+			return ScmObject.makePair(ScmObject.makePair(lambda,
 					ScmObject.makePair(term.cdr().car(), ScmObject.makeNil())),
 					ScmObject.makeNil());
 		}
 	}
-	
-	
+
+
 	public static void main(String[] args){
 		if(args.length > 0){
+			//(parallelize?)
+			boolean multithread = false;
+			for(String arg : args){
+				if(arg.equalsIgnoreCase("--multithread") || arg.equalsIgnoreCase("-multithread")){
+					auxPool = new SchemeThreadPool(Runtime.getRuntime().availableProcessors());
+					multithread = true;
+				}
+			}
+			//(load libraries)
 			try {
 				Scheme scm = new Scheme();
 				for(String path : args){
-					scm.loadExternalLib(path, true);
+					if(path.equalsIgnoreCase("--multithread") || path.equalsIgnoreCase("-multithread")){
+						//do nothing
+					} else {
+						scm.loadExternalLib(path, true);
+					}
 				}
+				scm.interactive(multithread ? "pscm>" : "scm>");
 			} catch (SchemeException e) {
 				e.printError();
 			}
 			System.exit(0);
 		}else{
-			new Scheme().interactive("scm>");
+			try {
+				new Scheme().interactive("scm>");
+			} catch (SchemeException e){
+				e.printError();
+			}
 		}
 	}
-	
+
 }

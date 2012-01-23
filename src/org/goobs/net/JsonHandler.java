@@ -1,4 +1,4 @@
-package org.goobs.internet;
+package org.goobs.net;
 
 import com.sun.net.httpserver.Headers;
 

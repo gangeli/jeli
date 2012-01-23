@@ -1,5 +1,8 @@
 package org.goobs.scheme;
 
+import org.goobs.exec.Channel;
+import org.goobs.util.Pair;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -7,9 +10,6 @@ import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import org.goobs.exec.Channel;
-import org.goobs.util.Pair;
 
 
 public class SchemeThreadPool {
@@ -154,7 +154,6 @@ public class SchemeThreadPool {
 		}
 		
 		public void exception(SchemeException e){
-			System.err.print("EXCEPTION CAUGHT; FLUSHING...");
 			except = e;
 		}
 	}
@@ -180,7 +179,6 @@ public class SchemeThreadPool {
 		if(manager.except != null){
 			SchemeException toThrow = manager.except;
 			manager.except = null;
-			System.err.println("DONE");
 			throw toThrow;
 		}
 	}

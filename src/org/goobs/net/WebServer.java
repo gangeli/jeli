@@ -1,4 +1,4 @@
-package org.goobs.internet;
+package org.goobs.net;
 
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -116,8 +116,13 @@ public class WebServer {
 		server.register("/", new SimpleHandler(){
 			@Override
 			public String handle(HashMap<String, String> values, HttpInfo info) {
-				return "Done";
+				StringBuilder response = new StringBuilder("Received: \n\t" );
+				for(String key : values.keySet()){
+					response.append(key).append("&rarr;").append(values.get(key)).append("\n\t");
+				}
+				return response.toString();
 			}
     });
+		System.out.println("Started a webserver on port 4242");
 	}
 }

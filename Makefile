@@ -18,7 +18,7 @@ JAVANLP=${JAVANLP_HOME}/projects/core/classes:${JAVANLP_HOME}/projects/more/clas
 
 # -- JARS --
 DIST_LIB=lib
-${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/org/goobs/database/*.java) $(wildcard ${SRC}/org/goobs/database/*.scala) $(wildcard ${SRC}/org/goobs/exec/*.java) $(wildcard ${SRC}/org/goobs/exec/*.scala) $(wildcard ${SRC}/org/goobs/graphics/*.java) $(wildcard ${SRC}/org/goobs/graphics/*.scala) $(wildcard ${SRC}/org/goobs/internet/*.java) $(wildcard ${SRC}/org/goobs/internet/*.scala) $(wildcard ${SRC}/org/goobs/io/*.java) $(wildcard ${SRC}/org/goobs/io/*.scala) $(wildcard ${SRC}/org/goobs/nlp/*.java) $(wildcard ${SRC}/org/goobs/nlp/*.scala) $(wildcard ${SRC}/org/goobs/scheme/*.java) $(wildcard ${SRC}/org/goobs/scheme/*.scala) $(wildcard ${SRC}/org/goobs/stanford/*.java) $(wildcard ${SRC}/org/goobs/stanford/*.scala) $(wildcard ${SRC}/org/goobs/stats/*.java) $(wildcard ${SRC}/org/goobs/stats/*.scala) $(wildcard ${SRC}/org/goobs/testing/*.java) $(wildcard ${SRC}/org/goobs/testing/*.scala) $(wildcard ${SRC}/org/goobs/util/*.java) $(wildcard ${SRC}/org/goobs/util/*.scala)
+${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/org/goobs/database/*.java) $(wildcard ${SRC}/org/goobs/database/*.scala) $(wildcard ${SRC}/org/goobs/exec/*.java) $(wildcard ${SRC}/org/goobs/exec/*.scala) $(wildcard ${SRC}/org/goobs/graphics/*.java) $(wildcard ${SRC}/org/goobs/graphics/*.scala) $(wildcard ${SRC}/org/goobs/net/*.java) $(wildcard ${SRC}/org/goobs/net/*.scala) $(wildcard ${SRC}/org/goobs/io/*.java) $(wildcard ${SRC}/org/goobs/io/*.scala) $(wildcard ${SRC}/org/goobs/nlp/*.java) $(wildcard ${SRC}/org/goobs/nlp/*.scala) $(wildcard ${SRC}/org/goobs/scheme/*.java) $(wildcard ${SRC}/org/goobs/scheme/*.scala) $(wildcard ${SRC}/org/goobs/stanford/*.java) $(wildcard ${SRC}/org/goobs/stanford/*.scala) $(wildcard ${SRC}/org/goobs/stats/*.java) $(wildcard ${SRC}/org/goobs/stats/*.scala) $(wildcard ${SRC}/org/goobs/testing/*.java) $(wildcard ${SRC}/org/goobs/testing/*.scala) $(wildcard ${SRC}/org/goobs/util/*.java) $(wildcard ${SRC}/org/goobs/util/*.scala)
 	@echo "--------------------------------------------------------------------------------"
 	@echo " LIBRARY"
 	@echo "--------------------------------------------------------------------------------"
@@ -30,6 +30,7 @@ ${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/org/goobs/database/*.java) $(wildcard
 	#(copy)
 	cp ${SRC}/org/goobs/testing/mteval-v13a.pl ${BUILD}/org/goobs/testing/mteval-v13a.pl
 	cp ${SRC}/org/goobs/util/lib.conf ${BUILD}/org/goobs/util/lib.conf
+	cp ${SRC}/org/goobs/scheme/stdlib.scm ${BUILD}/org/goobs/util/stdlib.scm
 	#(jar)
 	jar cf ${DIST}/${DIST_LIB}.jar -C $(BUILD) .
 	jar uf ${DIST}/${DIST_LIB}.jar -C $(SRC) .
