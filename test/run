@@ -1,4 +1,4 @@
 #!/bin/bash
 #
 
-scala -cp ..//etc/scalatest.jar:../dist/lib.jar:../dist/lib-test.jar org.scalatest.tools.Runner -p . -o -s org.goobs.tests.CKYParserSpec
+java -mx2g -Xrunhprof:cpu=samples,depth=16 -cp ../etc/scala-library.jar:../etc/scalatest.jar:../dist/lib.jar:../dist/lib-test.jar org.scalatest.tools.Runner -p . -o -s org.goobs.tests.CKYParserSpec

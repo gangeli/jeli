@@ -136,6 +136,13 @@ object GrammarRule {
 		true
 	}
 
+	def apply(_head:NodeType,_children:NodeType*):GrammarRule = {
+		new GrammarRule {
+			override def parent:NodeType = _head
+			override def children:Array[NodeType] = _children.toArray
+		}
+	}
+
 }
 
 trait GrammarRule extends Serializable {
@@ -153,7 +160,7 @@ trait GrammarRule extends Serializable {
 			val (rules,lastNode,lastPrefix) = children.zipWithIndex.foldLeft(
 					( List[CKYRule](),
 						parent,
-						(new StringBuilder).append("@").append(parent).append("->")
+						(new StringBuilder).append("@").append(parent)
 					)){
 					case ((soFar:List[CKYRule],p:NodeType,prefix:StringBuilder),
 						(child:NodeType,index:Int))=>
@@ -174,7 +181,11 @@ trait GrammarRule extends Serializable {
 	}
 	//<<Object Overrides>>
 	override def toString:String = parent.toString+"->"+children.mkString(",")
-	override def hashCode:Int = toString.hashCode
+	override def hashCode:Int = {
+		children.foldLeft(parent.hashCode){ case (code:Int,child:NodeType) =>
+			(code ^ child.hashCode * 7)
+		}
+	}
 	override def equals(o:Any):Boolean = {
 		o match {
 			case (r:GrammarRule) =>
@@ -194,7 +205,11 @@ trait GrammarRule extends Serializable {
 case class SimpleGrammarRule(parent:NodeType, _children:NodeType*
 		) extends GrammarRule {
 	assert(children.length > 0, "Grammar rule with no children");
-	override def children:Array[NodeType] = children.toArray
+	override def children:Array[NodeType] = _children.toArray
+	//<<Object overrides>>
+	override def toString:String = super.toString
+	override def equals(o:Any):Boolean = super.equals(o)
+	override def hashCode:Int = super.hashCode
 }
 
 case class BinaryGrammarRule(parent:NodeType, _children:NodeType*
@@ -217,11 +232,19 @@ case class BinaryGrammarRule(parent:NodeType, _children:NodeType*
 			throw new IllegalStateException("Binary rule with >2 children: " + this);
 		}
 	}
+	//<<Object overrides>>
+	override def toString:String = super.toString
+	override def equals(o:Any):Boolean = super.equals(o)
+	override def hashCode:Int = super.hashCode
 }
 
 case class LexGrammarRule(parent:NodeType) extends GrammarRule {
 	assert(children.length > 0, "Grammar rule with no children");
 	override def children:Array[NodeType] = Array[NodeType](NodeType.WORD)
+	//<<Object overrides>>
+	override def toString:String = super.toString
+	override def equals(o:Any):Boolean = super.equals(o)
+	override def hashCode:Int = super.hashCode
 }
 
 
@@ -258,13 +281,15 @@ trait CKYRule extends GrammarRule {
 		else { parent.toString + "->" + leftChild + "," + rightChild }
 	}
 	override def hashCode:Int = {
-		if(isUnary) { 
-			parent.hashCode ^ (child.hashCode << 15)
+		val code:Int = if(isUnary) { 
+			parent.hashCode ^ (child.hashCode * 7)
 		} else { 
 			parent.hashCode ^
-				(leftChild.hashCode << 7) ^
-				(rightChild.hashCode << 15) 
+				(leftChild.hashCode * 7) ^
+				(rightChild.hashCode * 7) 
 		}
+		assert(code == super.hashCode, "Hash code inconsistency")
+		code
 	}
 	override def equals(o:Any):Boolean = {
 		o match {
@@ -281,6 +306,8 @@ trait CKYRule extends GrammarRule {
 					//(case: binary and unary)
 					false
 				}
+			case (r:GrammarRule) =>
+				super.equals(r)
 			case _ => false
 		}
 	}
@@ -432,6 +459,57 @@ trait Tree[A] extends Serializable {
 		val b = new StringBuilder
 		prettyPrintAppend(printer,b)
 		b.toString
+	}
+	//<<Object Overrides>>
+	override def toString:String = prettyPrint()
+	override def equals(o:Any):Boolean = o match {
+		case (tree:Tree[A]) =>
+			parent == tree.parent && children.length == tree.children.length &&
+				children.zip(tree.children).forall{ case (a,b) => a == b }
+		case _ => false
+	}
+	override def hashCode:Int = parent.hashCode ^ children.hashCode << 3
+}
+
+object ParseTree {
+	def apply(head:NodeType, rules:Array[ParseTree]):ParseTree 
+		= apply(head,rules,1.0)
+	def apply(head:NodeType,word:Int):ParseTree 
+		= apply(head,word,1.0)
+	def apply(head:NodeType, word:Int, prob:Double):ParseTree  = {
+		//(variables)
+		val logProb = math.log(prob)
+		val headRule:CKYUnary = new CKYUnary(head,NodeType.WORD)
+		//(tree)
+		new ParseTree {
+			override def logProb:Double = math.log(prob)
+			override def parent:NodeType = head
+			override def children:Array[ParseTree] = Array[ParseTree]()
+			override def traverse(ruleFn:(CKYRule)=>Any,lexFn:(CKYUnary,Int)=>Any
+					):Unit = {
+				lexFn(headRule,word)
+			}
+		}
+	}
+	def apply(head:NodeType, rules:Array[ParseTree], prob:Double, 
+			binary:Boolean=false):ParseTree = {
+		//(variables)
+		val logProb = math.log(prob)
+		val headRule:GrammarRule = 
+			if(binary) { BinaryGrammarRule(head, rules.map{ _.parent }:_*) }
+			else { GrammarRule(head,rules.map{ _.parent }:_*) }
+		val ckyRules:Iterator[CKYRule] = headRule.binarize
+		//(tree)
+		new ParseTree {
+			override def logProb:Double = math.log(prob)
+			override def parent:NodeType = head
+			override def children:Array[ParseTree] = rules
+			override def traverse(ruleFn:(CKYRule)=>Any,lexFn:(CKYUnary,Int)=>Any
+					):Unit = {
+				ckyRules.foreach{ ruleFn(_) }
+				rules.foreach{ _.traverse(ruleFn,lexFn) }
+			}
+		}
 	}
 }
 
@@ -632,9 +710,44 @@ object CKYParser {
 	//-----
 	def scrapeGrammar(trees:Iterable[ParseTree]
 			):(HashMap[CKYRule,Double],HashMap[(CKYUnary,Int),Double]) = {
-		// TODO fixme
-		throw new IllegalStateException("Should implement me!")
-		// def traverse(ruleFn:(CKYRule)=>Any,lexFn:(CKYUnary,Int)=>Any):Unit 
+		//--Variables
+		val ruleMap = new HashMap[CKYRule,Double]
+		val lexMap = new HashMap[(CKYUnary,Int),Double]
+		//--Scrape
+		trees.foreach{ (tree:ParseTree) =>
+			//(variables)
+			val prob = math.exp(tree.logProb)
+			assert(!prob.isNaN && prob <= 1.0 && prob >= 0.0,
+				"Invalid probability for tree: " + tree.logProb)
+			//(head rule)
+			if(tree.parent != NodeType.ROOT){
+				val rootRule = new CKYUnary(NodeType.ROOT, tree.parent)
+				if(ruleMap.contains(rootRule)){
+					ruleMap(rootRule) = ruleMap(rootRule) + prob
+				} else {
+					ruleMap(rootRule) = prob
+				}
+			}
+			//(other rules)
+			tree.traverse( 
+				//(rules)
+				(rule:CKYRule) => 
+					if(ruleMap.contains(rule)){ 
+						ruleMap(rule) = ruleMap(rule) + prob
+					} else {
+						ruleMap(rule) = prob
+					},
+				//(lex)
+				(rule:CKYUnary,w:Int) => 
+					if(lexMap.contains((rule,w))){ 
+						lexMap((rule,w)) = lexMap(rule,w) + prob
+					} else {
+						lexMap((rule,w)) = prob
+					}
+			)
+		}
+		//--Return
+		(ruleMap,lexMap)
 	}
 
 	//-----
@@ -644,8 +757,14 @@ object CKYParser {
 	*  Define a parser from a set of trees
 	*/
 	def apply(dataset:Iterable[ParseTree]):CKYParser = {
-		//TODO fixme
-		throw new IllegalStateException("Should implement me!")
+		val (rules:HashMap[CKYRule,Double],lex:HashMap[(CKYUnary,Int),Double]) 
+			= CKYParser.scrapeGrammar(dataset)
+		println(rules)
+		println(lex)
+		apply( 
+			lex.keys.map{ _._2 }.max+1,
+			rules.keys ++ lex.keys.map{ _._1 } 
+		)
 	}
 	/**
 	*  Define a parser from a lexicon and fixed grammar rules; fast version
@@ -655,12 +774,12 @@ object CKYParser {
 	/**
 	*  Define a parser from a lexicon and fixed grammar rules
 	*/
-	def apply(numWords:Int, grammar:Array[GrammarRule]):CKYParser 
+	def apply(numWords:Int, grammar:Iterable[GrammarRule]):CKYParser 
 		= apply(numWords,grammar.map{(_,0.0)})
 	/**
 	*  Define a parser from a lexicon and a grammar with counts
 	*/
-	def apply(numWords:Int, grammar:Array[(GrammarRule,Double)],
+	def apply(numWords:Int, grammar:Iterable[(GrammarRule,Double)],
 			lexPrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0),
 			rulePrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0),
 			paranoid:Boolean=false,algorithm:Int=3):CKYParser = {
@@ -803,10 +922,10 @@ class CKYParser(
 	//-----
 	// Declarations
 	//-----
-	type RuleList = Array[BestList]
+	type RuleList = Array[Beam]
 	type RulePairList = Array[RuleList]
 	type Chart = Array[Array[RulePairList]]
-	type LazyStruct = (CKYRule,BestList,BestList,(ChartElem,ChartElem)=>Double)
+	type LazyStruct = (CKYRule,Beam,Beam,(ChartElem,ChartElem)=>Double)
 	
 	//-----
 	// Values
@@ -824,7 +943,8 @@ class CKYParser(
 			var logScore:Double, 
 			var term:CKYRule, 
 			var left:ChartElem,
-			var right:ChartElem ) extends ParseTree with Cloneable{
+			var right:ChartElem,
+			sent:Option[Sentence] = None) extends ParseTree with Cloneable{
 		
 		// -- CKY Usage --
 		def apply(logScore:Double,term:CKYRule,left:ChartElem,right:ChartElem
@@ -891,10 +1011,12 @@ class CKYParser(
 		override def clone:ChartElem = {
 			new ChartElem(logScore,term,left,right)
 		}
-		def deepclone:ChartElem = {
-			val leftClone = if(left == null) null else left.deepclone
-			val rightClone = if(right == null) null else right.deepclone
-			new ChartElem(logScore,term,leftClone,rightClone)
+		def deepclone:ChartElem = deepclone(None)
+		def deepclone(sent:Sentence):ChartElem = deepclone(Some(sent))
+		private def deepclone(sent:Option[Sentence]):ChartElem = {
+			val leftClone = if(left == null) null else left.deepclone(sent)
+			val rightClone = if(right == null) null else right.deepclone(sent)
+			new ChartElem(logScore,term,leftClone,rightClone,sent)
 		}
 		override def equals(a:Any) = {
 			a match {
@@ -924,7 +1046,11 @@ class CKYParser(
 				if(this.isLeaf) {
 					assert(!term.isClosure, "closure used as lex tag")
 					term match {
-						case (unary:CKYUnary) => lexFn(unary,i)
+						case (unary:CKYUnary) =>
+							sent match {
+								case Some(sentence) => lexFn(unary,sentence(i))
+								case None => assert(false, "No sentence attached")
+							}
 						case _ => throw new IllegalStateException("Not a unary: " + term)
 					}
 					i + 1 //return
@@ -989,7 +1115,7 @@ class CKYParser(
 	//-----
 	// K-Best List
 	//-----
-	class BestList(val values:Array[ChartElem],var capacity:Int) {
+	class Beam(val values:Array[ChartElem],var capacity:Int) {
 		private var deferred:List[LazyStruct] = null
 		private var lazyNextFn:Unit=>Boolean = null
 		var length = 0
@@ -1061,15 +1187,15 @@ class CKYParser(
 			ensureEvaluated
 			values.slice(0,length)
 		}
-		override def clone:BestList = {
+		override def clone:Beam = {
 			ensureEvaluated
-			val rtn = new BestList(values.clone,capacity)
+			val rtn = new Beam(values.clone,capacity)
 			rtn.length = this.length
 			rtn
 		}
-		def deepclone:BestList = {
+		def deepclone:Beam = {
 			ensureEvaluated
-			val rtn = new BestList(values.map{ _.clone },capacity)
+			val rtn = new Beam(values.map{ _.clone },capacity)
 			rtn.length = this.length
 			rtn
 		}
@@ -1110,7 +1236,7 @@ class CKYParser(
 		}
 
 		//<Algorithm 0>
-		private def mult0(term:CKYRule, left:BestList, right:BestList,
+		private def mult0(term:CKYRule, left:Beam, right:Beam,
 				score:(ChartElem,ChartElem)=>Double
 				):Array[(Double,ChartElem,ChartElem)]= {
 			//--Create Combined List
@@ -1198,14 +1324,14 @@ class CKYParser(
 			length = index
 			assert(length != 0, "Merge returned length 0")
 		}
-		private def algorithm0(term:CKYRule, left:BestList, right:BestList,
+		private def algorithm0(term:CKYRule, left:Beam, right:Beam,
 				score:(ChartElem,ChartElem)=>Double):Unit = {
 			assert(left.length > 0, "precondition for algorithm0")
 			merge0(term,mult0(term, left, right, score))
 		}
 		
 		//<Algorithm 1>
-		private def mult1(term:CKYRule, left:BestList, right:BestList,
+		private def mult1(term:CKYRule, left:Beam, right:Beam,
 				score:(ChartElem,ChartElem)=>Double
 				):Array[(Double,ChartElem,ChartElem)] = {
 			val combined:Array[(Double,ChartElem,ChartElem)] = if(term.isUnary) {
@@ -1276,7 +1402,7 @@ class CKYParser(
 			}
 			combined
 		}
-		private def algorithm1(term:CKYRule, left:BestList, right:BestList,
+		private def algorithm1(term:CKYRule, left:Beam, right:Beam,
 				score:(ChartElem,ChartElem)=>Double):Unit = {
 			assert(left.length > 0, "precondition for algorithm1")
 			merge0(term,mult1(term, left, right, score))
@@ -1390,20 +1516,20 @@ class CKYParser(
 			}
 		}
 
-		private def algorithm2(term:CKYRule, left:BestList, right:BestList,
+		private def algorithm2(term:CKYRule, left:Beam, right:Beam,
 				score:(ChartElem,ChartElem)=>Double):Unit = {
 			algorithm3(term,left,right,score)
 		}
 
 		//<Algorithm 3>
-		private def algorithm3(term:CKYRule, left:BestList, right:BestList,
+		private def algorithm3(term:CKYRule, left:Beam, right:Beam,
 				score:(ChartElem,ChartElem)=>Double):Unit = {
 			if(!isLazy){ this.markLazy }
 			deferred = (term,left,right,score) :: deferred
 		}
 
 		//<Top Level>
-		def combine(term:CKYRule, left:BestList, right:BestList,
+		def combine(term:CKYRule, left:Beam, right:Beam,
 				score:(ChartElem,ChartElem)=>Double):Unit = {
 			assert(!term.isUnary || right == null, "unary rule has 2 children")
 			assert(term.isUnary || right != null, "binary rule has 1 child")
@@ -1424,7 +1550,7 @@ class CKYParser(
 						"bad algorithm: " + kbestCKYAlgorithm)
 			}
 		}
-		def combine(term:CKYRule, left:BestList,
+		def combine(term:CKYRule, left:Beam,
 				score:(ChartElem,ChartElem)=>Double):Unit = {
 			assert(term.isUnary, "must be arity 1 rule")
 			combine(term, left, null, score)
@@ -1493,7 +1619,7 @@ class CKYParser(
 			assert(!lexProb(lexProbIndex(rule)).prob(w).isNaN, "NaN lex probability")
 			lexProb(lexProbIndex(rule)).prob(w)
 		} else {
-			Double.NaN
+			throw new IllegalArgumentException("Unknown word: " + w + " (W=" + numWords + ")");
 		}
 	}
 	def lexLogProb(rule:CKYUnary,w:Int):Double = safeLn(lexProb(rule,w))
@@ -1525,7 +1651,7 @@ class CKYParser(
 								(0 to 1).map{ (arity:Int) =>                            //arity
 									index2NodeType.map{ (term:NodeType) =>                //rules
 										assert(beam > 0, "bad kbest end")
-										new BestList((0 until beam).map{ (kbestItem:Int) => //kbest
+										new Beam((0 until beam).map{ (kbestItem:Int) => //kbest
 											new ChartElem(Double.NegativeInfinity,null,null,null)
 										}.toArray, beam) //convert to arrays
 									}.toArray
@@ -1564,7 +1690,7 @@ class CKYParser(
 		Access a chart element
 	*/
 	private def gram(chart:Chart,begin:Int,end:Int,parent:NodeType,t:Int
-			):BestList = {
+			):Beam = {
 		val head:Int = nodeTypeIndex(parent)
 		if(end == begin+1){ return lex(chart,begin,parent,t) }
 		//(asserts)
@@ -1580,7 +1706,7 @@ class CKYParser(
 		Access a lexical element
 	*/
 	private def lex(chart:Chart,elem:Int,parent:NodeType,t:Int=CKYParser.BINARY
-			):BestList = {
+			):Beam = {
 		val head:Int = nodeTypeIndex(parent)
 		//(asserts)
 		assert(elem >= 0, "Chart access error: negative value: " + elem)
@@ -1615,7 +1741,7 @@ class CKYParser(
 			assert(klex(elem).length > 0, "No lexical terms for " + sent.gloss(elem))
 			klex(elem).foreach{ case (rule:CKYUnary,logProb:Double) =>
 				//(add term)
-				val lst:BestList = lex(chart,elem,rule.parent)
+				val lst:Beam = lex(chart,elem,rule.parent)
 				if(lst.length < beam){
 					lst.suggest(rule,logProb)
 				}
@@ -1639,13 +1765,13 @@ class CKYParser(
 					val ruleRight = term.rightChild
 					for(split <- (begin+1) to (end-1)){              // splits
 						//((get variables))
-						val leftU:BestList 
+						val leftU:Beam
 							= gram(chart, begin,split,ruleLeft, CKYParser.UNARY)
-						val rightU:BestList 
+						val rightU:Beam
 							= gram(chart,split,end,   ruleRight,CKYParser.UNARY)
-						val leftB:BestList 
+						val leftB:Beam
 							= gram(chart, begin,split,ruleLeft, CKYParser.BINARY)
-						val rightB:BestList 
+						val rightB:Beam
 							= gram(chart,split,end,   ruleRight,CKYParser.BINARY)
 						assert(leftU != leftB && rightU != rightB, ""+begin+" to "+end)
 						val output = gram(chart,begin,end,term.parent,CKYParser.BINARY)
@@ -1667,7 +1793,7 @@ class CKYParser(
 					val ruleLProb = ruleLogProb(term)
 					assert(ruleLProb <= 0.0, "Log probability of >0: " + ruleLProb)
 					assert(term.isUnary, "Unary rule should be unary")
-					val child:BestList = gram(chart,begin,end,term.child,CKYParser.BINARY)
+					val child:Beam = gram(chart,begin,end,term.child,CKYParser.BINARY)
 					gram(chart,begin,end,term.parent,CKYParser.UNARY).combine(term,child,
 						(left:ChartElem,right:ChartElem) => { ruleLProb })
 				}
@@ -1684,7 +1810,7 @@ class CKYParser(
 		Array.concat(
 			gram(chart,0,sent.length,NodeType.ROOT,CKYParser.UNARY).toArray,
 			gram(chart,0,sent.length,NodeType.ROOT,CKYParser.BINARY).toArray
-			).map{ x => x.deepclone }
+			).map{ x => x.deepclone(sent) }
 	}
 	
 	def parse(sent:Sentence):ParseTree = {
