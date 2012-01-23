@@ -15,12 +15,33 @@ object Grammars {
 			LexGrammarRule(NodeType.makePreterminal("VB"))
 		)
 	}
-	def w2str:Array[String] = Array[String](
+	def MATH_TYPE:Array[GrammarRule] = {
+		Array[GrammarRule](
+			BinaryGrammarRule(NodeType.ROOT, NodeType.make("double")),
+			BinaryGrammarRule(NodeType.make("double"), NodeType.make("int")),
+			BinaryGrammarRule(NodeType.make("int"), NodeType.makePreterminal("int_tag")),
+			BinaryGrammarRule(NodeType.make("int"), NodeType.make("int"), NodeType.make("int")),
+			BinaryGrammarRule(NodeType.make("double"), NodeType.make("int"), NodeType.make("double")),
+			BinaryGrammarRule(NodeType.make("double"), NodeType.make("double"), NodeType.make("int")),
+			BinaryGrammarRule(NodeType.make("double"), NodeType.make("double"), NodeType.make("double")),
+			LexGrammarRule(NodeType.makePreterminal("int_tag"))
+		)
+
+	}
+	val w2str:Array[String] = Array[String](
 	  "I",
 		"like",
 		"sugar",
 		"NLP"
 		)
+	
+	val math2str:Array[String] = Array[String](
+		"0",
+		"1",
+		"2",
+		"3",
+		"4"
+	)
 }
 
 object Trees {
@@ -35,14 +56,14 @@ object Trees {
 			ParseTree(NodeType.make("VP"),Array[ParseTree](
 				ParseTree(NodeType.makePreterminal("VB"), Grammars.w2str.indexOf("like")),
 				ParseTree(NodeType.make("NP"),Array[ParseTree](
-					ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("sugar") ) ), 1.0, true)), 1.0, true )) ),
+					ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("sugar") ) ), 1.0, true)), 1.0, true )), 1.0, true ),
 		ParseTree(NodeType.make("S"), Array[ParseTree](
 			ParseTree(NodeType.make("NP"),Array[ParseTree](
 				ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("I"))), 1.0, true ),
 			ParseTree(NodeType.make("VP"),Array[ParseTree](
 				ParseTree(NodeType.makePreterminal("VB"), Grammars.w2str.indexOf("like")),
 				ParseTree(NodeType.make("NP"),Array[ParseTree](
-					ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("NLP") ) ), 1.0, true)), 1.0, true )) )
+					ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("NLP") ) ), 1.0, true)), 1.0, true )), 1.0, true )
 	)
 }
 
@@ -75,7 +96,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 		it("should hash well"){
 			def randomNode:NodeType = NodeType.make(scala.util.Random.nextString(10))
 			scala.util.Random.setSeed(42);
-			for(iter <- 0 until 10){
+			for(iter <- 0 until 100){
 				//(variables)
 				val bucket = 10 + scala.util.Random.nextInt(100);
 				bucket should be >= 10
@@ -190,7 +211,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 		it("should hash well"){
 			def randomNode:NodeType = NodeType.make(scala.util.Random.nextString(1))
 			scala.util.Random.setSeed(42);
-			for(iter <- 0 until 10){
+			for(iter <- 0 until 100){
 				//(variables)
 				val bucket = scala.util.Random.nextInt(100);
 				val simple = new Array[Int](bucket)
@@ -203,7 +224,6 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 					cky(ruleCKY.hashCode.abs % bucket) += 1
 				}
 				//(check uniform hashing)
-				println(bucket + " " + simple.max + " " + cky.max)
 				simple.forall{ (count:Int) => count < bucket*5} should be (true)
 				cky.forall{ (count:Int) => count < bucket*5} should be (true)
 			}
@@ -211,7 +231,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 	}
 	
 	describe("A toy binarized grammar") {
-		it("should be definable"){
+		it("can be created"){
 			val toyGrammar = TOY;
 		}
 		it("should binarize"){
@@ -357,11 +377,79 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 		}
 	}
 	
-	describe("a grammar with closures"){
-		//TODO make me
-	}
-	
-	describe("a grammar with ambiguous parses"){
-		//TODO make me
+	describe("a general grammar"){
+		it("can be created"){
+			val grammar = MATH_TYPE;
+		}
+		it("should binarize"){
+			MATH_TYPE.foreach{ (rule:GrammarRule) =>
+				rule.binarize.forall{ _.isInstanceOf[CKYRule] } should be (true)
+			}
+		}
+		it("should know about its lexical elements"){
+			assert(!MATH_TYPE(0).binarize.next().isLex)
+			assert(!MATH_TYPE(1).binarize.next().isLex)
+			assert(!MATH_TYPE(2).binarize.next().isLex)
+			assert(!MATH_TYPE(3).binarize.next().isLex)
+			assert(!MATH_TYPE(4).binarize.next().isLex)
+			assert(!MATH_TYPE(5).binarize.next().isLex)
+			assert(!MATH_TYPE(6).binarize.next().isLex)
+			assert( MATH_TYPE(7).binarize.next().isLex)
+		}
+		it("should be passable to a parser"){
+			CKYParser(w2str.length, MATH_TYPE) should not be (null)
+			CKYParser(w2str.length, MATH_TYPE:_*) should not be (null)
+		}
+		it("should have a proper rule distribution"){
+			val parser = CKYParser(w2str.length, MATH_TYPE);
+			//(should have probabilities)
+			parser.ruleProb(new CKYBinary(NodeType('int), NodeType('int), NodeType('int))) should be (0.5)
+			parser.ruleProb(new CKYUnary(NodeType('int), NodeType('int_tag))) should be (0.5)
+			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('int), NodeType('double))) should be (0.2)
+			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('double), NodeType('int))) should be (0.2)
+			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('double), NodeType('double))) should be (0.2)
+			parser.ruleProb(new CKYUnary(NodeType('double), NodeType('int))) should be (0.2)
+			parser.ruleProb(new CKYUnary(NodeType('double), NodeType('int_tag))) should be (0.2)   //<--closure
+			parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('double))) should be (0.3333333333 plusOrMinus 0.000001)
+			parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('int))) should be (0.3333333333 plusOrMinus 0.000001)
+			parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('int_tag))) should be (0.3333333333 plusOrMinus 0.000001)
+			//(should not have probabilities)
+			intercept[NoSuchElementException]{
+				parser.ruleProb(new CKYUnary(NodeType('int), NodeType.WORD))
+			}
+		}
+		it("should have a proper lex distribution"){
+			val parser = CKYParser(math2str.length, MATH_TYPE);
+			(0 until math2str.length).foreach{ (w:Int) =>
+			//(should have probabilities)
+				parser.lexProb(new CKYUnary(NodeType('int_tag), NodeType.WORD), w) should be (1.0 / math2str.length.asInstanceOf[Double])
+				//(should not have probabilities)
+				intercept[NoSuchElementException]{
+					parser.lexProb(new CKYUnary(NodeType.ROOT, NodeType('double)), w)
+				}
+				intercept[NoSuchElementException]{
+					parser.lexProb(new CKYUnary(NodeType('double), NodeType('int)), w)
+				}
+			}
+		}
+		it("should parse simple sentences"){
+			val parser = CKYParser.apply(math2str.length, MATH_TYPE.map{ (_,0.0) }, paranoid=true);
+			val sent:Sentence = Sentence(math2str, "0 1 2 3 4")
+			//(parse beam 1)
+			val parse1 = parser.parse(sent,1);
+			parse1 should not be (null)
+			parse1.length should be (1)
+			parse1(0).parent should be (NodeType.ROOT);
+			parse1(0).asParseString(sent) should not be (null)
+			parser.parse(sent) should not be (null)
+			//(parse with a beam)
+			val parse2 = parser.parse(sent,100)
+			parse2 should not be (null)
+			parse2.length should be > 1
+			parse2.length should be <= 100
+			parse2.foreach{ (p:ParseTree) =>
+				p.parent should be (NodeType.ROOT)
+			}
+		}
 	}
 }

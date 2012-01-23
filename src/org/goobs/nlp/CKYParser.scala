@@ -759,8 +759,6 @@ object CKYParser {
 	def apply(dataset:Iterable[ParseTree]):CKYParser = {
 		val (rules:HashMap[CKYRule,Double],lex:HashMap[(CKYUnary,Int),Double]) 
 			= CKYParser.scrapeGrammar(dataset)
-		println(rules)
-		println(lex)
 		apply( 
 			lex.keys.map{ _._2 }.max+1,
 			rules.keys ++ lex.keys.map{ _._1 } 
