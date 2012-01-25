@@ -103,7 +103,7 @@ object NodeType {
 		if(valueMap.contains(name)){
 			val cand:NodeType = valueMap(name)
 			if(cand.flag != flags){
-				throw new IllegalArgumentException("Incompatable NodeType: " + name)
+				throw new IllegalArgumentException("Incompatable NodeType (different flags): " + name)
 			} else {
 				return cand
 			}
@@ -114,6 +114,25 @@ object NodeType {
 		val term = NodeType(name,nextId,flags)
 		//(register class)
 		register(term)
+	}
+}
+
+trait CanEvaluate[ParentType,ChildType]{
+	def evaluate(children:(ChildType,NodeType)*):(ParentType,NodeType)
+	def evaluateLex(sent:Option[Sentence],index:Int):ParentType = {
+		val (parentVal,parentType) 
+			= evaluate(((sent,index).asInstanceOf[ChildType],NodeType.WORD))
+		parentVal.asInstanceOf[ParentType]
+	}
+}
+
+trait LexEntry extends GrammarRule{
+	//--Possible Overrides
+	private var validApplication:Int=>Boolean = x => true
+	def validLexApplication(w:Int):Boolean = validApplication(w)
+	def restrict(valid:Int=>Boolean):GrammarRule = { 
+		validApplication = valid 
+		this
 	}
 }
 
@@ -136,12 +155,31 @@ object GrammarRule {
 		true
 	}
 
-	def apply(_head:NodeType,_children:NodeType*):GrammarRule = {
-		new GrammarRule {
-			override def parent:NodeType = _head
-			override def children:Array[NodeType] = _children.toArray
-		}
-	}
+	//<<simple constructor>>
+	def apply(head:NodeType,children:NodeType*):SimpleGrammarRule
+		= new SimpleGrammarRule(head,children:_*)
+	def apply(head:NodeType):LexGrammarRule
+		= new LexGrammarRule(head)
+	//<<rule constructors>
+	def make[P,C](lambda:Seq[_<:C]=>P,head:NodeType,children:NodeType*
+			):LambdaGrammarRule
+		= new LambdaGrammarRule(lambda.asInstanceOf[Any=>Any], head, children:_*)
+	def apply[P](lambda:(Option[Sentence],Int)=>P,head:NodeType
+			):LambdaLexGrammarRule[Any]
+		= new LambdaLexGrammarRule(
+				lambda.asInstanceOf[(Option[Sentence],Int)=>Any], 
+				head)
+	def apply[P,C](lambda:C=>P,head:NodeType,child:NodeType):LambdaGrammarRule
+		= make((s:Seq[C]) => lambda(s(0)), head, child)
+	def apply[P,C](lambda:(_>:C,_>:C)=>P,head:NodeType,left:NodeType,
+			right:NodeType):LambdaGrammarRule
+		= make((s:Seq[C]) => lambda(s(0), s(1)), head, left, right)
+	def apply[P,C](lambda:(_>:C,_>:C,_>:C)=>P,head:NodeType,
+			a:NodeType,b:NodeType,c:NodeType):LambdaGrammarRule
+		= make((s:Seq[C]) => lambda(s(0),s(1),s(2)), head, a, b, c)
+	def apply[P,C](lambda:(_>:C,_>:C,_>:C,_>:C)=>P,head:NodeType,
+			a:NodeType,b:NodeType,c:NodeType,d:NodeType):LambdaGrammarRule
+		= make((s:Seq[C]) => lambda(s(0),s(1),s(2),s(3)), head, a, b, c, d)
 
 }
 
@@ -151,28 +189,83 @@ trait GrammarRule extends Serializable {
 	def children:Array[NodeType]
 	//<<optional override>
 	def binarize:Iterator[CKYRule] = {
+		//--Overhead
+		val baseFn = this match {
+			case (evalable:CanEvaluate[Any,Any]) => 
+				Some( (seq:Seq[Any]) => {
+					assert(seq.length == children.length,
+						"Did not binarize correctly: "+seq.length+" "+children.length)
+					val (value,typ) = evalable.evaluate(seq.zip(children):_*)
+					value
+				})
+			case _ => None
+		}
 		if(children.length == 0){
+			//--Case: Error
 			throw new IllegalStateException("Rule with no children: " + this);
 		} else if(children.length == 1){
-			Array[CKYUnary](new CKYUnary(parent, children(0))).iterator
+			//--Case: Unary
+			//(create unary)
+			val unary = new CKYUnary(baseFn.map{ fn => term => fn(List(term))},
+				             parent, 
+										 children(0))
+			//(augment lexical properties)
+			val restrictFn:Int=>Boolean = this match {
+				case (lex:LexEntry) => lex.validLexApplication(_)
+				case _ => (i:Int) => true
+			}
+			unary.restrict(restrictFn)
+			//(return)
+			Array[CKYRule](unary).iterator
 		} else {
-			//--Cycle Over Children
-			val (rules,lastNode,lastPrefix) = children.zipWithIndex.foldLeft(
+			//--Case: Binarize
+			assert(!this.isInstanceOf[LexEntry], "Nonunary lexical entry")
+			val (rules,lastNode,lastPrefix,top) = children.zipWithIndex.foldLeft(
 					( List[CKYRule](),
 						parent,
-						(new StringBuilder).append("@").append(parent)
+						(new StringBuilder).append("@").append(parent),
+						true
 					)){
-					case ((soFar:List[CKYRule],p:NodeType,prefix:StringBuilder),
+					case ((soFar:List[CKYRule],p:NodeType,prefix:StringBuilder,
+					       isTop:Boolean),
 						(child:NodeType,index:Int))=>
 				//(create intermediate node)
 				val intermNode:NodeType = 
 					NodeType.make(prefix.append("_").append(child).toString)
 				if(index < children.length-1){
 					//(case: binary rule)
-					(new CKYBinary(p,child,intermNode) :: soFar, intermNode, prefix)
+					//((function))
+					val lambda:Option[(Any,Any)=>Any] = baseFn.map{ (baseFn:(Seq[Any]=>Any)) =>
+						{(term:Any,recFn:(Seq[Any]=>Any)) => {
+							if(isTop){
+								recFn(List(term))
+							} else {
+								(argsSoFar:Seq[Any]) => {
+									recFn(argsSoFar :+ term)
+								}
+							}
+						}}.asInstanceOf[(Any,Any)=>Any]
+					}
+					//((rule))
+					(new CKYBinary(lambda,p,child,intermNode) :: soFar, 
+					 intermNode, 
+					 prefix,
+					 false)
 				} else {
 					//(case: last unary)
-					(new CKYUnary(p,child) :: soFar, intermNode, prefix)
+					//((function))
+					val lambda:Option[Any=>Any] = baseFn.map{ (baseFn:(Seq[Any]=>Any)) =>
+						(term:Any) => {
+							(argsSoFar:Seq[Any]) => {
+								baseFn(argsSoFar :+ term)
+							}
+						}
+					}
+					//((rule))
+					(new CKYUnary(lambda,p,child) :: soFar, 
+					 intermNode, 
+					 prefix,
+					 false)
 				}
 					case _ => throw new IllegalStateException("Match error")
 			}
@@ -202,14 +295,30 @@ trait GrammarRule extends Serializable {
 	}
 }
 
-case class SimpleGrammarRule(parent:NodeType, _children:NodeType*
+class SimpleGrammarRule(_parent:NodeType, _children:NodeType*
 		) extends GrammarRule {
 	assert(children.length > 0, "Grammar rule with no children");
+	override def parent:NodeType = _parent
 	override def children:Array[NodeType] = _children.toArray
 	//<<Object overrides>>
 	override def toString:String = super.toString
 	override def equals(o:Any):Boolean = super.equals(o)
 	override def hashCode:Int = super.hashCode
+}
+
+class LambdaGrammarRule
+		(lambda:Seq[Any]=>Any, parent:NodeType, children:NodeType*) 
+		extends SimpleGrammarRule(parent,children:_*) with CanEvaluate[Any,Any] {
+	override def evaluate(children:(Any,NodeType)*):(Any,NodeType)
+		= (lambda(children.map{ _._1 }),parent)
+}
+
+class TypedLambdaGrammarRule[ParentType,ChildType]
+		(lambda:Seq[ChildType]=>ParentType, parent:NodeType, children:NodeType*) 
+		extends SimpleGrammarRule(parent,children:_*) 
+		with CanEvaluate[ParentType,ChildType] {
+	override def evaluate(children:(ChildType,NodeType)*):(ParentType,NodeType)
+		= (lambda(children.map{ _._1 }),parent)
 }
 
 case class BinaryGrammarRule(parent:NodeType, _children:NodeType*
@@ -223,10 +332,10 @@ case class BinaryGrammarRule(parent:NodeType, _children:NodeType*
 			throw new IllegalStateException("Rule with no children: " + this);
 		} else if(children.length == 1){
 			//(case: unary)
-			Array[CKYUnary](new CKYUnary(parent, children(0))).iterator
+			Array[CKYUnary](new CKYUnary(None,parent, children(0))).iterator
 		} else if(children.length == 2){
 			//(case: binary)
-			Array[CKYBinary](new CKYBinary(parent,children(0),children(1))).iterator
+			Array[CKYBinary](new CKYBinary(None,parent,children(0),children(1))).iterator
 		} else {
 			//(case: more than 2 children)
 			throw new IllegalStateException("Binary rule with >2 children: " + this);
@@ -238,8 +347,9 @@ case class BinaryGrammarRule(parent:NodeType, _children:NodeType*
 	override def hashCode:Int = super.hashCode
 }
 
-case class LexGrammarRule(parent:NodeType) extends GrammarRule {
+case class LexGrammarRule(parent:NodeType) extends GrammarRule with LexEntry {
 	assert(children.length > 0, "Grammar rule with no children");
+	//<<GrammarRule overrides>>
 	override def children:Array[NodeType] = Array[NodeType](NodeType.WORD)
 	//<<Object overrides>>
 	override def toString:String = super.toString
@@ -247,13 +357,40 @@ case class LexGrammarRule(parent:NodeType) extends GrammarRule {
 	override def hashCode:Int = super.hashCode
 }
 
+case class LambdaLexGrammarRule[ParentType](
+		lambda:((Option[Sentence],Int)=>ParentType), parent:NodeType) 
+		extends GrammarRule with CanEvaluate[ParentType,(Option[Sentence],Int)] 
+		with LexEntry {
+	
+	assert(children.length > 0, "Grammar rule with no children");
+	//<<GrammarRule overrides>>
+	override def children:Array[NodeType] = Array[NodeType](NodeType.WORD)
+	//<<Object overrides>>
+	override def toString:String = super.toString
+	override def equals(o:Any):Boolean = super.equals(o)
+	override def hashCode:Int = super.hashCode
+	//<<CanEvaluate overrides>>
+	override def evaluate(
+			children:((Option[Sentence],Int),NodeType)*):(ParentType,NodeType) = {
+		//--Error Checks
+		if(children.length != 1){
+			throw new IllegalArgumentException("Lex lambda must have one child")
+		}
+		//--Evaluate
+		val ((sent:Option[Sentence],index:Int),node:NodeType) = children(0)
+		assert(node == NodeType.WORD, "Lex rule must generate a word")
+		(lambda(sent,index),parent)
+	}
+}
 
-trait CKYRule extends GrammarRule {
+
+trait CKYRule extends GrammarRule with CanEvaluate[Any,Any] {
 	//<<Construction>>
 	assert(GrammarRule.assertValidity(this))
 	//<<Overrides>>
 	def isUnary:Boolean
 	def isClosure:Boolean = false
+	def hasLambda:Boolean
 	//<<Utilities>>
 	def isLex:Boolean = {
 		val isTrue:Boolean = isUnary && child.isWord
@@ -313,21 +450,39 @@ trait CKYRule extends GrammarRule {
 	}
 }
 
-class CKYUnary(_parent:NodeType,_child:NodeType) extends CKYRule {
+class CKYUnary(val lambda:Option[Any=>Any],_parent:NodeType,_child:NodeType
+		) extends CKYRule with LexEntry {
+	def this(_parent:NodeType,_child:NodeType) = this(None,_parent,_child)
 	//--Overrides
 	//(required)
 	override def binarize:Iterator[CKYRule] = new SingletonIterator(this)
 	override def parent:NodeType = _parent
 	override def children:Array[NodeType] = Array[NodeType](child)
 	override def isUnary:Boolean = true
+	override def hasLambda:Boolean = lambda.isDefined
+	override def evaluate(children:(Any,NodeType)*):(Any,NodeType) = {
+		//(error checks)
+		if(children.length != 1){
+			throw new IllegalArgumentException(
+				"Evaluating a unary with bad argument count: " + children.length)
+		}
+		val (childValue,childNode) = children(0)
+		if(childNode != child){
+			throw new IllegalArgumentException("Applying with bad child")
+		}
+		//(apply)
+		lambda match {
+			case Some(fn) => (fn(childValue), parent)
+			case None => throw new IllegalArgumentException("No lambda on unary")
+		}
+	}
 	//(for efficiency)
 	override def child:NodeType = _child
-	//--Possible Overrides
-	def validLexApplication(w:Int):Boolean = true
 }
 
-class CKYClosure(val chain:CKYUnary*) 
-		extends CKYUnary(chain(0).parent,chain.last.child) {
+class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*) 
+		extends CKYUnary(lambda,chain(0).parent,chain.last.child) {
+	def this(chain:CKYUnary*) = this(None,chain:_*)
 	//--Error Checks
 	if(chain.length <= 1){ 
 		throw new IllegalArgumentException("Closure must have >1 rule")
@@ -336,8 +491,10 @@ class CKYClosure(val chain:CKYUnary*)
 	override def isClosure:Boolean = true
 }
 
-class CKYBinary(_parent:NodeType,
+class CKYBinary(val lambda:Option[(Any,Any)=>Any],_parent:NodeType,
 		_leftChild:NodeType,_rightChild:NodeType) extends CKYRule {
+	def this(_parent:NodeType,_leftChild:NodeType,_rightChild:NodeType)
+		= this(None,_parent,_leftChild,_rightChild)
 	//--Overrides
 	//(required)
 	override def parent:NodeType = _parent
@@ -345,6 +502,27 @@ class CKYBinary(_parent:NodeType,
 	override def children:Array[NodeType] 
 		= Array[NodeType](leftChild,rightChild)
 	override def isUnary:Boolean = false
+	override def hasLambda:Boolean = lambda.isDefined
+	override def evaluate(childVals:(Any,NodeType)*):(Any,NodeType) = {
+		//(error checks)
+		if(children.length != 2){
+			throw new IllegalArgumentException(
+				"Evaluating a binary with bad argument count: " + children.length)
+		}
+		val (childValueL,childNodeL) = childVals(0)
+		val (childValueR,childNodeR) = childVals(1)
+		if(childNodeL != leftChild){
+			throw new IllegalArgumentException("Applying with bad left child")
+		}
+		if(childNodeR != rightChild){
+			throw new IllegalArgumentException("Applying with bad right child")
+		}
+		//(apply)
+		lambda match {
+			case Some(fn) => (fn(childValueL,childValueR), parent)
+			case None => throw new IllegalArgumentException("No lambda on unary")
+		}
+	}
 	//(for efficiency)
 	override def leftChild:NodeType = _leftChild
 	override def rightChild:NodeType = _rightChild
@@ -354,9 +532,13 @@ class CKYBinary(_parent:NodeType,
 // AUXILLIARY
 //------------------------------------------------------------------------------
 trait Sentence extends Serializable{
+	//<<required overrides>>
 	def apply(i:Int):Int
 	def length:Int
 	def gloss(i:Int):String
+	//<<optional overrides>>
+	def asNumber(i:Int):Int = gloss(i).toInt
+	def asDouble(i:Int):Double = gloss(i).toDouble
 }
 
 class SimpleSentence(w2str:Int=>String,words:Int*) extends Sentence{
@@ -479,7 +661,7 @@ object ParseTree {
 	def apply(head:NodeType, word:Int, prob:Double):ParseTree  = {
 		//(variables)
 		val logProb = math.log(prob)
-		val headRule:CKYUnary = new CKYUnary(head,NodeType.WORD)
+		val headRule:CKYUnary = new CKYUnary(None,head,NodeType.WORD)
 		//(tree)
 		new ParseTree {
 			override def logProb:Double = math.log(prob)
@@ -578,6 +760,11 @@ trait ParseTree extends Tree[NodeType] {
 			(rid:CKYUnary,w:Int) => { terms = rid :: terms } )
 		terms.reverse.toArray
 	}
+}
+
+trait EvalTree[T] extends ParseTree {
+	def apply:Option[T]
+	def evaluate:Option[T] = apply
 }
 
 //------------------------------------------------------------------------------
@@ -692,9 +879,19 @@ object CKYParser {
 						if(rules.length == 1){ 
 							rules(0) 
 						} else{ 
+							//(variables)
 							val ruleList = rules.map{ _._1 }
 							val minCount = rules.map{ _._2 }.min
-							(new CKYClosure(ruleList:_*), minCount)
+							val identity:Option[Any=>Any] = Some((x:Any)=>x)
+							val fn:Option[Any=>Any] = ruleList.foldRight(identity){
+									(term:CKYUnary, recursiveOpt:Option[Any=>Any]) =>
+								term.lambda.flatMap{ (fn:Any=>Any) =>
+									recursiveOpt.map{ (recursive:Any=>Any) =>
+										fn.compose(recursive)
+									}
+								}
+							}
+							(new CKYClosure(fn,ruleList:_*), minCount)
 						}
 					closures += toAdd
 					closureCount += 1
@@ -721,7 +918,7 @@ object CKYParser {
 				"Invalid probability for tree: " + tree.logProb)
 			//(head rule)
 			if(tree.parent != NodeType.ROOT){
-				val rootRule = new CKYUnary(NodeType.ROOT, tree.parent)
+				val rootRule = new CKYUnary(None, NodeType.ROOT, tree.parent)
 				if(ruleMap.contains(rootRule)){
 					ruleMap(rootRule) = ruleMap(rootRule) + prob
 				} else {
@@ -898,7 +1095,7 @@ object CKYParser {
 //------------------------------------------------------------------------------
 // PARSER
 //------------------------------------------------------------------------------
-class CKYParser(
+class CKYParser (
 		//(sizes)
 		numWords:Int,
 		numNodeTypes:Int,
@@ -942,7 +1139,7 @@ class CKYParser(
 			var term:CKYRule, 
 			var left:ChartElem,
 			var right:ChartElem,
-			sent:Option[Sentence] = None) extends ParseTree with Cloneable{
+			sent:Option[Sentence] = None) extends EvalTree[Any] with Cloneable {
 		
 		// -- CKY Usage --
 		def apply(logScore:Double,term:CKYRule,left:ChartElem,right:ChartElem
@@ -965,6 +1162,12 @@ class CKYParser(
 		def nilify:Unit = { logScore = Double.NaN; term = null }
 		def isNil:Boolean = (term == null)
 
+		// -- EvalTree Overrides --
+		override def apply:Option[Any] = {
+			val (res,pos) = applyHelper(0)
+			assert(pos == 0 || res.isDefined, "Only partially evaluated the tree")
+			res
+		}
 		// -- ParseTree Overrides --
 		override def parent:NodeType = {
 			assert(term != null,"taking head of null rule"); 
@@ -1033,6 +1236,54 @@ class CKYParser(
 				term + " -> (" + children.map{ _.parent }.mkString(", ") + ")"
 		}
 		// -- Helpers --
+		private def applyHelper(pos:Int):(Option[Any],Int) = {
+			if(!term.hasLambda){
+				(None,pos)
+			} else {
+				if(isLeaf){
+					//--Case: Leaf
+					assert(term.isUnary, "Rule must be a unary for a leaf node")
+					assert(term.isLex, "Rule must be a lexical item for a leaf node")
+					assert(!term.evaluateLex(sent,pos).isInstanceOf[NodeType])
+					(Some(term.evaluateLex(sent,pos)),pos+1)
+				} else if(term.isUnary){
+					//--Case: Unary
+					left.applyHelper(pos) match {
+						case (Some(leftValue),posChild:Int) =>
+							//(case: unary apply)
+							val (rtn,rtnType) = term.evaluate((leftValue,left.parent))
+							assert(rtnType == parent)
+							assert(!rtn.isInstanceOf[NodeType])
+							(Some(rtn),posChild)
+						case (None,posChild:Int) => 
+							//(case: unary no child)
+							(None,posChild)
+					}
+				} else {
+					//--Case: Binary
+					left.applyHelper(pos) match {
+						case (Some(leftValue),posLeft:Int) =>
+						 	right.applyHelper(posLeft) match {
+								case (Some(rightValue),posRight:Int) =>
+									//(case: binary apply)
+									val (rtn,rtnType)
+										= term.evaluate(
+												(leftValue,left.parent),
+												(rightValue,right.parent) )
+									assert(rtnType == parent)
+									assert(!rtn.isInstanceOf[NodeType])
+									(Some(rtn),posRight)
+								case (None,posRight:Int) =>
+									//(case: binary no right)
+									(None,posRight)
+								}
+						case (None,posLeft:Int) =>
+							//(case: binary no left)
+							(None,posLeft)
+					}
+				}
+			}
+		}
 		private def traverseHelper(i:Int,
 				ruleFn:(CKYRule)=>Any,lexFn:(CKYUnary,Int)=>Any,up:()=>Any):Int = {
 			//--Traverse
@@ -1717,7 +1968,7 @@ class CKYParser(
 	/**
 		k-best CKY Algorithm implementation
 	*/
-	def parse(sent:Sentence, beam:Int):Array[ParseTree] = {
+	def parse(sent:Sentence, beam:Int):Array[EvalTree[Any]] = {
 		//--Asserts
 		assert(sent.length > 0, "Sentence of length 0 cannot be parsed")
 		//--Get Lexical Entries
@@ -1811,8 +2062,8 @@ class CKYParser(
 			).map{ x => x.deepclone(sent) }
 	}
 	
-	def parse(sent:Sentence):ParseTree = {
-		val candidateTrees:Array[ParseTree] = parse(sent,1)
+	def parse(sent:Sentence):EvalTree[Any] = {
+		val candidateTrees:Array[EvalTree[Any]] = parse(sent,1)
 		if(candidateTrees.length == 0){
 			throw new IllegalArgumentException(
 				"Sentence not recognized by grammar: " + sent)
@@ -1822,6 +2073,8 @@ class CKYParser(
 			throw new IllegalStateException("Returned multiple results for parse")
 		}
 	}
+
+	def apply(sent:Sentence):EvalTree[Any] = parse(sent)
 	
 	//-----
 	// EM
@@ -1870,5 +2123,4 @@ class CKYParser(
 				kbestCKYAlgorithm
 			)
 	}
-
 }

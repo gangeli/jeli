@@ -26,8 +26,52 @@ object Grammars {
 			BinaryGrammarRule(NodeType.make("double"), NodeType.make("double"), NodeType.make("double")),
 			LexGrammarRule(NodeType.makePreterminal("int_tag"))
 		)
-
 	}
+
+	def MATH_PLUS:Array[GrammarRule] = {
+		Array[GrammarRule](
+			GrammarRule((x:Any) => x, NodeType.ROOT, NodeType.make("double")),
+			GrammarRule((x:Int) => x.asInstanceOf[Double], NodeType.make("double"), NodeType.make("int")),
+			GrammarRule((x:Any) => x, NodeType.make("int"), NodeType.makePreterminal("int_")),
+			GrammarRule((x:Int,plus:Any,y:Int) => {x + y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("+_"), NodeType.make("int")),
+			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.makePreterminal("int_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'plus, NodeType.makePreterminal("+_"))
+		)
+	}
+
+	def MATH_MINUS:Array[GrammarRule] = {
+		Array[GrammarRule](
+			GrammarRule((x:Any) => x, NodeType.ROOT, NodeType.make("double")),
+			GrammarRule((x:Int) => x.asInstanceOf[Double], NodeType.make("double"), NodeType.make("int")),
+			GrammarRule((x:Any) => x, NodeType.make("int"), NodeType.makePreterminal("int_")),
+			GrammarRule((x:Int,minus:Any,y:Int) => {x - y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("-_"), NodeType.make("int")),
+			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.makePreterminal("int_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'minus, NodeType.makePreterminal("-_"))
+		)
+	}
+
+	def MATH:Array[GrammarRule] = {
+		Array[GrammarRule](
+			GrammarRule((x:Any) => x, NodeType.ROOT, NodeType.make("double")),
+			GrammarRule((x:Int) => x.asInstanceOf[Double], NodeType.make("double"), NodeType.make("int")),
+			GrammarRule((x:Any) => x, NodeType.make("int"), NodeType.makePreterminal("int_")),
+			GrammarRule((x:Int,plus:Any, y:Int) => {x + y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("+_"), NodeType.make("int")),
+			GrammarRule((x:Int,minus:Any,y:Int) => {x - y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("-_"), NodeType.make("int")),
+			GrammarRule((x:Int,times:Any,y:Int) => {x * y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("*_"), NodeType.make("int")),
+			GrammarRule((x:Int,div:Any,  y:Int) => {x / y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("/_"), NodeType.make("int")),
+			GrammarRule((x:Int,pow:Any,  y:Int) => {math.pow(x,y).toInt}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("^_"), NodeType.make("int")),
+			GrammarRule((l:Any,x:Int,y:Any) => { x }, NodeType.make("int"), NodeType.makePreterminal("(_"), NodeType.make("int"), NodeType.makePreterminal(")_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.makePreterminal("int_")).restrict(_ == math2str.indexOf("#")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'plus, NodeType.makePreterminal("+_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'minus, NodeType.makePreterminal("-_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'timex, NodeType.makePreterminal("*_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'div, NodeType.makePreterminal("/_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'pow, NodeType.makePreterminal("^_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'lparen, NodeType.makePreterminal("(_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'rparen, NodeType.makePreterminal(")_"))
+		)
+	}
+	
 	val w2str:Array[String] = Array[String](
 	  "I",
 		"like",
@@ -35,12 +79,23 @@ object Grammars {
 		"NLP"
 		)
 	
-	val math2str:Array[String] = Array[String](
+	val mathtyp2str:Array[String] = Array[String](
 		"0",
 		"1",
 		"2",
 		"3",
 		"4"
+	)
+	
+	val math2str:Array[String] = Array[String](
+		"#",
+		"+",
+		"-",
+		"*",
+		"/",
+		"^",
+		"(",
+		")"
 	)
 }
 
@@ -151,14 +206,14 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			//(instance different equality)
 			val rootA = BinaryGrammarRule(NodeType.ROOT, NodeType.make("S"))
 			val rootB = BinaryGrammarRule(NodeType.ROOT, NodeType.make("S"))
-			val rootC = SimpleGrammarRule(NodeType.ROOT, NodeType.make("S"))
+			val rootC = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("S"))
 			rootA should be (rootB)
 			rootA should be (rootC)
 			rootB should be (rootC)
 			rootC should be (rootA)
 			//--All Types
 			//(unaries)
-			val simpleUnary = SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"))
+			val simpleUnary = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"))
 			val binaryUnary = BinaryGrammarRule(NodeType.ROOT, NodeType.make("X"))
 			val ckyUnary = new CKYUnary(NodeType.ROOT, NodeType.make("X"));
 			simpleUnary should be (binaryUnary)
@@ -170,7 +225,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			simpleUnary.hashCode should be (binaryUnary.hashCode)
 			binaryUnary.hashCode should be (ckyUnary.hashCode)
 			//(binaries)
-			val simpleBinary = SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"))
+			val simpleBinary = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"))
 			val binaryBinary = BinaryGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"))
 			val ckyBinary = new CKYBinary(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"));
 			simpleBinary should be (binaryBinary)
@@ -182,8 +237,8 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			simpleBinary.hashCode should be (binaryBinary.hashCode)
 			binaryBinary.hashCode should be (ckyBinary.hashCode)
 			//--Not Equals
-			val simpleTrinary2 = SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"), NodeType.make("X"))
-			val simpleBinary2 = SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"))
+			val simpleTrinary2 = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"), NodeType.make("X"))
+			val simpleBinary2 = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"))
 			val binaryBinary2 = BinaryGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("Y"))
 			val ckyBinary2 = new CKYBinary(NodeType.ROOT, NodeType.make("X"), NodeType.make("Z"));
 			val ckyUnary2 = new CKYUnary(NodeType.ROOT, NodeType.make("X"))
@@ -419,10 +474,10 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			}
 		}
 		it("should have a proper lex distribution"){
-			val parser = CKYParser(math2str.length, MATH_TYPE);
-			(0 until math2str.length).foreach{ (w:Int) =>
+			val parser = CKYParser(mathtyp2str.length, MATH_TYPE);
+			(0 until mathtyp2str.length).foreach{ (w:Int) =>
 			//(should have probabilities)
-				parser.lexProb(new CKYUnary(NodeType('int_tag), NodeType.WORD), w) should be (1.0 / math2str.length.asInstanceOf[Double])
+				parser.lexProb(new CKYUnary(NodeType('int_tag), NodeType.WORD), w) should be (1.0 / mathtyp2str.length.asInstanceOf[Double])
 				//(should not have probabilities)
 				intercept[NoSuchElementException]{
 					parser.lexProb(new CKYUnary(NodeType.ROOT, NodeType('double)), w)
@@ -433,8 +488,8 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			}
 		}
 		it("should parse simple sentences"){
-			val parser = CKYParser.apply(math2str.length, MATH_TYPE.map{ (_,0.0) }, paranoid=true);
-			val sent:Sentence = Sentence(math2str, "0 1 2 3 4")
+			val parser = CKYParser.apply(mathtyp2str.length, MATH_TYPE.map{ (_,0.0) }, paranoid=true);
+			val sent:Sentence = Sentence(mathtyp2str, "0 1 2 3 4")
 			//(parse beam 1)
 			val parse1 = parser.parse(sent,1);
 			parse1 should not be (null)
@@ -450,6 +505,96 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			parse2.foreach{ (p:ParseTree) =>
 				p.parent should be (NodeType.ROOT)
 			}
+		}
+	}
+
+	describe("Arithmetic"){
+		case class MSent(gloss:String) extends Sentence {
+			val words = gloss.split("""\s+""").map{ (s:String) =>
+				try {
+					s.toDouble
+					math2str.indexOf("#")
+				} catch {
+					case (e:Exception) => math2str.indexOf(s)
+				}
+			}
+			val nums = gloss.split("""\s+""").map{ (s:String) =>
+				try {
+					s.toDouble
+				} catch {
+					case (e:Exception) => Double.NaN
+				}
+			}
+			override def apply(i:Int) = words(i)
+			override def length:Int = words.length
+			override def gloss(i:Int) = math2str(words(i))
+			override def asNumber(i:Int) = nums(i).toInt
+			override def asDouble(i:Int) = nums(i)
+		}
+
+		it("can be created"){
+			val grammar = MATH;
+		}
+		it("should binarize"){
+			MATH.foreach{ (rule:GrammarRule) =>
+				rule.binarize.forall{ _.isInstanceOf[CKYRule] } should be (true)
+			}
+		}
+		it("should create a parser"){
+			CKYParser.apply(math2str.length, MATH.map{ (_,0.0) }, paranoid=true);
+		}
+		it("should parse addition if forced to"){
+			val parser = CKYParser.apply(math2str.length, MATH_PLUS.map{ (_,0.0) }, paranoid=true);
+			val parse = parser.parse(MSent("1 + 2"));
+			parse should not be (null)
+			parse.evaluate.isDefined should be (true)
+			parse.evaluate.get should be (3.toDouble)
+		}
+		it("should parse subtraction if forced to"){
+			val parser = CKYParser.apply(math2str.length, MATH_MINUS.map{ (_,0.0) }, paranoid=true);
+			val parse = parser.parse(MSent("1 - 2"));
+			parse should not be (null)
+			parse.evaluate.isDefined should be (true)
+			parse.evaluate.get should be (-1.toDouble)
+		}
+		it("should parse arithmetic ambiguously"){
+			//--Easy Case
+			//(construct parses)
+			var parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) }, paranoid=true);
+			var parse = parser.parse(MSent("6 + 2"), 100);
+			parse.length should be (5)
+			var values:Array[Int] = parse.map{ _.evaluate.get.asInstanceOf[Double].toInt }
+			//(evaluate ambiguity)
+			values should contain (8)  // +
+			values should contain (4)  // -
+			values should contain (12) // *
+			values should contain (3)  // /
+			values should contain (36) // ^
+			//--Medium Case
+			//(construct parses)
+			parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) }, paranoid=true);
+			parse = parser.parse(MSent("( 6 + 2 )"), 100);
+			parse.length should be (5)
+			values = parse.map{ _.evaluate.get.asInstanceOf[Double].toInt }
+			//(evaluate ambiguity)
+			values should contain (8)  // +
+			values should contain (4)  // -
+			values should contain (12) // *
+			values should contain (3)  // /
+			values should contain (36) // ^
+			//--Hard Case
+			//(construct parses)
+			parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) }, paranoid=true);
+			parse = parser.parse(MSent("( 34532 + 2656456 ) / 4"), 1000);
+			parse.length should be > 0
+			parse.length should be <= 1000
+			values = parse.map{ _.evaluate.get.asInstanceOf[Double].toInt }
+			//(evaluate ambiguity)
+			values should contain (672747)     // + /
+			values should contain (-655481)    // - /
+			values should contain (10763952)   // + *
+			values should contain (-10487696)  // - *
+			values should contain (2690992)    // + +
 		}
 	}
 }
