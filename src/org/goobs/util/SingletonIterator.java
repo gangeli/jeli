@@ -3,7 +3,7 @@ package org.goobs.util;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class SingletonIterator <E> implements Iterator <E>{
+public class SingletonIterator <E> implements Iterator <E>, Iterable<E>{
 
 	private E term;
 	
@@ -29,8 +29,12 @@ public class SingletonIterator <E> implements Iterator <E>{
 		throw new UnsupportedOperationException("remove() not implemented for singleton iterator");
 	}
 
+	@Override
+	public Iterator<E> iterator() {
+		return this;
+	}
+
 	public static final <E> SingletonIterator<E> make(E term){
 		return new SingletonIterator <E> (term); 
 	}
-	
 }

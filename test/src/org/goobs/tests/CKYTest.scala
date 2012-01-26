@@ -1,8 +1,11 @@
 package org.goobs.tests
 
+import scala.util.Random
+
 import org.scalatest.Spec
 import org.scalatest.matchers.ShouldMatchers
 import org.goobs.nlp._
+import org.goobs.util.SingletonIterator
 
 object Grammars {
 	def TOY:Array[GrammarRule] = {
@@ -58,7 +61,7 @@ object Grammars {
 			GrammarRule((x:Int,plus:Any, y:Int) => {x + y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("+_"), NodeType.make("int")),
 			GrammarRule((x:Int,minus:Any,y:Int) => {x - y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("-_"), NodeType.make("int")),
 			GrammarRule((x:Int,times:Any,y:Int) => {x * y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("*_"), NodeType.make("int")),
-			GrammarRule((x:Int,div:Any,  y:Int) => {x / y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("/_"), NodeType.make("int")),
+			GrammarRule((x:Int,div:Any,  y:Int) => {if(y==0){ 0 } else {x / y}}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("/_"), NodeType.make("int")),
 			GrammarRule((x:Int,pow:Any,  y:Int) => {math.pow(x,y).toInt}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("^_"), NodeType.make("int")),
 			GrammarRule((l:Any,x:Int,y:Any) => { x }, NodeType.make("int"), NodeType.makePreterminal("(_"), NodeType.make("int"), NodeType.makePreterminal(")_")),
 			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.makePreterminal("int_")).restrict(_ == math2str.indexOf("#")),
@@ -120,6 +123,11 @@ object Trees {
 				ParseTree(NodeType.make("NP"),Array[ParseTree](
 					ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("NLP") ) ), 1.0, true)), 1.0, true )), 1.0, true )
 	)
+	
+	def UNARIES:ParseTree 
+		= ParseTree(NodeType.make("A"), Array[ParseTree](
+		  	ParseTree(NodeType.make("B"), Array[ParseTree](
+					ParseTree(NodeType.makePreterminal("C_"), Grammars.w2str.indexOf("NLP"))))))
 }
 
 class CKYParserSpec extends Spec with ShouldMatchers {
@@ -282,6 +290,40 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 				simple.forall{ (count:Int) => count < bucket*5} should be (true)
 				cky.forall{ (count:Int) => count < bucket*5} should be (true)
 			}
+		}
+	}
+
+	describe("A tree"){
+		it("should represent unaries"){
+			Trees.UNARIES
+		}
+		it("should scrape constituent rules (no closure)"){
+			val (rules,lex) = CKYParser.scrapeGrammar(Array[ParseTree](Trees.UNARIES))
+			//(existence)
+			rules.keys.toArray.contains(GrammarRule(NodeType.make("A"), NodeType.make("B"))) should be (true)
+			rules.keys.toArray.contains(GrammarRule(NodeType.make("B"), NodeType.makePreterminal("C_"))) should be (true)
+			rules.keys.toArray.contains(GrammarRule(NodeType.make("A"), NodeType.makePreterminal("C_"))) should be (false)
+			//(probabilities)
+			rules(new CKYUnary(NodeType.ROOT, NodeType.make("A"))) should be (1.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.make("A"), NodeType.make("B"))) should be (1.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.make("B"), NodeType.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
+		}
+		it("should scrape constituent rules (closure)"){
+			val (rules,lex) = CKYParser.scrapeGrammar(Array[ParseTree](Trees.UNARIES), true)
+			//(existence)
+			rules.keys.toArray.contains(GrammarRule(NodeType.ROOT, NodeType.make("A"))) should be (true)
+			rules.keys.toArray.contains(GrammarRule(NodeType.ROOT, NodeType.make("B"))) should be (true)
+			rules.keys.toArray.contains(GrammarRule(NodeType.ROOT, NodeType.makePreterminal("C_"))) should be (true)
+			rules.keys.toArray.contains(GrammarRule(NodeType.make("A"), NodeType.make("B"))) should be (true)
+			rules.keys.toArray.contains(GrammarRule(NodeType.make("B"), NodeType.makePreterminal("C_"))) should be (true)
+			rules.keys.toArray.contains(GrammarRule(NodeType.make("A"), NodeType.makePreterminal("C_"))) should be (true)
+			//(probabilities)
+			rules(new CKYUnary(NodeType.ROOT, NodeType.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.ROOT, NodeType.make("A"))) should be (0.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.ROOT, NodeType.make("B"))) should be (0.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.make("A"), NodeType.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.make("A"), NodeType.make("B"))) should be (0.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.make("B"), NodeType.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
 		}
 	}
 	
@@ -547,15 +589,15 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			val parser = CKYParser.apply(math2str.length, MATH_PLUS.map{ (_,0.0) }, paranoid=true);
 			val parse = parser.parse(MSent("1 + 2"));
 			parse should not be (null)
-			parse.evaluate.isDefined should be (true)
-			parse.evaluate.get should be (3.toDouble)
+			parse.evaluate should be (3.toDouble)
+			parse.logProb should be > (Double.NegativeInfinity)
 		}
 		it("should parse subtraction if forced to"){
 			val parser = CKYParser.apply(math2str.length, MATH_MINUS.map{ (_,0.0) }, paranoid=true);
 			val parse = parser.parse(MSent("1 - 2"));
 			parse should not be (null)
-			parse.evaluate.isDefined should be (true)
-			parse.evaluate.get should be (-1.toDouble)
+			parse.evaluate should be (-1.toDouble)
+			parse.logProb should be > (Double.NegativeInfinity)
 		}
 		it("should parse arithmetic ambiguously"){
 			//--Easy Case
@@ -563,7 +605,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			var parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) }, paranoid=true);
 			var parse = parser.parse(MSent("6 + 2"), 100);
 			parse.length should be (5)
-			var values:Array[Int] = parse.map{ _.evaluate.get.asInstanceOf[Double].toInt }
+			var values:Array[Int] = parse.map{ _.evaluate.asInstanceOf[Double].toInt }
 			//(evaluate ambiguity)
 			values should contain (8)  // +
 			values should contain (4)  // -
@@ -575,7 +617,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) }, paranoid=true);
 			parse = parser.parse(MSent("( 6 + 2 )"), 100);
 			parse.length should be (5)
-			values = parse.map{ _.evaluate.get.asInstanceOf[Double].toInt }
+			values = parse.map{ _.evaluate.asInstanceOf[Double].toInt }
 			//(evaluate ambiguity)
 			values should contain (8)  // +
 			values should contain (4)  // -
@@ -588,13 +630,65 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			parse = parser.parse(MSent("( 34532 + 2656456 ) / 4"), 1000);
 			parse.length should be > 0
 			parse.length should be <= 1000
-			values = parse.map{ _.evaluate.get.asInstanceOf[Double].toInt }
+			values = parse.map{ _.evaluate.asInstanceOf[Double].toInt }
+			parse.forall{ _.logProb > Double.NegativeInfinity } should be (true)
 			//(evaluate ambiguity)
 			values should contain (672747)     // + /
 			values should contain (-655481)    // - /
 			values should contain (10763952)   // + *
 			values should contain (-10487696)  // - *
 			values should contain (2690992)    // + +
+		}
+		it("should be learnable"){
+			Random.setSeed(42)
+			val dataSize = 100
+			val expressionLength = 5
+			//--Helper Functions
+			val functions = Array[((Int,Int)=>Int,String)](
+				(_ + _, "+"),
+				(_ - _, "-"),
+				(_ * _, "*"),
+				((i:Int,j:Int) => if(j == 0){ 0 } else {i / j}, "/"),
+			  (math.pow(_,_).toInt, "^")
+			)
+			def randomExpression(numOps:Int):(Int,String) = {
+				if(numOps == 0){
+					val i = Random.nextInt(20) - 10
+					(i.toInt, i.toString)
+				} else {
+					val (left, leftStr) = randomExpression((numOps-1) / 2)
+					val (right, rightStr) = randomExpression((numOps-1) / 2 + (numOps-1) % 2)
+					val (op,name) = functions(Random.nextInt(functions.length))
+					(op(left,right), leftStr + " " + name + " " + rightStr)
+				}
+			}
+			//--Basic
+			randomExpression(0)._2.length should be < 3
+			val (ans,str) = randomExpression(0)
+			ans should be (str.toInt)
+			//--Run Experiment
+			//(make parser)
+			val parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) }, paranoid=true);
+			//(make dataset)
+			val dataset = (0 until dataSize).map{ (i:Int) =>
+				randomExpression(Random.nextInt(expressionLength))
+			}.toArray
+			//(parse)
+			val goodTrees:Array[ParseTree] = dataset.flatMap{ case (answer:Int,input:String) =>
+				parser.parse(MSent(input), 1000).filter{ _.evaluate.asInstanceOf[Double].toInt == answer }
+			}
+			//(update)
+			val learned = parser.update(goodTrees, 0.0, 0.0 )
+			//(checkProbs)
+			println(parser.parse(MSent("6 + 2")).logProb + " :: " + parser.parse(MSent("6 + 2")).prettyPrint())
+			println(learned.parse(MSent("6 + 2")).logProb + " :: " + learned.parse(MSent("6 + 2")).prettyPrint())
+			println(learned.parameters( math2str(_) ))
+			//(check)
+			learned.parse(MSent("6 + 2")).evaluate.asInstanceOf[Double].toInt should be (8)
+			learned.parse(MSent("6 - 2")).evaluate.asInstanceOf[Double].toInt should be (4)
+			learned.parse(MSent("6 * 2")).evaluate.asInstanceOf[Double].toInt should be (12)
+			learned.parse(MSent("6 / 2")).evaluate.asInstanceOf[Double].toInt should be (3)
+			learned.parse(MSent("6 ^ 2")).evaluate.asInstanceOf[Double].toInt should be (36)
 		}
 	}
 }
