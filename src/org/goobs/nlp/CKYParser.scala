@@ -14,16 +14,6 @@ import scala.collection.mutable.HashSet
 import org.goobs.stats._
 import org.goobs.util.SingletonIterator
 
-/*
-	TODO 
-		- Closure equality is fishy in conjunction with rule equality.
-		  Two paths through different nodes but starting and ending in the same
-			place are considered equivalent, and a closure is equal to a unary
-			of the same parent+child.
-			This is relevant in places like computeClosures. If used for
-			sophisticated parsing with duplicate rules, this should be fixed...
-*/
-
 //------------------------------------------------------------------------------
 // NODES
 //------------------------------------------------------------------------------
@@ -57,9 +47,9 @@ object NodeType {
 	private var values:Option[Array[NodeType]] = None
 	private val valuesBuilder = new ArrayBuffer[NodeType]
 	//--Constants //<--must be after State
-	val SYM_WORD = '_Word
-	val SYM_PRETERMINAL = '_Preterminal
-	lazy val ROOT:NodeType = make('_ROOT)
+	val SYM_WORD = '__Word__
+	val SYM_PRETERMINAL = '__Preterminal__
+	lazy val ROOT:NodeType = make('__ROOT__)
 	lazy val WORD:NodeType = makeWord()
 
 	def count:Int = {
@@ -78,6 +68,7 @@ object NodeType {
 		values = None
 		//(update map)
 		valueMap(head.name) = head
+		assert(valueMap.contains(head.name), "Strange behavior in valueMap")
 		//(return)
 		head
 	}
@@ -113,7 +104,8 @@ object NodeType {
 		if(valueMap.contains(name)){
 			val cand:NodeType = valueMap(name)
 			if(cand.flag != flags){
-				throw new IllegalArgumentException("Incompatable NodeType (different flags): " + name)
+				throw new IllegalArgumentException(
+					"Incompatable NodeType (different flags): " + name)
 			} else {
 				return cand
 			}
@@ -131,13 +123,14 @@ object NodeType {
 // GRAMMAR
 //------------------------------------------------------------------------------
 trait GrammarRule extends Serializable {
+	var gloss:Option[String] = None
 	//<<abstract>>
 	def parent:NodeType
 	def children:Array[NodeType]
 	//<<optional override>
 	def binarize:Iterator[CKYRule] = {
 		//--Overhead
-		val baseFn = this match {
+		val baseFn:Option[Seq[Any]=>Any] = this match {
 			case (evalable:CanEvaluate[Any,Any]) => 
 				Some( (seq:Seq[Any]) => {
 					assert(seq.length == children.length,
@@ -153,9 +146,10 @@ trait GrammarRule extends Serializable {
 		} else if(children.length == 1){
 			//--Case: Unary
 			//(create unary)
-			val unary = new CKYUnary(baseFn.map{ fn => term => fn(List(term))},
-				             parent, 
-										 children(0))
+			val unary = new CKYUnary(
+					baseFn.map{ (fn:Seq[Any]=>Any) => (term:Any) => fn(List(term))},
+					parent, 
+					children(0))
 			//(augment lexical properties)
 			val restrictFn:Int=>Boolean = this match {
 				case (lex:LexEntry) => lex.validLexApplication(_)
@@ -219,8 +213,16 @@ trait GrammarRule extends Serializable {
 			rules.iterator
 		}
 	}
-	//<<Object Overrides>>
-	override def toString:String = parent.toString+"->"+children.mkString(",")
+	//<<utilities>>
+	def setGloss(str:String):GrammarRule = {
+		this.gloss = Some(str)
+		this
+	}
+	//<<Object overrides>>
+	override def toString:String = gloss match {
+		case Some(str) => str
+		case None => parent.toString+"->"+children.mkString(",")
+	}
 	override def hashCode:Int = {
 		children.foldLeft(parent.hashCode){ case (code:Int,child:NodeType) =>
 			(code ^ child.hashCode * 7)
@@ -466,6 +468,8 @@ trait CKYRule extends GrammarRule with CanEvaluate[Any,Any] {
 
 class CKYUnary(val lambda:Option[Any=>Any],_parent:NodeType,_child:NodeType
 		) extends CKYRule with LexEntry {
+	def this(lambda:Any=>Any,_parent:NodeType,_child:NodeType) 
+		= this(Some(lambda),_parent,_child)
 	def this(_parent:NodeType,_child:NodeType) = this(None,_parent,_child)
 	//--Overrides
 	//(required)
@@ -503,11 +507,25 @@ class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*)
 	}
 	//--Overrides
 	override def isClosure:Boolean = true
+	override def equals(o:Any):Boolean = {
+		if(super.equals(o)){
+			o match {
+				case (closure:CKYClosure) =>
+					closure.chain == this.chain
+				case _ => true
+			}
+		} else {
+			false
+		}
+	}
 
 }
 
 class CKYBinary(val lambda:Option[(Any,Any)=>Any],_parent:NodeType,
 		_leftChild:NodeType,_rightChild:NodeType) extends CKYRule {
+	def this(lambda:(Any,Any)=>Any,_parent:NodeType,
+			_leftChild:NodeType,_rightChild:NodeType)
+		= this(Some(lambda),_parent,_leftChild,_rightChild)
 	def this(_parent:NodeType,_leftChild:NodeType,_rightChild:NodeType)
 		= this(None,_parent,_leftChild,_rightChild)
 	//--Overrides
@@ -930,27 +948,24 @@ object CKYParser {
 								}
 							}
 							//(don't double count)
-							println("HANDLING " + new CKYClosure(fn,ruleList:_*))
 							val rule
 								= if(ruleList.length == 2){ ruleList(0) }
 								  else { new CKYClosure(ruleList.slice(0,ruleList.length-1):_*) }
 							closures(rule)
 								= if(closures.contains(rule)){
-										println("  decrementing " + rule + " by " + prodCount + " -> " + (closures(rule) - prodCount))
 										assert(closures(rule) - prodCount >= 0, 
 											"decrementing into negative: " + closures(rule) + " - " + prodCount)
 										closures(rule) - prodCount
 									} else {
-										println("  setting " + rule + " to " + prodCount)
 										-prodCount
 									}
 							//(create closure)
 							(new CKYClosure(fn,ruleList:_*), prodCount)
 						}
 					//(add rule)
-					println("  INCREMENT " + toAdd + " by " + toAddProb)
 					closures(toAdd) = toAddProb
 					closureCount += 1
+					assert(closures.size == closureCount, "Duplicate rule: " + toAdd)
 				})
 		}
 		//(return)

@@ -27,7 +27,7 @@ public class Multinomial <DOMAIN> implements Bayesian<DOMAIN,Multinomial<DOMAIN>
 		for(DOMAIN key : this){
 			sum += this.counts.getCount(key);
 		}
-		return Math.abs(sum - 1.0) < 0.00001;
+		return sum == 0.0 || Math.abs(sum - 1.0) < 0.00001;
 	}
 
 	private boolean verifyTotal(){
@@ -39,7 +39,7 @@ public class Multinomial <DOMAIN> implements Bayesian<DOMAIN,Multinomial<DOMAIN>
 		for(DOMAIN key : this){
 			totalProb += this.prob(key);
 		}
-		return Math.abs(sum - totalCount) < 0.00001 && Math.abs(totalProb - 1.0) < 0.00001;
+		return (sum == 0.0 && totalCount == 0.0) || Math.abs(sum - totalCount) < 0.00001 && Math.abs(totalProb - 1.0) < 0.00001;
 	}
 	
 	public double getCount(DOMAIN key){ return counts.getCount(key); }

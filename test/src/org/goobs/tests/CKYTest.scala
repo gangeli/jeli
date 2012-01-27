@@ -149,6 +149,11 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 				NodeType.make("S", NodeType.SYM_PRETERMINAL)
 			}
 		}
+		it("should remember itself"){
+			NodeType.make("somerandomnode")
+			NodeType('somerandomnode)
+			NodeType("somerandomnode")
+		}
 		it("should recognize flags"){
 			NodeType.WORD.isWord should be (true)
 			NodeType.WORD.isPreterminal should be (false)
