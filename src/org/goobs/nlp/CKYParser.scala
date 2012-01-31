@@ -918,8 +918,15 @@ object CKYParser {
 			assert(rule.isInstanceOf[CKYUnary], "Unary doesn't inherit CKYUnary")
 			//(add neighbor)
 			if(!rule.isLex){ //don't add lex rules
-				graph(rule.parent)
-					.addNeighbor(graph(rule.child), rule.asInstanceOf[CKYUnary], count) 
+				def add(r:CKYRule) {
+					graph(rule.parent)
+						.addNeighbor(graph(rule.child), rule.asInstanceOf[CKYUnary], 
+							count) 
+				}
+				rule match {
+					case (closure:CKYClosure) => closure.chain.foreach{ add(_) }
+					case _ => add(rule)
+				}
 			}
 		}
 		//--Search Graph
@@ -959,8 +966,9 @@ object CKYParser {
 								  else { new CKYClosure(ruleList.slice(0,ruleList.length-1):_*) }
 							closures(rule)
 								= if(closures.contains(rule)){
-										assert(closures(rule) - prodCount >= 0, 
-											"decrementing into negative: " + closures(rule) + " - " + prodCount)
+										assert(closures(rule) - prodCount >= 0.0, 
+											"decrementing into negative: " + 
+											closures(rule) + " - " + prodCount)
 										closures(rule) - prodCount
 									} else {
 										-prodCount
