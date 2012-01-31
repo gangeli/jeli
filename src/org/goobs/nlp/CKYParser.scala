@@ -1234,9 +1234,10 @@ class CKYParser (
 			var logScore:Double, 
 			var term:CKYRule, 
 			var left:ChartElem,
-			var right:ChartElem,
-			sent:Option[Sentence] = None
+			var right:ChartElem
 			) extends EvalTree[Any] with Cloneable {
+
+		var sent:Sentence = null
 		
 		//<<CKY usage>>
 		def apply(logScore:Double,term:CKYRule,left:ChartElem,right:ChartElem
@@ -1310,12 +1311,14 @@ class CKYParser (
 		override def clone:ChartElem = {
 			new ChartElem(logScore,term,left,right)
 		}
-		def deepclone:ChartElem = deepclone(None)
-		def deepclone(sent:Sentence):ChartElem = deepclone(Some(sent))
-		private def deepclone(sent:Option[Sentence]):ChartElem = {
+		def deepclone:ChartElem = deepclone(this.sent)
+		def deepclone(sent:Option[Sentence]):ChartElem = deepclone(sent.orNull)
+		def deepclone(sent:Sentence):ChartElem = {
 			val leftClone = if(left == null) null else left.deepclone(sent)
 			val rightClone = if(right == null) null else right.deepclone(sent)
-			new ChartElem(logScore,term,leftClone,rightClone,sent)
+			val elem = new ChartElem(logScore,term,leftClone,rightClone)
+			elem.sent = sent
+			elem
 		}
 		override def equals(a:Any) = {
 			a match {
@@ -1342,8 +1345,8 @@ class CKYParser (
 					//--Case: Leaf
 					assert(term.isUnary, "Rule must be a unary for a leaf node")
 					assert(term.isLex, "Rule must be a lexical item for a leaf node")
-					assert(!term.evaluateLex(sent,pos).isInstanceOf[NodeType])
-					(Some(term.evaluateLex(sent,pos)),pos+1)
+					assert(!term.evaluateLex(Option(sent),pos).isInstanceOf[NodeType])
+					(Some(term.evaluateLex(Option(sent),pos)),pos+1)
 				} else if(term.isUnary){
 					//--Case: Unary
 					left.applyHelper(pos) match {
@@ -1394,7 +1397,7 @@ class CKYParser (
 					assert(!term.isClosure, "closure used as lex tag")
 					term match {
 						case (unary:CKYUnary) =>
-							sent match {
+							Option(sent) match {
 								case Some(sentence) => lexFn(unary,sentence(i))
 								case None => assert(false, "No sentence attached")
 							}
