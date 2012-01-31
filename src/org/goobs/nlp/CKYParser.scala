@@ -507,6 +507,12 @@ class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*)
 	}
 	//--Overrides
 	override def isClosure:Boolean = true
+	override def isLex:Boolean = {
+		val isTrue:Boolean = child.isWord
+		assert(!isTrue || parent.isPreterminal || chain.length > 1, 
+			"Lex closure not tagged as preterminal")
+		isTrue
+	}
 	override def equals(o:Any):Boolean = {
 		if(super.equals(o)){
 			o match {
@@ -1181,7 +1187,7 @@ object CKYParser {
 //------------------------------------------------------------------------------
 class CKYParser (
 		//(sizes)
-		numWords:Int,
+		val numWords:Int,
 		numNodeTypes:Int,
 		//(probabilities -- data)
 		ruleProb:Array[Multinomial[Int]],
@@ -1197,6 +1203,12 @@ class CKYParser (
 		paranoid:Boolean = false,
 		kbestCKYAlgorithm:Int = 3
 			) extends Serializable {
+	//-----
+	// Asserts
+	//-----
+	assert(lexProbDomain.length > 0, "No lexical entries")
+	assert(ruleProbDomain.length > 0, "No rule entries")
+	assert(numWords > 0, "No words in vocabulary")
 
 	//-----
 	// Declarations
@@ -1954,7 +1966,8 @@ class CKYParser (
 			assert(!lexProb(lexProbIndex(rule)).prob(w).isNaN, "NaN lex probability")
 			lexProb(lexProbIndex(rule)).prob(w)
 		} else {
-			throw new IllegalArgumentException("Unknown word: " + w + " (W=" + numWords + ")");
+			throw new IllegalArgumentException(
+				"Unknown word: " + w + " (W=" + numWords + ")");
 		}
 	}
 	def lexLogProb(rule:CKYUnary,w:Int):Double = safeLn(lexProb(rule,w))
@@ -2102,7 +2115,8 @@ class CKYParser (
 		assert(chart.length >= sent.length, "Chart is too small")
 		//--Lex
 		(0 until sent.length).foreach{ (elem:Int) =>
-			assert(klex(elem).length > 0, "No lexical terms for " + sent.gloss(elem))
+			assert(klex(elem).length > 0, 
+				"No lexical terms for " + sent.gloss(elem) + " -- " + lexProbDomain)
 			var lastLogProb = Double.PositiveInfinity
 			klex(elem).foreach{ case (rule:CKYUnary,logProb:Double) =>
 				//(add term)
