@@ -10,6 +10,8 @@ TMP=tmp
 # (classpath)
 CP=${LIB}/jchart2d.jar:${LIB}/mysql.jar:${LIB}/postgresql.jar:${LIB}/scala-compiler.jar:${LIB}/scala-library.jar:${LIB}/sqlite.jar
 JAVANLP=${JAVANLP_HOME}/projects/core/classes:${JAVANLP_HOME}/projects/more/classes:${JAVANLP_HOME}/projects/core/lib/xom-1.2.6.jar
+# (compilers)
+SCALAC=scalac
 # (config)
 .SUFFIXES: .java .class
 
@@ -26,7 +28,7 @@ ${DIST}/${DIST_LIB}.jar: $(wildcard ${SRC}/org/goobs/database/*.java) $(wildcard
 	mkdir -p ${DIST}
 	#(compile)
 	javac -Xlint:unchecked -Xlint:deprecation -d $(BUILD) -cp $(CP):${JAVANLP} `find $(SRC) -name "*.java"`
-	scalac -deprecation -d ${BUILD} -cp ${CP}:${JAVANLP} `find ${SRC} -name "*.scala"` `find ${SRC} -name "*.java"`
+	${SCALAC} -deprecation -d ${BUILD} -cp ${CP}:${JAVANLP} `find ${SRC} -name "*.scala"` `find ${SRC} -name "*.java"`
 	#(copy)
 	cp ${SRC}/org/goobs/testing/mteval-v13a.pl ${BUILD}/org/goobs/testing/mteval-v13a.pl
 	cp ${SRC}/org/goobs/util/lib.conf ${BUILD}/org/goobs/util/lib.conf
@@ -54,7 +56,7 @@ ${DIST}/${DIST_TEST}.jar: $(wildcard ${TEST_SRC}/org/goobs/tests/*.java) $(wildc
 	mkdir -p ${TEST_BUILD}
 	mkdir -p ${DIST}
 	javac -Xlint:unchecked -Xlint:deprecation -d $(TEST_BUILD) -cp $(CP):${DIST}/${DIST_LIB}.jar:${LIB}/junit.jar `find $(TEST_SRC) -name "*.java"`
-	scalac -deprecation -d $(TEST_BUILD) -cp $(CP):${DIST}/${DIST_LIB}.jar:${LIB}/junit.jar `find $(TEST_SRC) -name "*.java"`
+	${SCALAC} -deprecation -d $(TEST_BUILD) -cp $(CP):${DIST}/${DIST_LIB}.jar:${LIB}/junit.jar `find $(TEST_SRC) -name "*.java"`
 	jar cf ${DIST}/${DIST_TEST}.jar -C $(TEST_BUILD) .
 	jar uf ${DIST}/${DIST_TEST}.jar -C $(TEST_SRC) .
 

@@ -117,6 +117,8 @@ object NodeType {
 		//(register class)
 		register(term)
 	}
+	def exists(name:String):Boolean = exists(Symbol(name))
+	def exists(name:Symbol):Boolean = valueMap.contains(name)
 }
 
 //------------------------------------------------------------------------------
@@ -151,9 +153,9 @@ trait GrammarRule extends Serializable {
 					parent, 
 					children(0))
 			//(augment lexical properties)
-			val restrictFn:Int=>Boolean = this match {
-				case (lex:LexEntry) => lex.validLexApplication(_)
-				case _ => (i:Int) => true
+			val restrictFn:(Sentence,Int)=>Boolean = this match {
+				case (lex:LexEntry) => lex.validLexApplication(_,_)
+				case _ => (sent:Sentence,i:Int) => true
 			}
 			unary.restrict(restrictFn)
 			//(return)
@@ -257,7 +259,8 @@ object GrammarRule {
 		}
 		//--Lex Unary Only
 		rule.children.foreach{ (term:NodeType) =>
-			assert(!term.isWord || rule.isUnary, "Binary rule makes Lex: " + rule)
+			assert(!term.isWord || rule.isUnary, 
+				"Binary rule goes to lexical entry: " + rule)
 		}
 		//--All Good
 		true
@@ -302,10 +305,15 @@ trait CanEvaluate[ParentType,ChildType]{
 
 trait LexEntry extends GrammarRule {
 	//--Possible Overrides
-	private var validApplication:Int=>Boolean = x => true
-	def validLexApplication(w:Int):Boolean = validApplication(w)
-	def restrict(valid:Int=>Boolean):GrammarRule = { 
+	private var validApplication:(Sentence,Int)=>Boolean = (x,y) => true
+	def validLexApplication(sent:Sentence,i:Int):Boolean 
+		= validApplication(sent,i)
+	def restrict(valid:(Sentence,Int)=>Boolean):GrammarRule = { 
 		validApplication = valid 
+		this
+	}
+	def restrict(valid:(Int)=>Boolean):GrammarRule = { 
+		validApplication = (sent:Sentence,i:Int) => valid(sent(i))
 		this
 	}
 }
@@ -400,12 +408,12 @@ case class LambdaLexGrammarRule[ParentType](
 }
 
 
+
 trait CKYRule extends GrammarRule with CanEvaluate[Any,Any] {
 	//<<Construction>>
 	assert(GrammarRule.assertValidity(this))
 	//<<Overrides>>
 	def isUnary:Boolean
-	def isClosure:Boolean = false
 	def hasLambda:Boolean
 	//<<Utilities>>
 	def isLex:Boolean = {
@@ -498,15 +506,22 @@ class CKYUnary(val lambda:Option[Any=>Any],_parent:NodeType,_child:NodeType
 	override def child:NodeType = _child
 }
 
-class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*) 
+class CKYLex(lambda:(Option[Sentence],Int)=>Any,parent:NodeType) 
+		extends CKYUnary(
+			Some((x:Any) => 
+				x match { case (o:Option[Sentence],i:Int) => lambda(o,i) } ),
+			parent,NodeType.WORD){
+	override def isLex:Boolean = true
+}
+
+class CKYClosure(lambda:Option[Any=>Any],val logProb:Double,val chain:CKYUnary*) 
 		extends CKYUnary(lambda,chain(0).parent,chain.last.child) {
-	def this(chain:CKYUnary*) = this(None,chain:_*)
+	def this(logProb:Double,chain:CKYUnary*) = this(None,logProb,chain:_*)
 	//--Error Checks
 	if(chain.length <= 1){ 
 		throw new IllegalArgumentException("Closure must have >1 rule")
 	}
 	//--Overrides
-	override def isClosure:Boolean = true
 	override def isLex:Boolean = {
 		val isTrue:Boolean = child.isWord
 		assert(!isTrue || parent.isPreterminal || chain.length > 1, 
@@ -756,7 +771,8 @@ trait ParseTree extends Tree[NodeType] {
 	//<<Common Methods>>
 	private def cleanParseString(
 			headType:Symbol,
-			indent:Int,b:StringBuilder,sent:Sentence,i:Int):Int = {
+			indent:Int,b:StringBuilder,w2str:Int=>String,r2str:CKYRule=>String,
+			i:Int):Int = {
 		//(util)
 		val df = new DecimalFormat("0.000")
 		//(begin)
@@ -774,7 +790,7 @@ trait ParseTree extends Tree[NodeType] {
 		//(route)
 		if(isLeaf){
 			//--Case: Leaf
-			val tail = sent.gloss(i)
+			val tail = w2str(i)
 			if(tail != null && !tail.equals("")){
 				b.append("(").append(parent.toString.replaceAll(" ","_")).append(" ")
 				b.append(tail.replaceAll(" ","_").replaceAll("'","\\'")).append(")")
@@ -790,20 +806,24 @@ trait ParseTree extends Tree[NodeType] {
 			b.append("(").append(parent.toString.replaceAll(" ","_"))
 			children.foreach{ (child:ParseTree) =>
 				b.append("\n")
-				retI = child.cleanParseString(headType,indent+1,b,sent,retI)
+				retI = child.cleanParseString(headType,indent+1,b,w2str,r2str,retI)
 			}
 			b.append(")")
 			retI
 		}
 	}
-	def asParseString(sent:Sentence):String = {
+	def asParseString(
+			w2str:Int=>String=_.toString,
+			r2str:CKYRule=>String=_.toString):String = {
 		val b = new StringBuilder
-		cleanParseString('String,0,b,sent,0)
+		cleanParseString('String,0,b,w2str,r2str,0)
 		b.toString
 	}
-	def asParseProbabilities(sent:Sentence):String = {
+	def asParseProbabilities(
+			w2str:Int=>String=_.toString,
+			r2str:CKYRule=>String=_.toString):String = {
 		val b = new StringBuilder
-		cleanParseString('Probability,0,b,sent,0)
+		cleanParseString('Probability,0,b,w2str,r2str,0)
 		b.toString
 	}
 	def lexRules:Array[CKYUnary] = {
@@ -885,9 +905,10 @@ object CKYParser {
 
 	//-----
 	// Closures
+	// Compute closures for unary rules. These should not be used as rules.
 	//-----
 	private def computeClosures(raw:Iterable[(CKYRule,Double)]
-			):Array[(CKYUnary,Double)] = {
+			):Array[CKYClosure] = {
 		//--Construct Graph
 		case class Node(parent:NodeType,var neighbors:List[(Node,CKYUnary,Double)]){
 			def this(parent:NodeType) = this(parent,List[(Node,CKYUnary,Double)]())
@@ -896,16 +917,15 @@ object CKYParser {
 			def search(seen:Set[NodeType],backtrace:List[(CKYUnary,Double)],
 					tick:(NodeType,List[(CKYUnary,Double)])=>Any):Unit = {
 				//(overhead)
-				if(seen(parent)){ 
-					throw new IllegalStateException("Cyclic unaries for: " + parent)
-				}
-				//(report path)
-				if(backtrace.length > 0){ tick(parent,backtrace) }
-				//(continue searching)
-				neighbors.foreach{ case (node,rule,count) =>
-					assert(rule.parent == this.parent, "graph constructed badly (head)")
-					assert(rule.child == node.parent,  "graph constructed badly (ch)")
-					node.search(seen + parent, (rule,count) :: backtrace,tick)
+				if(!seen(parent)){ 
+					//(report path)
+					if(backtrace.length > 0){ tick(parent,backtrace) }
+					//(continue searching)
+					neighbors.foreach{ case (node,rule,count) =>
+						assert(rule.parent == this.parent, "graph constructed badly (head)")
+						assert(rule.child == node.parent,  "graph constructed badly (ch)")
+						node.search(seen + parent, (rule,count) :: backtrace,tick)
+					}
 				}
 			}
 		}
@@ -923,15 +943,15 @@ object CKYParser {
 						.addNeighbor(graph(rule.child), rule.asInstanceOf[CKYUnary], 
 							count) 
 				}
-				rule match {
-					case (closure:CKYClosure) => closure.chain.foreach{ add(_) }
-					case _ => add(rule)
-				}
+				assert(!rule.isInstanceOf[CKYClosure],
+					"Computing closures from grammar with closures")
+				//(add rule)
+				add(rule)
 			}
 		}
 		//--Search Graph
 		//(variables)
-		var closures = HashMap[CKYUnary,Double]()
+		var closures = HashSet[CKYClosure]()
 		var closureCount:Int = 0
 		//(search)
 		graph.foreach{ case (startType:NodeType, start:Node) => 
@@ -944,59 +964,50 @@ object CKYParser {
 					assert(rules(0)._1.parent == start.parent, "bad head")
 					assert(rules.last._1.child == child, "bad child")
 					//(make rule)
-					val (toAdd,toAddProb):(CKYUnary,Double) = 
-						if(rules.length == 1){ 
-							rules(0) 
-						} else{ 
-							//(variables)
-							val ruleList = rules.map{ _._1 }
-							val prodCount = rules.map{ _._2 }.product
-							val identity:Option[Any=>Any] = Some((x:Any)=>x)
-							val fn:Option[Any=>Any] = ruleList.foldRight(identity){
-									(term:CKYUnary, recursiveOpt:Option[Any=>Any]) =>
-								term.lambda.flatMap{ (fn:Any=>Any) =>
-									recursiveOpt.map{ (recursive:Any=>Any) =>
-										fn.compose(recursive)
-									}
+					if(rules.length > 1){
+						//(variables)
+						val ruleList = rules.map{ _._1 }
+						val prodLogCount = rules.map{ case (unary:CKYUnary,prob:Double) => 
+								assert(prob >= 0.0 && prob <= 1.0, "Bad probability: " + prob)
+								math.log(prob) 
+							}.sum
+						val identity:Option[Any=>Any] = Some((x:Any)=>x)
+						val fn:Option[Any=>Any] = ruleList.foldRight(identity){
+								(term:CKYUnary, recursiveOpt:Option[Any=>Any]) =>
+							term.lambda.flatMap{ (fn:Any=>Any) =>
+								recursiveOpt.map{ (recursive:Any=>Any) =>
+									fn.compose(recursive)
 								}
 							}
-							//(don't double count)
-							val rule
-								= if(ruleList.length == 2){ ruleList(0) }
-								  else { new CKYClosure(ruleList.slice(0,ruleList.length-1):_*) }
-							closures(rule)
-								= if(closures.contains(rule)){
-										assert(closures(rule) - prodCount >= 0.0, 
-											"decrementing into negative: " + 
-											closures(rule) + " - " + prodCount)
-										closures(rule) - prodCount
-									} else {
-										-prodCount
-									}
-							//(create closure)
-							(new CKYClosure(fn,ruleList:_*), prodCount)
 						}
-					//(add rule)
-					closures(toAdd) = toAddProb
-					closureCount += 1
-					assert(closures.size == closureCount, "Duplicate rule: " + toAdd)
+						//(create closure)
+						closures += new CKYClosure(fn,prodLogCount,ruleList:_*)
+						//(add rule)
+						closureCount += 1
+						assert(closures.size == closureCount, "Duplicate rule")
+					}
 				})
 		}
 		//(return)
 		assert(closures.size == closureCount, "Duplicate rules extracted")
-		assert(closures.values.forall{ _ >= 0.0 }, 
-			"Negative probabilities: " + closures.values.min)
+		assert(closures.forall{ _.logProb <= 0.0 }, 
+			"Prob >= 1.0: " + math.exp(closures.map{ _.logProb }.min))
 		closures.toArray
 	}
 	
 	//-----
 	// Scrape Grammar
+	// return a map from rules to their normalized probabilities, and
+	//   from lexical entries and their normalized probabilities.
 	//-----
-	def scrapeGrammar(trees:Iterable[ParseTree],collapseClosures:Boolean=false
+	def scrapeGrammar(trees:Iterable[ParseTree]
 			):(Map[CKYRule,Double],Map[(CKYUnary,Int),Double]) = {
+		assert(trees.forall{_.logProb > Double.NegativeInfinity}, "Zero count tree")
 		//--Variables
 		val ruleMap = new HashMap[CKYRule,Double]
 		val lexMap = new HashMap[(CKYUnary,Int),Double]
+		val parentSumCount = new HashMap[NodeType,Double]
+		val lexSumCount = new HashMap[CKYUnary,Double]
 		//--Scrape
 		trees.foreach{ (tree:ParseTree) =>
 			//(variables)
@@ -1005,44 +1016,66 @@ object CKYParser {
 				"Invalid probability for tree: " + tree.logProb)
 			//(head rule)
 			if(tree.parent != NodeType.ROOT){
+				//((increment count))
 				val rootRule = new CKYUnary(None, NodeType.ROOT, tree.parent)
 				if(ruleMap.contains(rootRule)){
 					ruleMap(rootRule) = ruleMap(rootRule) + prob
 				} else {
 					ruleMap(rootRule) = prob
 				}
+				//((increment normalization))
+				if(!parentSumCount.contains(rootRule.parent)){
+					parentSumCount(rootRule.parent) = 0.0
+				}
+				parentSumCount(rootRule.parent) 
+					= parentSumCount(rootRule.parent) + prob
 			}
 			//(other rules)
 			tree.traverse( 
 				//(rules)
-				(rule:CKYRule) => 
+				(rule:CKYRule) => {
+					//((increment rule))
 					if(ruleMap.contains(rule)){ 
 						ruleMap(rule) = ruleMap(rule) + prob
 					} else {
 						ruleMap(rule) = prob
-					},
+					}
+					//((increment normalization))
+					if(!parentSumCount.contains(rule.parent)){
+						parentSumCount(rule.parent) = 0.0
+					}
+					parentSumCount(rule.parent) 
+						= parentSumCount(rule.parent) + prob
+				},
 				//(lex)
-				(rule:CKYUnary,w:Int) => 
+				(rule:CKYUnary,w:Int) => {
+					//((increment lex))
+					assert(!rule.isInstanceOf[CKYClosure],"Traverse returned a closure")
 					if(lexMap.contains((rule,w))){ 
 						lexMap((rule,w)) = lexMap(rule,w) + prob
 					} else {
 						lexMap((rule,w)) = prob
 					}
+					//((increment normalization))
+					if(!lexSumCount.contains(rule)){
+						lexSumCount(rule) = 0.0
+					}
+					lexSumCount(rule) 
+						= lexSumCount(rule) + prob
+				}
 			)
 		}
-		//--Collapse Closures
-		val collapsedRuleMap = if(collapseClosures){
-			val unaries  
-				= ruleMap.filter{ case (key:CKYRule,value:Double) =>  key.isUnary}
-			val binaries 
-				= ruleMap.filter{ case (key:CKYRule,value:Double) => !key.isUnary}
-			val closures = computeClosures(unaries)
-			scala.collection.mutable.Map(closures:_*) ++ binaries
-		} else {
-			ruleMap
+		//--Normalize
+		ruleMap.foreach{ case (rule:CKYRule,unnormalizedCount:Double) =>
+			assert(parentSumCount(rule.parent) > 0.0, "Unbounded rule normalization")
+			ruleMap(rule) = unnormalizedCount / parentSumCount(rule.parent)
+		}
+		lexMap.foreach{ case ((rule:CKYUnary,w:Int),unnormalizedCount:Double) =>
+			assert(lexSumCount(rule) > 0.0, "Unbounded lex normalization")
+			lexMap((rule,w)) = unnormalizedCount / lexSumCount(rule)
 		}
 		//--Return
-		(collapsedRuleMap,lexMap)
+		(ruleMap,lexMap)
 	}
 
 	//-----
@@ -1057,7 +1090,7 @@ object CKYParser {
 		apply( 
 			lex.keys.map{ _._2 }.max+1,
 			rules.keys ++ lex.keys.map{ _._1 } 
-		)
+		).update(dataset)
 	}
 	/**
 	*  Define a parser from a lexicon and fixed grammar rules; fast version
@@ -1078,43 +1111,50 @@ object CKYParser {
 			paranoid:Boolean=false,algorithm:Int=3):CKYParser = {
 		//--Binarize Grammar
 		//(binarize)
-		val rawBinaryGrammar = new HashSet[(CKYRule,Double)]
+		val binaryGrammar = new HashSet[(CKYRule,Double)]
 		grammar.foreach{ case (rule:GrammarRule,count:Double) => 
-			rawBinaryGrammar ++= rule.binarize.map{ (_,count) }
+			binaryGrammar ++= rule.binarize.map{ (_,count) }
 		}
+		assert(binaryGrammar.size == grammar.size)
 		//(compute closures)
-		val closures:Array[(CKYUnary,Double)] =
-			computeClosures(rawBinaryGrammar.filter{ 
+		val closures:Array[CKYClosure] =
+			computeClosures(binaryGrammar.filter{ 
 					case (rule:GrammarRule,count:Double) =>
 				rule.isUnary 
 			})
-		val binaryGrammar = new HashSet[(CKYRule,Double)] ++=
-				rawBinaryGrammar.filter( !_._1.isUnary ) ++=
-				closures
 		//--Collect Stats
 		//(variables)
 		val nodeTypes = new HashSet[NodeType]
 		val lexicalEntries = new HashSet[CKYUnary]
 		val rules = new HashMap[NodeType,HashMap[CKYRule,Double]]
-		//(non-lexical entries)
-		binaryGrammar.foreach{ case (rule:CKYRule,count:Double) =>
-			//((collect types))
-			nodeTypes += rule.parent
-			nodeTypes ++= rule.children
-			//((collect rules))
-			assert(!rule.isLex, "Lexical rule in top-level grammar")
+		//(register non-lex)
+		def addRule(rule:CKYRule,count:Double){
+			//((register rule))
 			if(!rules.contains(rule.parent)){
 				rules(rule.parent) = HashMap[CKYRule,Double]()
 			}
 			assert(!rules(rule.parent).contains(rule), "duplicate rule detected")
 			rules(rule.parent)(rule) = count
 		}
-		//(lexical entries)
-		rawBinaryGrammar.map{ _._1}.filter{ _.isLex }.foreach{ 
-			case (rule:CKYUnary) =>
-				nodeTypes += rule.parent += rule.child
-				lexicalEntries += rule
-			case _ => throw new IllegalArgumentException("Lexical rule is not unary")
+		//(categorize rules)
+		binaryGrammar.foreach{ case (rule:CKYRule,count:Double) =>
+			//((collect types))
+			nodeTypes += rule.parent
+			nodeTypes ++= rule.children
+			//((special cases))
+			rule match {
+				case (closure:CKYClosure) => 
+					throw new IllegalStateException("Closure in binary grammar")
+				case (unary:CKYUnary) =>
+					if(unary.isLex){
+						lexicalEntries += unary
+					} else {
+						addRule(unary,count)
+					}
+				case (binary:CKYBinary) =>
+					addRule(binary,count)
+				case _ => throw new IllegalStateException("Invalid rule: " + rule)
+			}
 		}
 		val numNodeTypes:Int = nodeTypes.size
 		//--Node Type
@@ -1173,6 +1213,8 @@ object CKYParser {
 			//(sizes)
 			numWords,
 			numNodeTypes,
+			//(closures)
+			closures,
 			//(parameters)
 			ruleProb,
 			lexProb,
@@ -1197,6 +1239,8 @@ class CKYParser (
 		//(sizes)
 		val numWords:Int,
 		numNodeTypes:Int,
+		//(closures)
+		closures:Array[CKYClosure],
 		//(probabilities -- data)
 		ruleProb:Array[Multinomial[Int]],
 		lexProb:Array[Multinomial[Int]],
@@ -1231,8 +1275,11 @@ class CKYParser (
 	//-----
 	private val binaryRules:Array[CKYRule] 
 		= ruleProbIndex.keys.filter{ !_.isUnary }.toArray
-	private val unaryRules:Array[CKYRule]  
-		= ruleProbIndex.keys.filter{ _.isUnary }.toArray
+	private val unaryRules:Array[CKYUnary]  
+		= ruleProbIndex.keys
+				.filter{ _.isUnary }
+				.map{ _.asInstanceOf[CKYUnary] }
+				.toArray
 
 	
 	//-----
@@ -1311,10 +1358,14 @@ class CKYParser (
 		}
 		
 		// -- ParseTree Optional Overrides --
-		override def asParseString(sent:Sentence):String 
-			= cleanParseString('String,sent)
-		override def asParseProbabilities(sent:Sentence):String
-			= cleanParseString('Probability,sent)
+		override def asParseString(
+				w2str:Int=>String=_.toString,
+				r2str:CKYRule=>String=_.toString):String
+			= cleanParseString('String,w2str,r2str)
+		override def asParseProbabilities(
+				w2str:Int=>String=_.toString,
+				r2str:CKYRule=>String=_.toString):String
+			= cleanParseString('Probability,w2str,r2str)
 		// -- Object Overrides --
 		override def clone:ChartElem = {
 			new ChartElem(logScore,term,left,right)
@@ -1402,7 +1453,7 @@ class CKYParser (
 				//(case: unary rule)
 				assert(right == null, "binary rule on closure ckyI")
 				if(this.isLeaf) {
-					assert(!term.isClosure, "closure used as lex tag")
+					assert(!term.isInstanceOf[CKYClosure], "closure used as lex tag")
 					term match {
 						case (unary:CKYUnary) =>
 							Option(sent) match {
@@ -1439,7 +1490,8 @@ class CKYParser (
 			(0 until stackDepth).foreach{ (stack:Int) => up() }
 			pos
 		}
-		private def cleanParseString(headType:Symbol,sent:Sentence):String = {
+		private def cleanParseString(
+				headType:Symbol,w2str:Int=>String,r2str:CKYRule=>String):String = {
 			val b = new StringBuilder
 			//(clean string)
 			def clean(str:String) = {
@@ -1450,18 +1502,18 @@ class CKYParser (
 			traverseHelper(0,
 				(rule:CKYRule) => {
 					val head:String = headType match {
-						case 'String => clean(rule.toString)
+						case 'String => clean(r2str(rule))
 						case 'Probability => df.format(ruleProb(rule))
 					}
 					b.append("(").append(head).append(" ")
 				},
 				(rule:CKYUnary,w:Int) => {
 					val head:String = headType match {
-						case 'String => clean(rule.toString)
+						case 'String => clean(r2str(rule))
 						case 'Probability => df.format(lexProb(rule,w))
 					}
 					b.append("( ").append(head).append(" ").
-						append(clean(sent.gloss(w))).append(" ) ")
+						append(clean(w2str(w))).append(" ) ")
 				},
 				() => {
 					b.append(") ")
@@ -1480,7 +1532,6 @@ class CKYParser (
 		var wasReset = false
 		
 		// -- Lazy Eval --
-
 		def markLazy = { 
 			assert(deferred == null, "marking as lazy twice")
 			deferred = List[LazyStruct]() 
@@ -1952,6 +2003,10 @@ class CKYParser (
 		def suggest(term:CKYRule,score:Double) = {
 			if(length < capacity){ add(term,score,null) }
 		}
+		//<<Object overrides>>
+		override def toString:String = {
+			"Beam length="+length+"\n\t"+values.slice(0,length).mkString("\n\t")
+		}
 	}
 
 	//-----
@@ -1982,17 +2037,24 @@ class CKYParser (
 		}
 	}
 	def lexLogProb(rule:CKYUnary,w:Int):Double = safeLn(lexProb(rule,w))
-	def parameters(w2str:Int=>String = _.toString):String = {
+	def parameters(
+			w2str:Int=>String = _.toString,
+			r2str:CKYRule=>String= _.toString):String = {
 		//--Variables
 		val b = new StringBuilder
 		val df = new DecimalFormat("0.000")
 		//--Rules
 		b.append("<<RULES>>\n")
-		index2NodeType.zipWithIndex.foreach{ case (parent:NodeType,i:Int) =>
+		index2NodeType
+				.zipWithIndex
+				.foreach{ case (parent:NodeType,i:Int) =>
 			if(ruleProbDomain(i).length > 0){
 				b.append(parent.toString).append(" ->\n")
-				ruleProb(i).foreach{ (j:Int) =>
-					b.append("    ").append(df.format(ruleProb(i).prob(j)))
+				ruleProb(i).map{ (j:Int) => (j,ruleProb(i).prob(j)) }
+						.toArray
+						.sortBy{ case (j:Int,prob:Double) => -prob }
+						.foreach{ case (j:Int,prob:Double) =>
+					b.append("    ").append(df.format(prob))
 						.append("   ")
 						.append(ruleProbDomain(i)(j))
 						.append("\n")
@@ -2001,9 +2063,13 @@ class CKYParser (
 		}
 		//--Lex
 		b.append("<<LEX>>\n")
-		lexProbDomain.zipWithIndex.foreach{ case (rule:CKYUnary,i:Int) =>
-			b.append(rule.toString).append(" ->\n")
-			(0 until numWords).foreach{ (w:Int) =>
+		lexProbDomain
+				.zipWithIndex
+				.foreach{ case (rule:CKYUnary,i:Int) =>
+			b.append(r2str(rule)).append(" ->\n")
+			(0 until numWords)
+					.sortBy{ (w:Int) => -lexProb(i).prob(w) }
+					.foreach{ (w:Int) =>
 				b.append("    ").append(df.format(lexProb(i).prob(w)))
 					.append("   ")
 					.append(w2str(w))
@@ -2115,7 +2181,7 @@ class CKYParser (
 		def klex(elem:Int):Array[(CKYRule,Double)] = {
 			val word:Int = sent(elem)
 			lexProbDomain
-				.filter{ (term:CKYUnary) => term.validLexApplication(word) }
+				.filter{ (term:CKYUnary) => term.validLexApplication(sent,elem) }
 				.map{ (term:CKYUnary) => (term, lexProb(term,word))  }
 				.sortWith{ case ((rA,pA),(rB,pB)) => pA > pB }
 				.map{ (pair:(CKYUnary,Double)) => (pair._1,math.log(pair._2)) }
@@ -2145,9 +2211,22 @@ class CKYParser (
 		//--Grammar
 		for(length <- 1 to sent.length) {                      // length
 			for(begin <- 0 to sent.length-length) {              // begin
+				//(overhead)
 				val end:Int = begin+length
 				assert(end <= sent.length, "end is out of bounds")
-				//(update chart)
+				def addUnary(term:CKYUnary, ruleLProb:Double){
+					assert(ruleLProb <= 0.0, "Log probability of >0: " + ruleLProb)
+					assert(term.isUnary, "Unary rule should be unary")
+					val child:Beam = gram(chart,begin,end,term.child,CKYParser.BINARY)
+					gram(chart,begin,end,term.parent,CKYParser.UNARY).combine(term,child,
+						(left:ChartElem,right:ChartElem) => { ruleLProb })
+				}
+				//(unaries)
+				if(length == 1){
+					unaryRules.foreach{ u => addUnary(u,ruleLogProb(u)) }
+					closures.foreach{ c => addUnary(c,c.logProb) }     
+				}
+				//(binaries)
 				binaryRules.foreach{ (term:CKYRule) =>             // rules [binary]
 					val ruleLProb:Double = ruleLogProb(term)
 					assert(ruleLProb <= 0.0, "Log probability of >0: " + ruleLProb)
@@ -2180,13 +2259,10 @@ class CKYParser (
 								"Beam did not combine on rule : " + term)
 					}
 				}
-				unaryRules.foreach{ (term:CKYRule) =>              // rules [unary]
-					val ruleLProb = ruleLogProb(term)
-					assert(ruleLProb <= 0.0, "Log probability of >0: " + ruleLProb)
-					assert(term.isUnary, "Unary rule should be unary")
-					val child:Beam = gram(chart,begin,end,term.child,CKYParser.BINARY)
-					gram(chart,begin,end,term.parent,CKYParser.UNARY).combine(term,child,
-						(left:ChartElem,right:ChartElem) => { ruleLProb })
+				//(unaries)
+				if(length > 1){
+					unaryRules.foreach{ u => addUnary(u,ruleLogProb(u)) }
+					closures.foreach{ c => addUnary(c,c.logProb) }     
 				}
 				//(post-update tasks)
 				if(kbestCKYAlgorithm < 3) {
@@ -2227,7 +2303,12 @@ class CKYParser (
 				):CKYParser = {
 		//--Extract Grammar
 		val (rules:HashMap[CKYRule,Double],lex:HashMap[(CKYUnary,Int),Double]) 
-			= CKYParser.scrapeGrammar(trees,collapseClosures=true)
+			= CKYParser.scrapeGrammar(trees)
+		//(compute closures)
+		val newClosures:Array[CKYClosure] =
+			CKYParser.computeClosures(rules.filter{ 
+				case (rule:CKYRule,count:Double) => rule.isUnary 
+			})
 		//--Update Probabilities
 		//(get ESS)
 		val ruleESS = ruleProb.map{ _.newStatistics(rulePrior) }
@@ -2250,6 +2331,8 @@ class CKYParser (
 				//(sizes)
 				numWords,
 				numNodeTypes,
+				//(closures)
+				newClosures, //<--changed
 				//(probabilities -- data)
 				newRuleProb, //<--changed
 				newLexProb,  //<--changed
