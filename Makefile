@@ -56,7 +56,7 @@ ${DIST}/${DIST_TEST}.jar: $(wildcard ${TEST_SRC}/org/goobs/tests/*.java) $(wildc
 	mkdir -p ${TEST_BUILD}
 	mkdir -p ${DIST}
 	javac -Xlint:unchecked -Xlint:deprecation -d $(TEST_BUILD) -cp $(CP):${DIST}/${DIST_LIB}.jar:${LIB}/junit.jar `find $(TEST_SRC) -name "*.java"`
-	${SCALAC} -deprecation -d $(TEST_BUILD) -cp $(CP):${DIST}/${DIST_LIB}.jar:${LIB}/junit.jar `find $(TEST_SRC) -name "*.java"`
+	${SCALAC} -deprecation -d $(TEST_BUILD) -cp $(CP):${DIST}/${DIST_LIB}.jar:${LIB}/junit.jar:${LIB}/scalatest.jar `find $(TEST_SRC) -name "*.scala"`
 	jar cf ${DIST}/${DIST_TEST}.jar -C $(TEST_BUILD) .
 	jar uf ${DIST}/${DIST_TEST}.jar -C $(TEST_SRC) .
 
