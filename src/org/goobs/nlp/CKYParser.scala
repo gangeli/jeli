@@ -1373,7 +1373,6 @@ class CKYParser (
 		def deepclone(sent:Sentence):ChartElem = {
 			val leftClone = if(left == null) null else left.deepclone(sent)
 			val rightClone = if(right == null) null else right.deepclone(sent)
-			assert((leftClone == null && rightClone == null) || logScore > Double.NegativeInfinity)
 			val elem = new ChartElem(logScore,term,leftClone,rightClone)
 			elem.sent = sent
 			elem
