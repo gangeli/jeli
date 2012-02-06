@@ -2,10 +2,12 @@ package org.goobs.tests
 
 import scala.util.Random
 
+
 import org.scalatest.Spec
 import org.scalatest.matchers.ShouldMatchers
 import org.goobs.nlp._
 import org.goobs.util.SingletonIterator
+import java.io._
 
 object Grammars {
 	def TOY:Array[GrammarRule] = {
@@ -313,23 +315,6 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			rules(new CKYUnary(NodeType.make("A"), NodeType.make("B"))) should be (1.0 plusOrMinus 0.000001)
 			rules(new CKYUnary(NodeType.make("B"), NodeType.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
 		}
-		it("should scrape constituent rules (closure)"){
-			val (rules,lex) = CKYParser.scrapeGrammar(Array[ParseTree](Trees.UNARIES), true)
-			//(existence)
-			rules.keys.toArray.contains(GrammarRule(NodeType.ROOT, NodeType.make("A"))) should be (true)
-			rules.keys.toArray.contains(GrammarRule(NodeType.ROOT, NodeType.make("B"))) should be (true)
-			rules.keys.toArray.contains(GrammarRule(NodeType.ROOT, NodeType.makePreterminal("C_"))) should be (true)
-			rules.keys.toArray.contains(GrammarRule(NodeType.make("A"), NodeType.make("B"))) should be (true)
-			rules.keys.toArray.contains(GrammarRule(NodeType.make("B"), NodeType.makePreterminal("C_"))) should be (true)
-			rules.keys.toArray.contains(GrammarRule(NodeType.make("A"), NodeType.makePreterminal("C_"))) should be (true)
-			//(probabilities)
-			rules(new CKYUnary(NodeType.ROOT, NodeType.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
-			rules(new CKYUnary(NodeType.ROOT, NodeType.make("A"))) should be (0.0 plusOrMinus 0.000001)
-			rules(new CKYUnary(NodeType.ROOT, NodeType.make("B"))) should be (0.0 plusOrMinus 0.000001)
-			rules(new CKYUnary(NodeType.make("A"), NodeType.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
-			rules(new CKYUnary(NodeType.make("A"), NodeType.make("B"))) should be (0.0 plusOrMinus 0.000001)
-			rules(new CKYUnary(NodeType.make("B"), NodeType.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
-		}
 	}
 	
 	describe("A toy binarized grammar") {
@@ -404,7 +389,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			parse1 should not be (null)
 			parse1.length should be (1)
 			parse1(0).parent should be (NodeType.ROOT);
-			parse1(0).asParseString(sent) should not be (null)
+			parse1(0).asParseString() should not be (null)
 			parser.parse(sent) should not be (null)
 			//(parse another sentence)
 			val sent2:Sentence = Sentence(w2str, "I like NLP")
@@ -450,7 +435,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			parse1 should not be (null)
 			parse1.length should be (1)
 			parse1(0).parent should be (NodeType.ROOT);
-			parse1(0).asParseString(sentA) should not be (null)
+			parse1(0).asParseString() should not be (null)
 			parser.parse(sentA) should not be (null)
 			//(parse another sentence)
 			val sentB:Sentence = Sentence(w2str, "I like NLP")
@@ -507,14 +492,20 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			//(should have probabilities)
 			parser.ruleProb(new CKYBinary(NodeType('int), NodeType('int), NodeType('int))) should be (0.5)
 			parser.ruleProb(new CKYUnary(NodeType('int), NodeType('int_tag))) should be (0.5)
-			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('int), NodeType('double))) should be (0.2)
-			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('double), NodeType('int))) should be (0.2)
-			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('double), NodeType('double))) should be (0.2)
-			parser.ruleProb(new CKYUnary(NodeType('double), NodeType('int))) should be (0.2)
-			parser.ruleProb(new CKYUnary(NodeType('double), NodeType('int_tag))) should be (0.2)   //<--closure
-			parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('double))) should be (0.3333333333 plusOrMinus 0.000001)
-			parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('int))) should be (0.3333333333 plusOrMinus 0.000001)
-			parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('int_tag))) should be (0.3333333333 plusOrMinus 0.000001)
+			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('int), NodeType('double))) should be (0.25)
+			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('double), NodeType('int))) should be (0.25)
+			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('double), NodeType('double))) should be (0.25)
+			parser.ruleProb(new CKYUnary(NodeType('double), NodeType('int))) should be (0.25)
+			intercept[NoSuchElementException]{
+				parser.ruleProb(new CKYUnary(NodeType('double), NodeType('int_tag)))
+			}
+			parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('double))) should be (1.0 plusOrMinus 0.000001)
+			intercept[NoSuchElementException]{
+				parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('int)))
+			}
+			intercept[NoSuchElementException]{
+				parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('int_tag)))
+			}
 			//(should not have probabilities)
 			intercept[NoSuchElementException]{
 				parser.ruleProb(new CKYUnary(NodeType('int), NodeType.WORD))
@@ -542,7 +533,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			parse1 should not be (null)
 			parse1.length should be (1)
 			parse1(0).parent should be (NodeType.ROOT);
-			parse1(0).asParseString(sent) should not be (null)
+			parse1(0).asParseString() should not be (null)
 			parser.parse(sent) should not be (null)
 			//(parse with a beam)
 			val parse2 = parser.parse(sent,100)
@@ -604,7 +595,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			parse.evaluate should be (-1.toDouble)
 			parse.logProb should be > (Double.NegativeInfinity)
 		}
-		it("should parse arithmetic ambiguously"){
+		it("should parse ambiguously"){
 			//--Easy Case
 			//(construct parses)
 			var parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) }, paranoid=true);
@@ -684,16 +675,27 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			}
 			//(update)
 			val learned = parser.update(goodTrees, 0.0, 0.0 )
-			//(checkProbs)
-			println(parser.parse(MSent("6 + 2")).logProb + " :: " + parser.parse(MSent("6 + 2")).prettyPrint())
-			println(learned.parse(MSent("6 + 2")).logProb + " :: " + learned.parse(MSent("6 + 2")).prettyPrint())
-			println(learned.parameters( math2str(_) ))
 			//(check)
 			learned.parse(MSent("6 + 2")).evaluate.asInstanceOf[Double].toInt should be (8)
 			learned.parse(MSent("6 - 2")).evaluate.asInstanceOf[Double].toInt should be (4)
 			learned.parse(MSent("6 * 2")).evaluate.asInstanceOf[Double].toInt should be (12)
 			learned.parse(MSent("6 / 2")).evaluate.asInstanceOf[Double].toInt should be (3)
 			learned.parse(MSent("6 ^ 2")).evaluate.asInstanceOf[Double].toInt should be (36)
+		}
+	}
+
+	describe("A CKY parser"){
+		it("should serialize"){
+			val file = File.createTempFile("scalatest", ".ser");
+			//--Write
+			val toSave = CKYParser(w2str.length, TOY);
+			val out = new ObjectOutputStream(new FileOutputStream(file));
+			out.writeObject(toSave);
+			out.close();
+			//--Read
+			val in = new ObjectInputStream(new FileInputStream(file));
+			val parser:CKYParser = in.readObject().asInstanceOf[CKYParser];
+			
 		}
 	}
 }

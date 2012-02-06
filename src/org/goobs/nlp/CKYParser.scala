@@ -294,7 +294,7 @@ object GrammarRule {
 
 }
 
-trait CanEvaluate[ParentType,ChildType]{
+trait CanEvaluate[ParentType,ChildType] extends Serializable{
 	def evaluate(children:(ChildType,NodeType)*):(ParentType,NodeType)
 	def evaluateLex(sent:Option[Sentence],index:Int):ParentType = {
 		val (parentVal,parentType) 
@@ -514,20 +514,24 @@ class CKYLex(lambda:(Option[Sentence],Int)=>Any,parent:NodeType)
 	override def isLex:Boolean = true
 }
 
-class CKYClosure(lambda:Option[Any=>Any],val logProb:Double,val chain:CKYUnary*) 
+class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*) 
 		extends CKYUnary(lambda,chain(0).parent,chain.last.child) {
-	def this(logProb:Double,chain:CKYUnary*) = this(None,logProb,chain:_*)
-	//--Error Checks
+	def this(chain:CKYUnary*) = this(None,chain:_*)
+	//<<Error checks>>
 	if(chain.length <= 1){ 
 		throw new IllegalArgumentException("Closure must have >1 rule")
 	}
-	//--Overrides
+	//<<Custom>>
+	def logProb(unaryLogProb:CKYUnary=>Double):Double
+		= chain.map{ unaryLogProb(_) }.sum
+	//<<CKYRule overrides>>
 	override def isLex:Boolean = {
 		val isTrue:Boolean = child.isWord
 		assert(!isTrue || parent.isPreterminal || chain.length > 1, 
 			"Lex closure not tagged as preterminal")
 		isTrue
 	}
+	//<<Object overrides>>
 	override def equals(o:Any):Boolean = {
 		if(super.equals(o)){
 			o match {
@@ -539,7 +543,8 @@ class CKYClosure(lambda:Option[Any=>Any],val logProb:Double,val chain:CKYUnary*)
 			false
 		}
 	}
-
+	override def toString:String 
+		= "Closure[" + chain.toArray.mkString("++") + "]"
 }
 
 class CKYBinary(val lambda:Option[(Any,Any)=>Any],_parent:NodeType,
@@ -967,10 +972,6 @@ object CKYParser {
 					if(rules.length > 1){
 						//(variables)
 						val ruleList = rules.map{ _._1 }
-						val prodLogCount = rules.map{ case (unary:CKYUnary,prob:Double) => 
-								assert(prob >= 0.0 && prob <= 1.0, "Bad probability: " + prob)
-								math.log(prob) 
-							}.sum
 						val identity:Option[Any=>Any] = Some((x:Any)=>x)
 						val fn:Option[Any=>Any] = ruleList.foldRight(identity){
 								(term:CKYUnary, recursiveOpt:Option[Any=>Any]) =>
@@ -981,7 +982,7 @@ object CKYParser {
 							}
 						}
 						//(create closure)
-						closures += new CKYClosure(fn,prodLogCount,ruleList:_*)
+						closures += new CKYClosure(fn,ruleList:_*)
 						//(add rule)
 						closureCount += 1
 						assert(closures.size == closureCount, "Duplicate rule")
@@ -990,8 +991,6 @@ object CKYParser {
 		}
 		//(return)
 		assert(closures.size == closureCount, "Duplicate rules extracted")
-		assert(closures.forall{ _.logProb <= 0.0 }, 
-			"Prob >= 1.0: " + math.exp(closures.map{ _.logProb }.min))
 		closures.toArray
 	}
 	
@@ -1115,7 +1114,6 @@ object CKYParser {
 		grammar.foreach{ case (rule:GrammarRule,count:Double) => 
 			binaryGrammar ++= rule.binarize.map{ (_,count) }
 		}
-		assert(binaryGrammar.size == grammar.size)
 		//(compute closures)
 		val closures:Array[CKYClosure] =
 			computeClosures(binaryGrammar.filter{ 
@@ -1293,7 +1291,7 @@ class CKYParser (
 			) extends EvalTree[Any] with Cloneable {
 
 		var sent:Sentence = null
-		
+
 		//<<CKY usage>>
 		def apply(logScore:Double,term:CKYRule,left:ChartElem,right:ChartElem
 				):ChartElem = {
@@ -1375,6 +1373,7 @@ class CKYParser (
 		def deepclone(sent:Sentence):ChartElem = {
 			val leftClone = if(left == null) null else left.deepclone(sent)
 			val rightClone = if(right == null) null else right.deepclone(sent)
+			assert((leftClone == null && rightClone == null) || logScore > Double.NegativeInfinity)
 			val elem = new ChartElem(logScore,term,leftClone,rightClone)
 			elem.sent = sent
 			elem
@@ -1525,7 +1524,8 @@ class CKYParser (
 	//-----
 	// K-Best List
 	//-----
-	class Beam(val values:Array[ChartElem],var capacity:Int) {
+	class Beam(val values:Array[ChartElem],var capacity:Int) 
+			extends Serializable {
 		private var deferred:List[LazyStruct] = null
 		private var lazyNextFn:Unit=>Boolean = null
 		var length = 0
@@ -1845,6 +1845,8 @@ class CKYParser (
 				def compare(that:DataSource):Int = {
 					if(this.score < that.score) -1
 					else if(this.score > that.score) 1
+					else if(this.leftI + this.rightI  < that.leftI + that.rightI) 1
+					else if(this.leftI + this.rightI  > that.leftI + that.rightI) -1
 					else 0
 				}
 				override def toString:String = "DataSource(score="+score+
@@ -2224,7 +2226,7 @@ class CKYParser (
 				//(unaries)
 				if(length == 1){
 					unaryRules.foreach{ u => addUnary(u,ruleLogProb(u)) }
-					closures.foreach{ c => addUnary(c,c.logProb) }     
+					closures.foreach{ c => addUnary(c,c.logProb(ruleLogProb(_))) }
 				}
 				//(binaries)
 				binaryRules.foreach{ (term:CKYRule) =>             // rules [binary]
@@ -2262,7 +2264,7 @@ class CKYParser (
 				//(unaries)
 				if(length > 1){
 					unaryRules.foreach{ u => addUnary(u,ruleLogProb(u)) }
-					closures.foreach{ c => addUnary(c,c.logProb) }     
+					closures.foreach{ c => addUnary(c,c.logProb(ruleLogProb(_))) }     
 				}
 				//(post-update tasks)
 				if(kbestCKYAlgorithm < 3) {

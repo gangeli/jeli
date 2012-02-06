@@ -1,7 +1,9 @@
 package org.goobs.stats;
 
 
-public interface CountStore<D> extends Iterable<D>, Cloneable{
+import java.io.Serializable;
+
+public interface CountStore<D> extends Iterable<D>, Cloneable, Serializable {
 	public double getCount(D key);
 	public void setCount(D key, double count);
 	public CountStore<D> emptyCopy();
