@@ -6,8 +6,8 @@ import scala.util.Random
 import org.scalatest.Spec
 import org.scalatest.matchers.ShouldMatchers
 import org.goobs.nlp._
-import org.goobs.util.SingletonIterator
 import java.io._
+import org.goobs.util.{TrackedObjectOutputStream, SingletonIterator}
 
 object Grammars {
 	def TOY:Array[GrammarRule] = {
@@ -688,13 +688,32 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 		it("should serialize"){
 			val file = File.createTempFile("scalatest", ".ser");
 			//--Write
+			//(pre-parse)
 			val toSave = CKYParser(w2str.length, TOY);
-			val out = new ObjectOutputStream(new FileOutputStream(file));
-			out.writeObject(toSave);
-			out.close();
+			var out = new TrackedObjectOutputStream(new FileOutputStream(file));
+			try {
+				out.writeObject(toSave);
+				out.close();
+			} catch {
+				case (e:Exception) => assert(false, "Could not serialize: " + out.getStack.toArray.mkString(" --> "))
+			}
+			//(post-parse)
+			val sent:Sentence = Sentence(w2str, "I like sugar")
+			val parseToMatch = toSave.parse(sent)
+			out = new TrackedObjectOutputStream(new FileOutputStream(file));
+			try {
+				out.writeObject(toSave);
+				out.close();
+			} catch {
+				case (e:Exception) => assert(false, "Could not serialize: " + out.getStack.toArray.mkString(" --> "))
+			}
 			//--Read
+			//(read parser)
 			val in = new ObjectInputStream(new FileInputStream(file));
 			val parser:CKYParser = in.readObject().asInstanceOf[CKYParser];
+			//(check parse)
+			val reReadParse = parser.parse(sent)
+			reReadParse should be (parseToMatch)
 			
 		}
 	}

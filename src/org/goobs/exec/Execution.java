@@ -32,18 +32,18 @@ import java.util.regex.Pattern;
 */
 
 public class Execution {
-	
+
 	private static final String LOG_TAG = "EXEC";
-	
+
 	private static final String SCALA_PATH = "scalaPath";
 	private static final String[] IGNORED_JARS = {
-		"junit.jar",
-		"scala-library.jar",
-		"scala-compiler.jar",
+			"junit.jar",
+			"scala-library.jar",
+			"scala-compiler.jar",
 	};
 	private static final Class[] BOOTSTRAP_CLASSES = {
-		Execution.class,
-		Log.class,
+			Execution.class,
+			Log.class,
 	};
 
 	@Option(name="ignoreClasspath", gloss="Do not try to load options from anything matching these")
@@ -57,19 +57,19 @@ public class Execution {
 	@Option(name="execDir", gloss="Directory to log stuff to")
 	protected static String execDir;
 	@Option(name="numThreads", gloss="Number of threads on machine")
-	public static int numThreads = 1;
-    @Option(name="host", gloss="N of computer we are running on")
-    public static String host = "(unknown)";
-    @Option(name="defaultExitStatus", gloss="default exit status message")
-    public static String exitMessage = "0";
+	public static int numThreads = Runtime.getRuntime().availableProcessors();
+	@Option(name="host", gloss="N of computer we are running on")
+	public static String host = "(unknown)";
+	@Option(name="defaultExitStatus", gloss="default exit status message")
+	public static String exitMessage = "0";
 
-    static {
-        try{
-            host = InetAddress.getLocalHost().getHostName();
-        } catch (Exception ignored){ }
-    }
+	static {
+		try{
+			host = InetAddress.getLocalHost().getHostName();
+		} catch (Exception ignored){ }
+	}
 
-	
+
 	private static ResultLogger logger;
 
 	/*
@@ -105,9 +105,9 @@ public class Execution {
 		protected void endTrack(String check){
 			Log.endTrack();
 		}
-        protected void exception(Exception e){
-            e.printStackTrace();
-        }
+		protected void exception(Throwable e){
+			e.printStackTrace();
+		}
 	}
 
 	private static LogInterface log = new LogInterface();
@@ -118,7 +118,7 @@ public class Execution {
 	 * OPTIONS
 	 * ----------
 	 */
-	
+
 	private static final Map<String,String> parseOptions(String[] args){
 		Map <String, String> opts = new HashMap<String,String>();
 		String key = null;
@@ -148,7 +148,7 @@ public class Execution {
 		}
 		return opts;
 	}
-	
+
 	private static final void fillField(Field f, String value){
 		try {
 			//--Permissions
@@ -216,8 +216,8 @@ public class Execution {
 		path = path.substring(cpEntry.length() + 1);
 		path = path.replaceAll("/", ".").substring(0, path.length() - 6);
 		try {
-			return Class.forName(path, 
-					false, 
+			return Class.forName(path,
+					false,
 					ClassLoader.getSystemClassLoader());
 		} catch (ClassNotFoundException e) {
 			throw log.fail("Could not load class at path: " + path);
@@ -226,7 +226,7 @@ public class Execution {
 			return null;
 		}
 	}
-	
+
 	private static final boolean isIgnored(String path){
 		for(String ignore : IGNORED_JARS){
 			if(path.endsWith(ignore)){
@@ -235,7 +235,7 @@ public class Execution {
 		}
 		return false;
 	}
-	
+
 	private static final void ensureScalaPath(Map<String,String> options, String[] cp){
 		//(check if it's in the classpath)
 		try {
@@ -274,7 +274,7 @@ public class Execution {
 		}
 		options.remove(SCALA_PATH);
 	}
-	
+
 	private static final Class<?>[] getVisibleClasses(Map<String,String> options){
 		//--Variables
 		List<Class<?>> classes = new ArrayList<Class<?>>();
@@ -293,7 +293,7 @@ public class Execution {
 			}
 			boolean isIgnored = false;
 			for(String pattern : ignoredClasspath){
-				if(entry.matches(pattern)){ 
+				if(entry.matches(pattern)){
 					log.debug(LOG_TAG,"Ignoring options in classpath element: " + entry);
 					isIgnored = true;
 					break;
@@ -325,17 +325,17 @@ public class Execution {
 						if (clazz.matches(".*class$")) {
 							//(if it's a class)
 							clazz = clazz.substring(0, clazz.length() - 6)
-							.replaceAll("/", ".");
+									.replaceAll("/", ".");
 							//(add it)
 							try {
 								classes.add(
-										Class.forName(clazz, 
-												false, 
+										Class.forName(clazz,
+												false,
 												ClassLoader.getSystemClassLoader()));
 							} catch (ClassNotFoundException ex) {
 								throw Log
-								.internal("Could not load class in jar: "
-										+ f + " at path: " + clazz);
+										.internal("Could not load class in jar: "
+												+ f + " at path: " + clazz);
 							} catch (NoClassDefFoundError ex) {
 								log.debug(LOG_TAG,"Could not scan class: " + clazz + " (in jar: " + f + ")");
 							}
@@ -343,26 +343,26 @@ public class Execution {
 					}
 				} catch (IOException e) {
 					throw log.fail("Could not open jar file: " + f +
-						"(are you sure the file exists?)");
+							"(are you sure the file exists?)");
 				}
 			} else {
 				//case: ignored jar
 			}
 		}
-		
+
 		return classes.toArray(new Class<?>[classes.size()]);
 	}
 
 	protected static final Map<String,Field> fillOptions(
-			Class<?>[] classes, 
+			Class<?>[] classes,
 			Map<String,String> options ){
 		return fillOptions(classes, options, true);
 	}
 
 	@SuppressWarnings("rawtypes")
 	protected static final Map<String,Field> fillOptions(
-			Class<?>[] classes, 
-			Map<String,String> options, 
+			Class<?>[] classes,
+			Map<String,String> options,
 			boolean ensureAllOptions  ) {
 
 		//--Get Fillable Options
@@ -377,7 +377,7 @@ public class Execution {
 				log.debug(LOG_TAG,"Could not check fields for class: " + c.getName() + "  (caused by " + e.getClass() + ": " + e.getMessage() + ")");
 				continue;
 			}
-			
+
 			for(Field f : fields){
 				Option o = f.getAnnotation(Option.class);
 				if(o != null){
@@ -422,7 +422,7 @@ public class Execution {
 				}
 			}
 		}
-		
+
 		//--Fill Options
 		for(String key : options.keySet()){
 			String rawKey = key;
@@ -465,7 +465,7 @@ public class Execution {
 				fillField(target, value);
 			}
 		}
-		
+
 		//--Ensure Required
 		boolean good = true;
 		for(String key : required.keySet()){
@@ -476,16 +476,16 @@ public class Execution {
 			}
 		}
 		if(!good){ System.exit(ExitCode.BAD_OPTION.code); }
-		
+
 		return canFill;
 	}
-	
+
 	/*
-	 * ----------
-	 * DATABASE
-	 * ----------
-	 */
-	
+		 * ----------
+		 * DATABASE
+		 * ----------
+		 */
+
 	protected static final void initDatabase(Class<?>[] classes, Map<String,String> options, Map<String,Field> optionFields){
 		if(outputDB == null){ return; }
 		//--Init Database
@@ -502,7 +502,7 @@ public class Execution {
 				//(if no declared option, get field value)
 				try {
 					boolean accessSave = true;
-					if(!f.isAccessible()){ accessSave = false; f.setAccessible(true); } 
+					if(!f.isAccessible()){ accessSave = false; f.setAccessible(true); }
 					Object v = f.get(null);
 					if(v == null){
 						value = "<null>";
@@ -523,32 +523,32 @@ public class Execution {
 		//--Commit
 		outputDB.endTransaction();
 	}
-	
+
 	public static final void setOutputDatabase(Database d){
 		outputDB = d;
 	}
-	
+
 	public static final void setDataDatabase(Database d){
 		dataDB = d;
 	}
 	public static final Database getDataDatabase(){
 		return dataDB;
 	}
-	
+
 	/*
-	 * ----------
-	 * LOGGING
-	 * ----------
-	 */
-	
+		 * ----------
+		 * LOGGING
+		 * ----------
+		 */
+
 	public static final ResultLogger getLogger(){
-		if(logger == null){ 
+		if(logger == null){
 			log.warn(LOG_TAG, "In-memory logging only (log database options were not set?)");
 			logger = new InMemoryLogger();
 		}
 		return logger;
 	}
-	
+
 	public static <D extends DatabaseObject & Datum> Dataset<D> getDataset(Class<D> type){
 		return getDataset(type,false);
 	}
@@ -602,8 +602,8 @@ public class Execution {
 		int lastSlash = relativePath.lastIndexOf('/');
 		if(lastSlash >= 0){
 			(new File(
-				execDirFull + "/" + relativePath.substring(0,lastSlash)
-				)).mkdirs();
+					execDirFull + "/" + relativePath.substring(0,lastSlash)
+			)).mkdirs();
 		}
 		//(create file)
 		File rtn = new File(execDirFull + "/" + relativePath);
@@ -615,7 +615,7 @@ public class Execution {
 		StringBuilder b = new StringBuilder();
 		for(String key : options.keySet()){
 			b.append("--").append(key).append(" \"")
-				.append(options.get(key)).append("\" \\\n");
+					.append(options.get(key)).append("\" \\\n");
 		}
 		try{
 			File f = touch("options");
@@ -632,29 +632,29 @@ public class Execution {
 	 * EXECUTION
 	 * ----------
 	 */
-    
-    public static void fillOptions(Properties props, String[] args){
-        //(convert to map)
-        Map<String,String> options = new HashMap<String,String>();
-        for(String key : props.stringPropertyNames()){
-            options.put(key, props.getProperty(key));
-        }
-        options.putAll(parseOptions(args));
-        //(bootstrap)
-        fillOptions(BOOTSTRAP_CLASSES, options, false); //bootstrap
-        log.bootstrap();
-        log.startTrack("init");
-        //(fill options)
-        Class<?>[] visibleClasses = getVisibleClasses(options); //get classes
-        Map<String,Field> optionFields = fillOptions(visibleClasses, options);//fill
-    }
-    public static void fillOptions(Properties props){
-        fillOptions(props, new String[0]);
-    }
 
-    public static final void exec(Runnable toRun){
-        exec(toRun, new String[0]);
-    }
+	public static void fillOptions(Properties props, String[] args){
+		//(convert to map)
+		Map<String,String> options = new HashMap<String,String>();
+		for(String key : props.stringPropertyNames()){
+			options.put(key, props.getProperty(key));
+		}
+		options.putAll(parseOptions(args));
+		//(bootstrap)
+		fillOptions(BOOTSTRAP_CLASSES, options, false); //bootstrap
+		log.bootstrap();
+		log.startTrack("init");
+		//(fill options)
+		Class<?>[] visibleClasses = getVisibleClasses(options); //get classes
+		Map<String,Field> optionFields = fillOptions(visibleClasses, options);//fill
+	}
+	public static void fillOptions(Properties props){
+		fillOptions(props, new String[0]);
+	}
+
+	public static final void exec(Runnable toRun){
+		exec(toRun, new String[0]);
+	}
 	public static void exec(Runnable toRun, String[] args) {
 		exec(toRun, args, true, new LogInterface());
 	}
@@ -682,11 +682,11 @@ public class Execution {
 		//(fill options)
 		Class<?>[] visibleClasses = getVisibleClasses(options); //get classes
 		Map<String,Field> optionFields = fillOptions(visibleClasses, options);//fill
-        try {
-		    initDatabase(visibleClasses, options, optionFields); //database
-        } catch(DatabaseException e){
-            log.warn(LOG_TAG,e.getMessage());
-        }
+		try {
+			initDatabase(visibleClasses, options, optionFields); //database
+		} catch(DatabaseException e){
+			log.warn(LOG_TAG,e.getMessage());
+		}
 		dumpOptions(options); //file dump
 		log.endTrack("init");
 		log.setup();
@@ -697,13 +697,13 @@ public class Execution {
 			log.endTrack("main"); //ends main
 			log.startTrack("flushing");
 			if(logger != null){ logger.save(); }
-		} catch (Exception e) { //catch everything
+		} catch (Throwable e) { //catch everything
 			log.exception(e);
 			System.err.flush();
 			if(logger != null){
-                exitMessage = e.getClass().getName() + ": " + e.getMessage();
-                logger.suggestFlush(); // not a save!
-            }
+				exitMessage = e.getClass().getName() + ": " + e.getMessage();
+				logger.suggestFlush(); // not a save!
+			}
 			log.exit(ExitCode.FATAL_EXCEPTION);
 		}
 		log.endTrack("flushing");
@@ -749,6 +749,6 @@ public class Execution {
 		System.out.println(b.toString());
 		System.exit(ExitCode.INVALID_ARGUMENTS.code);
 	}
-	
-	
+
+
 }

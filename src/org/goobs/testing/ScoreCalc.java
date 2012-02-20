@@ -243,14 +243,20 @@ public class ScoreCalc <T> {
 	}
 	
 	public double precision(){
-		if(guessTotal == 0){ throw new IllegalStateException("No data points for precision!"); }
 		if(state != State.DISCRETE){ throw new IllegalStateException("Precision only defined for discrete data"); }
-		return ((double) correct) / ((double) guessTotal);
+		if(guessTotal == 0){
+			return 1.0;
+		} else {
+			return ((double) correct) / ((double) guessTotal);
+		}
 	}
 	public double recall(){
-		if(goldTotal == 0){ throw new IllegalStateException("No data points for recall!"); }
 		if(state != State.DISCRETE){ throw new IllegalStateException("Precision only defined for discrete data"); }
-		return ((double) correct) / ((double) goldTotal);
+		if(goldTotal == 0){
+			return 1.0;
+		} else {
+			return ((double) correct) / ((double) goldTotal);
+		}
 	}
 	public double FMeasure(double B){
 		return (1.0+B) * (precision() * recall()) / (B*B*precision() + recall());

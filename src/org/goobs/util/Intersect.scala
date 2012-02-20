@@ -369,28 +369,4 @@ object Intersect {
 				}
 			}
 	}
-
-
-
-
-	def main(args:Array[String]) = {
-		def inter(a:Term,b:Term):Term = {
-			new Term(math.max(a.begin,b.begin),math.min(a.end,b.end))
-		}
-		val sourceA:RepeatedTerm = new RepeatedTerm(1,1,0)
-		val sourceB:RepeatedTerm = new RepeatedTerm(5,10000,1000)
-//		val sourceA:RepeatedTerm = RepeatedTerm()
-//		val sourceB:RepeatedTerm = RepeatedTerm()
-		println("Source A: " + sourceA)
-		println("Source B: " + sourceB)
-		intersect(sourceA,sourceB).slice(0,10)
-				.foreach{ (info:Intersection) =>
-			val vA = sourceA.intersectable(info.a)
-			val vB = sourceB.intersectable(info.b)
-			println("---------------------------")
-			println("Match: "+info.a+" and "+info.b+"     :: "+inter(vA,vB))
-			println("  " + vA + " " + vB)
-		}
-		println("DONE")
-	}
 }

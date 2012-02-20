@@ -29,7 +29,7 @@ public class StanfordExecutionLogInterface extends Execution.LogInterface {
 		props.setProperty("log.neatExit", "true");
 		props.setProperty("log.console.trackStyle", "BOLD");
 		//(init stanford)
-        StanfordRedwoodConfiguration.apply(props);
+		StanfordRedwoodConfiguration.apply(props);
 		//(tweaks)
 		Redwood.hideOnlyChannels(Redwood.DBG);
 	}

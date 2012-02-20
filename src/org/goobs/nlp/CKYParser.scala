@@ -9,6 +9,7 @@ import scala.collection.mutable.HashMap
 import scala.collection.mutable.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.immutable.Set
+import scala.collection.immutable.Vector
 import scala.collection.mutable.HashSet
 
 import org.goobs.stats._
@@ -536,7 +537,8 @@ class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*)
 		if(super.equals(o)){
 			o match {
 				case (closure:CKYClosure) =>
-					closure.chain == this.chain
+					(closure.chain.length ==  this.chain.length) &&
+						this.chain.zip(closure.chain).forall{ case (a,b) => a == b }
 				case _ => true
 			}
 		} else {
@@ -1378,11 +1380,11 @@ class CKYParser (
 			elem
 		}
 		override def equals(a:Any) = {
-			a match {
-				case (elem:ChartElem) => {
-					elem.term == term && elem.left == left && elem.right == right
-				}
-				case (_:Any) => false
+			if(a.isInstanceOf[ChartElem]){
+				val elem:ChartElem = a.asInstanceOf[ChartElem]
+				elem.term == term && elem.left == left && elem.right == right
+			} else {
+				false
 			}
 		}
 		override def hashCode:Int = {
@@ -1523,13 +1525,26 @@ class CKYParser (
 	//-----
 	// K-Best List
 	//-----
-	class Beam(val values:Array[ChartElem],var capacity:Int) 
+	class Beam(newElem:()=>ChartElem,var capacity:Int)
 			extends Serializable {
 		private var deferred:List[LazyStruct] = null
 		private var lazyNextFn:Unit=>Boolean = null
-		var length = 0
+		private var values:Vector[ChartElem] = Vector.empty
 		var wasReset = false
-		
+
+		// -- Values Array --
+		def length:Int = values.length
+		private def withValues(v:Vector[ChartElem]):Beam = {
+			this.values = v
+			this
+		}
+		private def setValue(index:Int):ChartElem = {
+			assert(index < capacity, "Accessing an element over beam size")
+			while(values.length <= index){ values = values :+ newElem() }
+			assert(values.length <= capacity, "overflowed values array")
+			values(index)
+		}
+
 		// -- Lazy Eval --
 		def markLazy = { 
 			assert(deferred == null, "marking as lazy twice")
@@ -1569,7 +1584,7 @@ class CKYParser (
 			}
 		}
 		def reset(newCapacity:Int):Unit = {
-			length = 0
+			values = Vector.empty
 			capacity = newCapacity
 			markEvaluated
 			lazyNextFn = null
@@ -1577,15 +1592,11 @@ class CKYParser (
 		}
 		def foreach(fn:ChartElem=>Any):Unit = {
 			ensureEvaluated
-			for(i <- 0 until length){ fn(values(i)) }
+			values.foreach{ fn }
 		}
 		def map[A : Manifest](fn:ChartElem=>A):Array[A] = {
 			ensureEvaluated
-			val rtn = new Array[A](length)
-			for(i <- 0 until length){
-				rtn(i) = fn(values(i))
-			}
-			rtn
+			values.map{ fn }.toArray
 		}
 		def zipWithIndex = {
 			ensureEvaluated
@@ -1593,18 +1604,17 @@ class CKYParser (
 		}
 		def toArray:Array[ChartElem] = {
 			ensureEvaluated
-			values.slice(0,length)
+			values.slice(0,length).toArray
 		}
 		override def clone:Beam = {
 			ensureEvaluated
-			val rtn = new Beam(values.clone,capacity)
-			rtn.length = this.length
+			//note: values is immutable
+			val rtn = new Beam(newElem,capacity).withValues(values) 
 			rtn
 		}
 		def deepclone:Beam = {
 			ensureEvaluated
-			val rtn = new Beam(values.map{ _.clone },capacity)
-			rtn.length = this.length
+			val rtn = new Beam(newElem,capacity).withValues(values.map{ _.clone })
 			rtn
 		}
 		
@@ -1714,22 +1724,22 @@ class CKYParser (
 					assert(!score.isNaN, "setting to NaN score")
 					if(right == null) {
 						assert(left != null, "setting to null rule")
-						values(index)(score,term,left)
+						setValue(index)(score,term,left)
 					} else {
 						assert(left != null, "setting to null rules")
-						values(index)(score,term,left,right)
+						setValue(index)(score,term,left,right)
 					}
 					index += 1; candP += 1;
 				} else {
 					//(case: keep defender)
 					assert(!defender(defendP).logScore.isNaN, "setting to NaN score")
-					values(index)(defender(defendP))
+					setValue(index)(defender(defendP))
 					index += 1; defendP += 1;
 				}
 			}
 			//--Cleanup
 			//(set length)
-			length = index
+			assert(length == index, "Mismatched length")
 			assert(length != 0, "Merge returned length 0")
 		}
 		private def algorithm0(term:CKYRule, left:Beam, right:Beam,
@@ -1910,12 +1920,11 @@ class CKYParser (
 					val rI = datum.rightI
 					if(rule.isUnary){
 						assert(datum.score <= 0, "Log probability > 0: " + datum.score)
-						values(length)(datum.score,rule,left(lI))
+						setValue(length)(datum.score,rule,left(lI))
 					} else {
 						assert(datum.score <= 0, "Log probability > 0: " + datum.score)
-						values(length)(datum.score,rule,left(lI),right(rI))
+						setValue(length)(datum.score,rule,left(lI),right(rI))
 					}
-					length += 1
 					//(add neighbors) //note: checks are done in enqueue
 					assert(datum.source < lazyArray.length, "source out of bounds")
 					enqueue(datum.source,lI+1,rI)
@@ -1971,29 +1980,28 @@ class CKYParser (
 			//(checks)
 			assert(!term.isUnary, "must be arity 2 rule")
 			if(paranoid){
-				(0 until length).foreach{ (i:Int) =>
-					assert(values(i).term != term || values(i).left != left ||
-						values(i).right != right,
+				values.foreach{ (elem:ChartElem) =>
+					assert(elem.term != term || elem.left != left ||
+						elem.right != right,
 						"Adding duplicate chart entry (binary)")
 				}
 			}
 			//(add)
-			values(length)(score,term,left,right)
-			length += 1
+			values = values :+ new ChartElem(score,term,left,right)
 		}
 		def add(term:CKYRule,score:Double,left:ChartElem) = {
 			//(checks)
 			assert(term.isUnary, "must be arity 1 rule")
 			if(paranoid){
-				(0 until length).foreach{ (i:Int) =>
-					assert(values(i).term != term || values(i).left != left,
+				values.foreach{ (elem:ChartElem) =>
+					assert(elem.term != term || elem.left != left,
 						"Adding duplicate chart entry (unary -- lex?): " + term + 
 						"; was reset? " + wasReset)
 				}
 			}
 			//(add)
-			values(length)(score,term,left)
-			length += 1
+			assert(term.isUnary, "Invalid apply for arity 1 rule")
+			values = values :+ new ChartElem(score,term,left,null)
 		}
 		def suggest(term:CKYRule,score:Double,left:ChartElem,right:ChartElem) = {
 			if(length < capacity){ add(term,score,left,right) }
@@ -2086,7 +2094,7 @@ class CKYParser (
 	/**
 		Chart creation / cache function
 	*/
-	val makeChart:Long=>((Int,Int)=>Chart) = {
+	@transient lazy val makeChart:Long=>((Int,Int)=>Chart) = {
 		val chartMap = new HashMap[Long,(Int,Int)=>Chart]
 		(thread:Long) =>
 			if(chartMap.contains(thread)){
@@ -2107,9 +2115,9 @@ class CKYParser (
 								(0 to 1).map{ (arity:Int) =>                            //arity
 									index2NodeType.map{ (term:NodeType) =>                //rules
 										assert(beam > 0, "bad kbest end")
-										new Beam((0 until beam).map{ (kbestItem:Int) => //kbest
-											new ChartElem(Double.NegativeInfinity,null,null,null)
-										}.toArray, beam) //convert to arrays
+										new Beam(                                           //kbest
+											()=>new ChartElem(Double.NegativeInfinity,null,null,null),
+											beam)
 									}.toArray
 								}.toArray
 							}.toArray

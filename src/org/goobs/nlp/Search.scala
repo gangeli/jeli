@@ -37,8 +37,6 @@ class Search[S <: SearchState : Manifest](store:Search.Store[S]) {
 			private var nxt:(S,Int) = null
 			private var nextReady = false
 			//--Search State
-			//(startup)
-			storeLock.acquire
 			store.clear
 			store.enqueue(start)
 			//(initialize loop)
@@ -176,7 +174,11 @@ object Search {
 		new {
 			val cache:Set[S] = new HashSet[S]
 			var next:S = null.asInstanceOf[S]
-			def enqueue(s:S*):Unit = { store.enqueue(s:_*) }
+			def enqueue(s:S*):Unit = { 
+				assert(s != null, "Input to cache was null")
+				assert(store != null, "Store to cache is null")
+				store.enqueue(s:_*) 
+			}
 			def dequeue():S = {
 				if(isEmpty) {
 					throw new NoSuchElementException

@@ -3,13 +3,13 @@ package org.goobs.stanford;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.util.ArrayCoreMap;
 import edu.stanford.nlp.util.CoreMap;
+import edu.stanford.nlp.util.logging.Redwood;
 import org.goobs.database.Child;
 import org.goobs.database.Database;
 import org.goobs.database.DatabaseException;
 import org.goobs.database.Table;
 import org.goobs.testing.Datum;
 
-import javax.swing.text.html.parser.Element;
 import java.util.*;
 
 /*
@@ -223,4 +223,8 @@ public class DBCoreMap extends NestedElement implements CoreMap, Datum {
 		return impl.hashCode();
 	}
 
+	@Override
+	public void prettyLog(Redwood.RedwoodChannels redwoodChannels, String s) {
+		redwoodChannels.prettyLog(s, impl);
+	}
 }

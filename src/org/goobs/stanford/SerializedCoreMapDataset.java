@@ -2,6 +2,8 @@ package org.goobs.stanford;
 
 import edu.stanford.nlp.io.IOUtils;
 import edu.stanford.nlp.util.CoreMap;
+import edu.stanford.nlp.util.logging.PrettyLoggable;
+import edu.stanford.nlp.util.logging.Redwood;
 import org.goobs.testing.Dataset;
 import org.goobs.util.Range;
 
@@ -9,7 +11,7 @@ import java.io.*;
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 
-public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements Serializable{
+public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements Serializable, PrettyLoggable {
 	private String file;
 
 	private boolean isPiecewise = false;
@@ -88,6 +90,15 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 
 	@Override
 	public Range range() { return new Range(0,numExamples()); }
+
+	@Override
+	public void prettyLog(Redwood.RedwoodChannels redwoodChannels, String description) {
+		Redwood.startTrack(description);
+		for(int i=0; i<this.size(); i++){
+			redwoodChannels.prettyLog("Datum " + i, this.get(i));
+		}
+		Redwood.endTrack(description);
+	}
 
 	@SuppressWarnings({"unchecked"})
 	public <E extends Task> SerializedCoreMapDataset runAndRegisterTask(E task){

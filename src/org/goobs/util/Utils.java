@@ -533,7 +533,21 @@ public class Utils {
 			// (case: enumeration)
 			Class c = (Class) clazz;
 			if(value == null){ return null; }
-			return (E) Enum.valueOf(c, value);
+			try {
+				return (E) Enum.valueOf(c, value);
+			} catch (Exception e){
+				try {
+					return (E) Enum.valueOf(c, value.toLowerCase());
+				} catch (Exception e2){
+					try {
+						return (E) Enum.valueOf(c, value.toUpperCase());
+					} catch (Exception e3){
+						return (E) Enum.valueOf(c, 
+								(Character.isUpperCase(value.charAt(0)) ? Character.toLowerCase(value.charAt(0)) : Character.toUpperCase(value.charAt(0))) +
+								value.substring(1));
+					}
+				}
+			}
 		} else {
 			return null;
 		}

@@ -2,14 +2,15 @@ package org.goobs.stanford;
 
 import edu.stanford.nlp.util.CoreMap;
 import edu.stanford.nlp.util.TypesafeMap;
+import edu.stanford.nlp.util.logging.Redwood;
 import org.goobs.testing.Datum;
 
 import java.io.Serializable;
 import java.util.Set;
 
 public class CoreMapDatum implements Datum, CoreMap, Serializable {
-	private CoreMap impl;
-	private int id;
+	private final CoreMap impl;
+	private final int id;
 
 	public CoreMapDatum(CoreMap impl, int id) {
 		this.impl = impl;
@@ -29,4 +30,9 @@ public class CoreMapDatum implements Datum, CoreMap, Serializable {
   	@Override public boolean equals(Object obj) { return impl.equals(obj); }
 		@Override public int hashCode(){ return impl.hashCode(); }
 		@Override public int getID() { return this.id; }
+
+	@Override
+	public void prettyLog(Redwood.RedwoodChannels redwoodChannels, String s) {
+		redwoodChannels.prettyLog(s, impl);
+	}
 }

@@ -1,12 +1,12 @@
 package org.goobs.testing;
 
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-
 import org.goobs.util.Pair;
 import org.goobs.util.Range;
 
-public abstract class Dataset <D extends Datum> implements java.io.Serializable{
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+public abstract class Dataset <D extends Datum> implements java.io.Serializable, Iterable<D>{
 	/**
 	 * 
 	 */
