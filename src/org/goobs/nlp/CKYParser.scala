@@ -9,6 +9,7 @@ import scala.collection.mutable.HashMap
 import scala.collection.mutable.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.immutable.Set
+import scala.collection.immutable.ListSet
 import scala.collection.immutable.Vector
 import scala.collection.mutable.HashSet
 
@@ -534,7 +535,7 @@ class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*)
 	}
 	//<<Object overrides>>
 	override def equals(o:Any):Boolean = {
-		if(super.equals(o)){
+		val isEqual = if(super.equals(o)){
 			o match {
 				case (closure:CKYClosure) =>
 					(closure.chain.length ==  this.chain.length) &&
@@ -544,9 +545,18 @@ class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*)
 		} else {
 			false
 		}
+		assert(!isEqual || this.hashCode == o.hashCode, "Hash Code mismatch")
+		assert(isEqual || this.toString != o.toString, 
+			"ToString mismatch: " + this.toString + " --> " +
+				this.chain.toArray
+					.zip(o.asInstanceOf[CKYClosure].chain)
+					.map{ case (a,b) => a == b }
+					.toArray
+					.mkString(" :: " ))
+		isEqual
 	}
 	override def toString:String 
-		= "Closure[" + chain.toArray.mkString("++") + "]"
+		= "Closure[" + chain.toArray.mkString(" ++ ") + "]"
 }
 
 class CKYBinary(val lambda:Option[(Any,Any)=>Any],_parent:NodeType,
@@ -993,6 +1003,9 @@ object CKYParser {
 		}
 		//(return)
 		assert(closures.size == closureCount, "Duplicate rules extracted")
+		assert(ListSet(closures.toArray:_*).size == closures.size,
+			"Hash Code inconcsistency for closures: "+
+			ListSet(closures.toArray:_*).size+" vs "+closures.size)
 		closures.toArray
 	}
 	
@@ -1388,7 +1401,8 @@ class CKYParser (
 			}
 		}
 		override def hashCode:Int = {
-			term.hashCode ^ left.hashCode
+			{if(term == null) 0 else term.hashCode} ^ 
+			{if(left == null) 0 else left.hashCode}
 		}
 		override def toString:String = {
 			val df = new DecimalFormat("0.000")
@@ -1539,9 +1553,11 @@ class CKYParser (
 			this
 		}
 		private def setValue(index:Int):ChartElem = {
+			//(fill beam)
 			assert(index < capacity, "Accessing an element over beam size")
 			while(values.length <= index){ values = values :+ newElem() }
 			assert(values.length <= capacity, "overflowed values array")
+			//(return)
 			values(index)
 		}
 
@@ -2063,10 +2079,12 @@ class CKYParser (
 						.toArray
 						.sortBy{ case (j:Int,prob:Double) => -prob }
 						.foreach{ case (j:Int,prob:Double) =>
-					b.append("    ").append(df.format(prob))
-						.append("   ")
-						.append(ruleProbDomain(i)(j))
-						.append("\n")
+					if(prob > 0.0){
+						b.append("    ").append(df.format(prob))
+							.append("   ")
+							.append(ruleProbDomain(i)(j))
+							.append("\n")
+					}
 				}
 			}
 		}

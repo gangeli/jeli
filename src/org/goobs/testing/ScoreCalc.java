@@ -58,6 +58,9 @@ public class ScoreCalc <T> {
 		this.golds = new ArrayList<Double>();
 		return this;
 	}
+
+	public void recallMiss(T gold){ enterDiscrete(null,gold); }
+	public void precisionMiss(T guess){ enterDiscrete(guess,null); }
 	
 	public void enterDiscrete(T guess, T gold){
 		//(state check)

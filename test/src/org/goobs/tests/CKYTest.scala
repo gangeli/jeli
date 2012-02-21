@@ -298,6 +298,30 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 				cky.forall{ (count:Int) => count < bucket*5} should be (true)
 			}
 		}
+		it("should respect closure equality/hashcode"){
+			//--Variables
+			val top = new CKYUnary(NodeType.make('A), NodeType.make('B))
+			val mid = new CKYUnary(NodeType.make('B), NodeType.make('C))
+			val midClone = new CKYUnary(NodeType.make('B), NodeType.make('C))
+			val bottom = new CKYUnary(NodeType.make('C), NodeType.make('D))
+			val bottomWrong = new CKYUnary(NodeType.make('C), NodeType.make('E))
+			//--Closure Tests
+			//(equality)
+			new CKYClosure(top,mid,bottom) should be (new CKYClosure(top,mid,bottom))
+			new CKYClosure(top,mid,bottom) should be (new CKYClosure(top,midClone,bottom))
+			new CKYClosure(top,mid,bottom) should not be (new CKYClosure(top,mid,bottomWrong))
+			//(hash code)
+			new CKYClosure(top,mid,bottom).hashCode should be (new CKYClosure(top,mid,bottom).hashCode)
+			new CKYClosure(top,mid,bottom).hashCode should be (new CKYClosure(top,midClone,bottom).hashCode)
+			new CKYClosure(top,mid,bottom).hashCode should not be (new CKYClosure(top,mid,bottomWrong).hashCode)
+			//--Unary Tests
+			//(equality)
+			new CKYClosure(top,mid,bottom) should be (new CKYUnary(NodeType('A),NodeType('D)))
+			new CKYClosure(top,mid,bottom) should be (new SimpleGrammarRule(NodeType('A),NodeType('D)))
+			//(hash code)
+			new CKYClosure(top,mid,bottom).hashCode should be (new CKYUnary(NodeType('A),NodeType('D)).hashCode)
+			new CKYClosure(top,mid,bottom).hashCode should be (new SimpleGrammarRule(NodeType('A),NodeType('D)).hashCode)
+		}
 	}
 
 	describe("A tree"){
