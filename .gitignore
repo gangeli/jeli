@@ -1,0 +1,11 @@
+java.hprof.txt
+/build.properties
+/build.sbt
+bin/
+dist/
+*.java~
+*.scala~
+*.swp
+
+/lib.ipr
+/lib.iws
