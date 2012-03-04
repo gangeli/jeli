@@ -66,6 +66,12 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 		if(new File(file).isDirectory()){
 			throw new IllegalStateException("Cannot save to a dataset created from a directory");
 		} else {
+			//(load all elements -- store to prevent WeakReference from decaching)
+			CoreMapDatum[] data = new CoreMapDatum[size()];
+			for(int i=0; i<size(); i++){
+				data[i] = get(i);
+			}
+			//(write the datum)
 			writeObject(path, this);
 		}
 		this.file = path;
