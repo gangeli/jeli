@@ -24,15 +24,23 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 	private WeakReference<CoreMapDatum>[] weakMaps;
 	private File[] files;
 
-	public <E extends CoreMap> SerializedCoreMapDataset(String file, E[] maps){
+	public <E extends CoreMap> SerializedCoreMapDataset(String file, E[] maps, boolean piecewise){
 		//(create dataset)
 		this.file = file;
 		this.maps = new CoreMapDatum[maps.length];
 		for(int i=0; i<maps.length; i++){
 			this.maps[i] = new CoreMapDatum(maps[i],i);
 		}
+		this.isPiecewise = piecewise;
+		if(this.isPiecewise){
+			new File(file).mkdirs();
+		}
 		//(save dataset)
 		save();
+	}
+
+	public <E extends CoreMap> SerializedCoreMapDataset(String file, E[] maps){
+		this(file, maps, false);
 	}
 
 	@SuppressWarnings({"unchecked"})
@@ -62,23 +70,29 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 	}
 
 
-	public void saveAs(String path){
+	public void saveAs(String path, boolean isPiecewise){
 		if(new File(file).isDirectory()){
 			throw new IllegalStateException("Cannot save to a dataset created from a directory");
 		} else {
 			//(load all elements -- store to prevent WeakReference from decaching)
-			CoreMapDatum[] data = new CoreMapDatum[size()];
-			for(int i=0; i<size(); i++){
-				data[i] = get(i);
+			if(isPiecewise) {
+				//(write each datum)
+				this.files = new File[this.size()];
+				for(int i=0; i<size(); i++){
+					writeObject(path+"/"+i+".ser.gz", this.get(i));
+					files[i] = new File(path+"/"+i+".ser.gz");
+				}
+			} else {
+				writeObject(path, this);
 			}
-			//(write the datum)
-			writeObject(path, this);
 		}
+		//(update variables)
 		this.file = path;
+		this.isPiecewise = isPiecewise;
 	}
 	
 	public void save(){
-		saveAs(this.file);
+		saveAs(this.file, this.isPiecewise);
 	}
 
 	@Override public int numExamples() {
