@@ -71,40 +71,60 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 
 
 	public void saveAs(String path, boolean isPiecewise){
-		if(new File(file).isDirectory()){
-			throw new IllegalStateException("Cannot save to a dataset created from a directory");
-		} else {
-			//(load all elements -- store to prevent WeakReference from decaching)
-			if(isPiecewise) {
-				//(write each datum)
-				this.files = new File[this.size()];
-				for(int i=0; i<size(); i++){
-					writeObject(path+"/"+i+".ser.gz", this.get(i));
-					files[i] = new File(path+"/"+i+".ser.gz");
-				}
-			} else {
-				writeObject(path, this);
+		//(load all elements -- store to prevent WeakReference from decaching)
+		if(isPiecewise) {
+			if(!new File(path).isDirectory()){
+				throw new IllegalStateException("Cannot save piecewise dataset to a regular file");
 			}
+			//(write each datum)
+			this.files = new File[this.size()];
+			for(int i=0; i<size(); i++){
+				writeObject(path+"/"+i+".ser.gz", this.get(i));
+				files[i] = new File(path+"/"+i+".ser.gz");
+			}
+		} else {
+			if(new File(path).isDirectory()){
+				throw new IllegalStateException("Cannot save dataset file to a directory");
+			}
+			writeObject(path, this);
 		}
 		//(update variables)
 		this.file = path;
 		this.isPiecewise = isPiecewise;
 	}
 	
+	public void saveAs(String path){
+		saveAs(path,this.isPiecewise);
+	}
+	
 	public void save(){
 		saveAs(this.file, this.isPiecewise);
 	}
 
+	public void saveDatum(int index){
+		if(!this.isPiecewise){
+			throw new IllegalStateException("Cannot save single datum in non-piecewise mode");
+		}
+		writeObject(files[index].getAbsolutePath(), get(index));
+	}
+
 	@Override public int numExamples() {
-		if(isPiecewise){
+		if(maps != null){
+			return maps.length;
+		} else if(weakMaps != null){
 			return weakMaps.length;
 		} else {
-			return maps.length;
+			throw new IllegalStateException("Cannot determine size of SerializedCoreMapDataset");
 		}
 	}
 
 	@Override public CoreMapDatum get(int id) {
-		if(isPiecewise){
+		if(maps != null){
+			return maps[id];
+		} else {
+			if(!isPiecewise){
+				throw new IllegalStateException("maps are null, but dataset is not piecewise");
+			}
 			WeakReference<CoreMapDatum> ref = weakMaps[id];
 			CoreMapDatum rtn = ref.get();
 			if(rtn == null){
@@ -113,8 +133,6 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 				weakMaps[id] = new WeakReference<CoreMapDatum>(rtn);
 			}
 			return rtn;
-		} else {
-			return maps[id];
 		}
 	}
 
