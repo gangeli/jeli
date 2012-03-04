@@ -7,11 +7,16 @@ import edu.stanford.nlp.util.logging.Redwood;
 import org.goobs.testing.Dataset;
 import org.goobs.util.Range;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
+import java.io.Serializable;
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 
 public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements Serializable, PrettyLoggable {
+	private static final long serialVersionUID = 1L;
+
 	private String file;
 
 	private boolean isPiecewise = false;
@@ -19,7 +24,7 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 	private WeakReference<CoreMapDatum>[] weakMaps;
 	private File[] files;
 
-	public SerializedCoreMapDataset(String file, CoreMap[] maps){
+	public <E extends CoreMap> SerializedCoreMapDataset(String file, E[] maps){
 		//(create dataset)
 		this.file = file;
 		this.maps = new CoreMapDatum[maps.length];
@@ -57,12 +62,17 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 	}
 
 
-	private void save(){
+	public void saveAs(String path){
 		if(new File(file).isDirectory()){
 			throw new IllegalStateException("Cannot save to a dataset created from a directory");
 		} else {
-			writeObject(this.file, this);
+			writeObject(path, this);
 		}
+		this.file = path;
+	}
+	
+	public void save(){
+		saveAs(this.file);
 	}
 
 	@Override public int numExamples() {
@@ -98,14 +108,6 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 			redwoodChannels.prettyLog("Datum " + i, this.get(i));
 		}
 		Redwood.endTrack(description);
-	}
-
-	@SuppressWarnings({"unchecked"})
-	public <E extends Task> SerializedCoreMapDataset runAndRegisterTask(E task){
-		this.file = this.file+"-"+task.name();
-		task.perform(this);
-		this.save();
-		return this;
 	}
 
 

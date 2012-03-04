@@ -1,5 +1,6 @@
 package org.goobs.testing;
 
+import edu.stanford.nlp.util.MetaClass;
 import org.goobs.util.Pair;
 import org.goobs.util.Range;
 
@@ -114,5 +115,34 @@ public abstract class Dataset <D extends Datum> implements java.io.Serializable,
 			get(testedIndex)
 			);
 	}
-
+	
+	public static <E extends Datum> Dataset<E> ensure(Task<E> task){
+		Dataset<E> rtn = null;
+		if(!task.isSatisfied()){
+			//--Ensure Dependencies
+			for(Class dep : task.dependencies()){
+				Task<E> depTask = MetaClass.create(dep).createInstance();
+				ensure(depTask);
+			}
+			//--Run Task
+			rtn = task.perform();
+		} else {
+			//--Load Task
+			task.load();
+		}
+		//--Return
+		if(!task.isSatisfied()){
+			throw new IllegalStateException("Running task did not satisfy it!");
+		}
+		return rtn;
+	}
+	
+	public static void main(String[] args){
+		if(args.length != 1){
+			System.err.println("Usage: Dataset [class_of_task]");
+			System.exit(1);
+		}
+		Task<?> task = MetaClass.create(args[0]).createInstance();
+		ensure(task);
+	}
 }

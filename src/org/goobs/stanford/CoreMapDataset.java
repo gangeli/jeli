@@ -1,11 +1,11 @@
 package org.goobs.stanford;
 
 
-import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.util.CoreMap;
 import org.goobs.database.*;
 import org.goobs.exec.Log;
 import org.goobs.testing.Dataset;
+import org.goobs.testing.Task;
 import org.goobs.util.MetaClass;
 import org.goobs.util.Range;
 
@@ -270,7 +270,7 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 		clearCache();
 		//(perform)
 		db.endTransaction();
-		task.perform(this);
+		task.perform();
 		db.beginTransaction();
 		//(flush result)
 		for(int i=0; i<numExamples(); i++){
@@ -396,38 +396,38 @@ public class CoreMapDataset extends Dataset<DBCoreMap> {
 //		System.exit(0);
 
 
-		Database.ConnInfo psql = Database.ConnInfo.psql("localhost", "java", "what?why42?", "junit");
-		Database db = new Database(psql).connect();
-		db.clear();
-
-		Annotation a = new Annotation("this ( is a sample sentence. This is another sentence");
-		Annotation b = new Annotation("Some more sentences. Yes, this is another sentence as well.");
-		CoreMapDataset data = new CoreMapDataset("trivial", db, new CoreMap[]{ a, b });
-
-		System.out.println("----------------------\nRunning CORE annotator");
-		data.runAndRegisterTask(new JavaNLPTasks.Core());
-		CoreMapDataset afterCore = data;
-		System.out.println("----------------------\nRunning NER annotator");
-		db.disconnect();
-		db.connect();
-		data = new CoreMapDataset("trivial", db);
-//		if(!afterCore.equals(data)){
-//			throw new IllegalStateException("Did not reload data correctly");
-//		}
-		CoreMapDataset beforeNER = (CoreMapDataset) data.deepCopy();
-//		if(!afterCore.equals(beforeNER)){ throw new IllegalStateException("Did not deepCopy data correctly"); }
-		data.runAndRegisterTask( new JavaNLPTasks.NER() );
-		CoreMapDataset afterNER = data;
-//    System.out.println("----------------------\nRunning CORE annotator again");
+//		Database.ConnInfo psql = Database.ConnInfo.psql("localhost", "java", "what?why42?", "junit");
+//		Database db = new Database(psql).connect();
+//		db.clear();
+//
+//		Annotation a = new Annotation("this ( is a sample sentence. This is another sentence");
+//		Annotation b = new Annotation("Some more sentences. Yes, this is another sentence as well.");
+//		CoreMapDataset data = new CoreMapDataset("trivial", db, new CoreMap[]{ a, b });
+//
+//		System.out.println("----------------------\nRunning CORE annotator");
 //		data.runAndRegisterTask(new JavaNLPTasks.Core());
-//		System.out.println(data);
-
-		System.out.println("----------------------\nReloading Data");
-		db.disconnect();
-		db.connect();
-		CoreMapDataset reloaded = new CoreMapDataset("trivial", db);
-//		if(!afterNER.equals(reloaded)){ throw new IllegalStateException("Did not retrieve dataset correctly after NER task"); }
-		System.out.println( reloaded );
+//		CoreMapDataset afterCore = data;
+//		System.out.println("----------------------\nRunning NER annotator");
+//		db.disconnect();
+//		db.connect();
+//		data = new CoreMapDataset("trivial", db);
+////		if(!afterCore.equals(data)){
+////			throw new IllegalStateException("Did not reload data correctly");
+////		}
+//		CoreMapDataset beforeNER = (CoreMapDataset) data.deepCopy();
+////		if(!afterCore.equals(beforeNER)){ throw new IllegalStateException("Did not deepCopy data correctly"); }
+//		data.runAndRegisterTask( new JavaNLPTasks.NER() );
+//		CoreMapDataset afterNER = data;
+////    System.out.println("----------------------\nRunning CORE annotator again");
+////		data.runAndRegisterTask(new JavaNLPTasks.Core());
+////		System.out.println(data);
+//
+//		System.out.println("----------------------\nReloading Data");
+//		db.disconnect();
+//		db.connect();
+//		CoreMapDataset reloaded = new CoreMapDataset("trivial", db);
+////		if(!afterNER.equals(reloaded)){ throw new IllegalStateException("Did not retrieve dataset correctly after NER task"); }
+//		System.out.println( reloaded );
 	}
 
 

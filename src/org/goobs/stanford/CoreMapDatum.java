@@ -9,8 +9,10 @@ import java.io.Serializable;
 import java.util.Set;
 
 public class CoreMapDatum implements Datum, CoreMap, Serializable {
-	private final CoreMap impl;
-	private final int id;
+	private static final long serialVersionUID = 1L;
+
+	public final CoreMap impl;
+	public final int id;
 
 	public CoreMapDatum(CoreMap impl, int id) {
 		this.impl = impl;

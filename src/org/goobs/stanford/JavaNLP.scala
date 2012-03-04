@@ -15,6 +15,8 @@ import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.AnswerAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation
+import edu.stanford.nlp.util.logging.Redwood
+import collection.generic.CanBuildFrom
 
 
 object JavaNLP {
@@ -154,6 +156,29 @@ object JavaNLP {
 		val labels:java.util.List[Word] = new java.util.ArrayList[Word]
 		lst.foreach{ case (w:String) => labels.add(new Word(w)) }
 		labels
+	}
+
+
+
+
+
+	def threadAndMap[A,B,That](in:Iterable[A], fn:A=>B, numThreads:Int=Runtime.getRuntime.availableProcessors(), name:String="Threaded Map")(implicit bf:CanBuildFrom[Seq[A],B,That]):That = {
+		//--Variables
+		val writeLock = new scala.concurrent.Lock
+		val builder = bf()
+		//--Thread
+		Redwood.Util.threadAndRun(name, asJavaCollection( in.map{ (term:A) =>
+			new Runnable{
+				override def run{
+					val b:B = fn(term)
+					writeLock.acquire()
+					builder += b
+					writeLock.release()
+				}
+			}
+		}), numThreads)
+		//--Return
+		builder.result()
 	}
 }
 

@@ -28,3 +28,4 @@ object Static {
 	implicit def regex2RichRegex(r:Regex):RichRegex = RichRegex(r)
 	implicit def string2RichString(str:String) = RichString(str);
 }
+

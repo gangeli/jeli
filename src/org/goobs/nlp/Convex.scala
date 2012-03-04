@@ -1,0 +1,426 @@
+package org.goobs.nlp
+
+import scalala.scalar._
+import scalala.tensor.::
+import scalala.tensor.mutable._
+import scalala.tensor.dense._
+import scalala.tensor.sparse._
+import scalala.library.Library._
+import scalala.library.LinearAlgebra._
+import scalala.library.LinearAlgebra._
+import scalala.library.Statistics._
+import scalala.library.Plotting._
+import scalala.operators.Implicits._
+
+import scalala.library.random.MersenneTwisterFast
+import scalala.library.{Plotting, LinearAlgebra, Random}
+
+
+trait ObjectiveFn extends Function1[VectorCol[Double],Option[Double]] {
+	def cardinality:Int
+
+	def gradient(x:VectorCol[Double]):Option[VectorCol[Double]] = None
+	def hessian(x:VectorCol[Double]):Option[Matrix[Double]] = None
+	
+	def differentiableAt(x:VectorCol[Double]):Boolean =  gradient(x).isDefined
+	def twiceDifferentiableAt(x:VectorCol[Double]):Boolean =  hessian(x).isDefined
+
+	def plot(x:VectorCol[Double],hold:Boolean=false){
+		if(cardinality > 1){
+			throw new IllegalStateException("Cannot plot function of cardinality > 1")
+		}
+		val y = x.map{ (v:Double) =>
+			this(DenseVectorCol(v)) match {
+				case Some(y) =>
+					if(y.isInfinite){ Double.NaN } else { y };
+				case None => Double.NaN
+			}
+		}
+		scalala.library.Plotting.plot(x, y)
+	}
+	
+	def plot(begin:Double,end:Double,step:Double){
+		val dim:Int = ((end-begin)/step).toInt + 1
+		val x = (DenseVectorCol.range(0,dim) :* step) :+ begin
+		plot(x)
+	}
+}
+
+case class OptimizerProfile(optimalX:VectorCol[Double],optimalValue:Double,guessProfile:VectorCol[Double]) {
+	def plotObjective(name:String="objective"){
+		scalala.library.Plotting.plot(
+			x=DenseVectorCol.range(0,guessProfile.length),
+			y=guessProfile,
+			name=name
+		)
+	}
+	def plotConvergence(name:String="convergence",optimal:Double=optimalValue){
+		scalala.library.Plotting.plot(
+			x=DenseVectorCol.range(0,guessProfile.length),
+			y=guessProfile :- optimal,
+			name=name
+		)
+	}
+	def plotLogConvergence(nm:String="log convergence",optimal:Double=optimalValue){
+		scalala.library.Plotting.plot(
+			x = DenseVectorCol.range(0,guessProfile.length),
+			y = (guessProfile :- optimal).map{ (v:Double) => if(v == 0){ Double.NaN } else { log(v) } },
+			name = nm
+		)
+	}
+}
+
+trait Optimizer {
+	def minimize(fn:ObjectiveFn, initialValue:VectorCol[Double]):OptimizerProfile
+}
+
+object Optimizer {
+	def apply(tolerance:Double=0.25,lineStep:Double=0.5):Optimizer
+		= new NewtonOptimizer(1e-5,0,tolerance,lineStep)
+	def newton(lambdaTolerance:Double=1e-5,lambdaCacheTime:Int=0,tolerance:Double=0.25,lineStep:Double=0.5):NewtonOptimizer
+		= new NewtonOptimizer(lambdaTolerance,lambdaCacheTime,tolerance,lineStep)
+}
+
+abstract class DescentOptimizer(tolerance:Double, lineStep:Double) extends Optimizer{
+	if(tolerance >= 0.5 || tolerance < 0.0){
+		throw new IllegalArgumentException("Invalid tolerance: " + tolerance)
+	}
+	if(lineStep >= 1.0 || lineStep < 0){
+		throw new IllegalArgumentException("Invalid line step: " + lineStep)
+	}
+
+
+	def converged(fnValue:Double,grad:VectorCol[Double],hessian:()=>Matrix[Double]):Boolean
+	def delta(fnValue:Double,gradient:VectorCol[Double],hessian:()=>Matrix[Double]):VectorCol[Double]
+
+	protected def safeMultiply(v:VectorCol[Double], t:Double):VectorCol[Double] = {
+		if(t == 0.0){
+			DenseVectorCol.zeros[Double](v.length)
+		} else if(t < 1e-5){
+			val logT = log(t)
+			val cand = v.map{ (value:Double) =>
+				val polarity = {if(value > 0.0){ 1.0 } else { -1.0 }}
+				if(value == 0.0){ 0.0 } else { polarity*exp(log(abs(value)) + logT) }
+			}
+			if(!cand.forallValues{ !_.isNaN }){
+				throw new IllegalStateException("NaN vector:\n"+cand)
+			}
+			cand
+		} else {
+			v :* t
+		}
+	}
+	protected def safeMultiply(args:Double*):Double = {
+		val (v,polarity,isLog) = args.foldLeft((1.0,1.0,false)){ case ((soFar:Double,polarity:Double,isLog:Boolean), arg:Double) =>
+			val argPolarity = {if(arg > 0.0){ 1.0 } else { -1.0 }}
+			if(arg == 0.0){
+				(0.0, 0.0, false)
+			} else if(isLog){
+				(soFar + log(abs(arg)), polarity*argPolarity, true)
+			} else if(soFar != 0.0 && (soFar < 1e-5 || abs (arg) < 1e-5)){
+				(log(soFar) + log(abs(arg)), polarity*argPolarity, true)
+			} else {
+				(soFar * abs(arg), polarity*argPolarity, false)
+			}
+		}
+		if(v.isNaN){ throw new IllegalStateException("NaN multiplication") }
+		if(isLog){
+			polarity*exp(v)
+		} else {
+			polarity*v
+		}
+	}
+	
+	private def moveDeltaT(x:VectorCol[Double], delta:VectorCol[Double], t:Double):VectorCol[Double] = {
+		x :+ safeMultiply(delta,t)
+	}
+
+	private def lineSearch(fn:ObjectiveFn, x:VectorCol[Double], delta:VectorCol[Double], gradient:VectorCol[Double]):Double = {
+		var t:Double = 1.0
+		def check(t:Double):Boolean = {
+			fn(x).flatMap{ (fnValue:Double) =>
+				fn( moveDeltaT(x,delta,t) ).flatMap{ (stepped:Double) =>
+					if(stepped <= (fnValue + safeMultiply(gradient.t * delta, tolerance, t)) ){
+						Some(true)
+					} else {
+						None
+					}
+				}
+			}.isDefined
+		}
+		while(!check(t)){
+			t = t * lineStep
+		}
+		if((t < 0.0001) && !gradient.forallValues{ _ < 0.01 }){
+			throw new IllegalStateException("Line search failed (bad gradient?)")
+		}
+		t
+	}
+
+	def minimize(fn:ObjectiveFn, initialValue:VectorCol[Double]):OptimizerProfile = {
+		//--Initialize
+		//(variables)
+		var x = initialValue
+		var fnValue = fn(initialValue)
+		var iter = 0
+		var guesses:List[Double] = List[Double](fnValue.get)
+		//(error checks)
+		if(!fnValue.isDefined){
+			throw new IllegalArgumentException("Bad starting point:\n" + initialValue)
+		}
+		//--Descent
+		while(true){
+			//(get gradient)
+			val grad = fn.gradient(x) match {
+				case (Some(grad)) => grad
+				case None => throw new IllegalArgumentException("Gradient is not defined at:\n" + x)
+			}
+			//(promise hessian)
+			var hessianImpl:Option[Matrix[Double]] = None
+			val hessian = () => {
+				if(!hessianImpl.isDefined){
+					hessianImpl = fn.hessian(x);
+				}
+				if(!hessianImpl.isDefined){
+					throw new IllegalArgumentException("Minimizer needs a hessian defined")
+				}
+				hessianImpl.get
+			}
+			//(check for convergence)
+			if(converged(fnValue.get,grad,hessian)){
+				println("x=\n"+x)
+				println("Converged to " + fnValue.get + " [|grad|=" + grad.map{ _.abs }.sum + "]")
+				return OptimizerProfile(x, fnValue.get, DenseVectorCol(guesses.reverse.toArray))
+			}
+			//(iterative step)
+			val deltaX = delta(fnValue.get,grad,hessian)
+			val t:Double = lineSearch(fn,x,deltaX, grad)
+			//(debug)
+			println("Iteration "+iter+" [value=" +fnValue.get+"] [|grad|=" +grad.map{ _.abs }.sum+"] [t="+t+"]")
+			//(update)
+			val savedX = x;
+			x = moveDeltaT(x, deltaX, t)
+			if( !(deltaX :* t).forallValues{ _ == 0.0 } && x == savedX){
+				throw new IllegalStateException("Numeric precision underflow: x+t*deta == x even if t*delta > 0")
+			}
+			fnValue = fn(x)
+			//(update overhead)
+			if(!fnValue.isDefined){
+				throw new IllegalArgumentException("Function optimized out of bounds: " + x)
+			}
+			iter += 1
+			guesses = fnValue.get :: guesses
+		}
+		throw new IllegalStateException("Exited a while(true) loop? true=false now?")
+	}
+}
+
+class GradientDescentOptimizer(gradientTolerance:Double,tolerance:Double,lineStep:Double
+																	) extends DescentOptimizer(tolerance, lineStep) {
+	override def converged(fnValue:Double,grad:VectorCol[Double],hessian:()=>Matrix[Double]):Boolean
+		= grad.forallValues{ _.abs <= gradientTolerance}
+
+	override def delta(fnValue:Double,grad:VectorCol[Double],hessian:()=>Matrix[Double]):VectorCol[Double]
+		= -grad
+}
+
+class NewtonOptimizer(lambdaTolerance:Double,hessianInterval:Int,tolerance:Double,lineStep:Double) extends DescentOptimizer(tolerance, lineStep) {
+	var hessianInverseCache:Option[Matrix[Double]] = None
+	var cacheCond:()=>Matrix[Double] = null
+	var timeSinceUpdate:Int = 0
+
+	def inv(fn:()=>Matrix[Double]):Matrix[Double] = {
+		if(timeSinceUpdate > hessianInterval || !hessianInverseCache.isDefined || cacheCond == null){
+			hessianInverseCache = Some(LinearAlgebra.inv(fn()))
+			cacheCond = fn
+			timeSinceUpdate = 0
+		}
+		timeSinceUpdate += 1
+		hessianInverseCache.get
+	}
+
+	private def lambdaSquared(grad:VectorCol[Double],hessian:()=>Matrix[Double]):Double = grad.t * inv(hessian) * grad
+	override def converged(fnValue:Double,grad:VectorCol[Double],hessian:()=>Matrix[Double]):Boolean
+		= lambdaSquared(grad,hessian) / 1.0 <= lambdaTolerance
+	override def delta(fnValue:Double,grad:VectorCol[Double],hessian:()=>Matrix[Double]):VectorCol[Double]
+		= -inv(hessian)*grad
+}
+
+
+object Convex {
+
+	def main(args:Array[String]) {
+		//--Parameters
+		Random.mt.setSeed(42)
+		val outputDir = "/home/gabor/tmp"
+
+		val m:Int = 200
+		val n:Int = 100
+		var diagonal:Boolean = false
+		var hessianCache = 0
+		val epsilon= 1e-10
+		val eta = 1e-6
+		val alpha = 0.25
+		val beta = 0.5
+		val A:Matrix[Double] = DenseMatrix.rand(m,n)
+
+		//--Objective Function
+		val fn:ObjectiveFn = new ObjectiveFn {
+			def cardinality:Int = n
+			def apply(x: VectorCol[Double]):Option[Double] = {
+				val value = (0 until m).map{ (i:Int) => log( 1 :- (A(i,::) * x) ) }.sum +
+					x.map{ (v) => log(1-v*v) }.sum
+				if(value.isNaN){
+					None
+				} else {
+					Some(-value)
+				}
+			}
+			override def gradient(x:VectorCol[Double]):Option[VectorCol[Double]] = {
+				apply(x).flatMap{ (fnValue:Double) =>
+					val termA = (0 until m).map{ (i:Int) =>
+						val numer = A(i,::).t
+						val denom = 1.0 - (A(i,::) * x)
+						numer :/ denom
+					}.foldLeft(DenseVectorCol.zeros[Double](cardinality)){
+						case (soFar:DenseVectorCol[Double], term:VectorCol[Double]) => soFar :+ term
+					}
+					val termB = (2 :* x) :/ ( (x :^ 2) :- 1.0)
+					val deriv = termA :- termB
+					if(deriv.forallValues( (v:Double) => !v.isNaN )){
+						Some(deriv)
+					} else {
+						None
+					}
+				}
+			}
+			override def hessian(x:VectorCol[Double]):Option[Matrix[Double]] = {
+				val hessian:Matrix[Double] =
+					if(diagonal){
+						val hessian = DenseMatrix.eye[Double](x.length)
+						(0 until x.length).foreach{ (i:Int) =>
+							val term1 = A(::,i).sum
+							val term2 = (2.0*x(i)*x(i)+2.0) / (1-x(i)*x(i))*(1-x(i)*x(i))
+							hessian(i,i) = term1 + term2
+						}
+						hessian
+					} else {
+						//--Term 1
+						val term1 = (0 until m).map{ (i:Int) =>
+							val numer1:Matrix[Double] = A(i,::).t*A(i,::)
+							val denom1:Double = (1.0 - A(i,::)*x)
+							numer1 :/ (denom1*denom1)
+						}.foldLeft(DenseMatrix.zeros[Double](cardinality,cardinality)){
+							case (soFar:Matrix[Double], term:Matrix[Double]) => soFar :+ term
+						}
+						//--Term 2
+						val term2 = x.map{ (x:Double) =>
+							(2.0*x*x + 2) / ((1-x*x)*(1-x*x))
+						}
+						(0 until cardinality).foreach{ (i:Int) =>
+							term1(i,i) += term2(i)
+						}
+						//--Return
+						term1
+					}
+				Some(hessian)
+			}
+		}
+
+
+		//--Experiments
+		val optimal = new NewtonOptimizer(1e-15, 0, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality)).optimalValue
+		def runTest[A](name:String,file:String,vals:Array[A],fn:A=>Any){
+			plot.title = name
+			plot.legend = true
+			plot.hold = true
+			vals.foreach{ (v:A) =>
+				fn(v)
+				Thread.sleep(1000)
+			}
+			Thread.sleep(1000)
+			Plotting.saveas(outputDir + "/"+file)
+			Thread.sleep(1000)
+			plot.hold = false
+			Thread.sleep(1000)
+			Plotting.clf()
+			Thread.sleep(5000)
+		}
+		def changeEta(etas:Double*) {
+			runTest("Changing Eta", "eta-converge.png", etas.toArray,
+				(eta:Double) =>
+					new GradientDescentOptimizer(eta, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality)).plotLogConvergence("eta = " + eta,optimal))
+		}
+		def changeAlpha(alphas:Double*) {
+			runTest("Convergence vs Alpha", "alpha-converge.png", alphas.toArray,
+				(alpha:Double) =>
+					new GradientDescentOptimizer(eta, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality)).plotLogConvergence("alpha = " + alpha,optimal))
+			runTest("Objective vs Alpha", "alpha-objective.png", alphas.toArray,
+				(alpha:Double) =>
+					new GradientDescentOptimizer(eta, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality)).plotObjective("alpha = " + alpha))
+		}
+		def changeBeta(betas:Double*) {
+			runTest("Convergence vs Beta", "beta-converge.png", betas.toArray,
+				(beta:Double) =>
+					new GradientDescentOptimizer(eta, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality)).plotLogConvergence("beta = " + beta,optimal))
+			runTest("Objective vs Beta", "beta-objective.png", betas.toArray,
+				(beta:Double) =>
+					new GradientDescentOptimizer(eta, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality)).plotObjective("beta = " + beta))
+		}
+		def changeDiagonalization {
+			runTest("Convergence vs Diagonal", "diag-converge.png", Array[Boolean](true,false),
+				(d:Boolean) => {
+					diagonal = d
+					new NewtonOptimizer(epsilon, hessianCache, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality))
+							.plotLogConvergence(if(diagonal){ "diagonal" } else { "full" }, optimal) })
+			runTest("Objective vs Diagonal", "diag-objective.png", Array[Boolean](true,false),
+				(d:Boolean) => {
+					diagonal = d
+					new NewtonOptimizer(epsilon, hessianCache, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality))
+							.plotObjective(if(diagonal){ "diagonal" } else { "full" }) })
+			diagonal = false
+		}
+		def changeEpsilon(epsilons:Double*) {
+			runTest("Changing Epsilon", "epsilon-converge.png", epsilons.toArray,
+				(epsilon:Double) =>
+					new NewtonOptimizer(epsilon, hessianCache, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality))
+							.plotLogConvergence("epsilon = " + epsilon,optimal) )
+		}
+		def changeCache(caches:Int*) {
+			runTest("Convergence vs Hessian Cache", "cache-converge.png", caches.toArray,
+				(hessianCache:Int) =>
+					new NewtonOptimizer(epsilon, hessianCache, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality))
+							.plotLogConvergence("cache = " + hessianCache, optimal) )
+			runTest("Objective vs Hessian Cache", "cache-objective.png", caches.toArray,
+				(hessianCache:Int) =>
+					new NewtonOptimizer(epsilon, hessianCache, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality))
+							.plotObjective("cache = " + hessianCache) )
+			hessianCache = 0
+		}
+
+//		runTest("Gradient Decent", "gradient.png", Array[Double](eta),
+//			(eta:Double) =>
+//				new GradientDescentOptimizer(eta, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality))
+//						.plotObjective("Objective value") )
+				runTest("Newton's Method", "newton.png", Array[Double](eta),
+					(eta:Double) =>
+						new NewtonOptimizer(epsilon, hessianCache,alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality))
+								.plotObjective("Objective value") )
+//		changeAlpha(0.05,0.1,0.25,0.4,0.49)
+//		changeBeta(0.1,0.25,0.5,0.75,0.9)
+//		changeDiagonalization
+//		changeCache(1,15,30)
+
+
+//		fn.plot(-5.0,1.0,0.01)
+//
+//		val goldMin = new GradientDescentOptimizer(eta, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality)).optimalValue
+//		println("-----------------\n\n")
+//
+//		val minimizer = Optimizer.newton(epsilon, hessianCache, alpha, beta)
+//		val profile = minimizer.minimize(fn, DenseVector.zeros[Double](fn.cardinality))
+//		println("Guess=" + profile.optimalValue + " gold=" + goldMin)
+//		profile.plotLogConvergence()
+
+	}
+}

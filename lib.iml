@@ -17,9 +17,10 @@
     <facet type="scala" name="Scala">
       <configuration>
         <option name="compilerLibraryLevel" value="Global" />
-        <option name="compilerLibraryName" value="scala-compiler-2.9.1" />
+        <option name="compilerLibraryName" value="scala-compiler-2.9.0.1" />
         <option name="deprecationWarnings" value="true" />
         <option name="explainTypeErrors" value="true" />
+        <option name="fsc" value="true" />
         <option name="maximumHeapSize" value="1024" />
         <option name="uncheckedWarnings" value="true" />
       </configuration>
@@ -35,79 +36,20 @@
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="JavaNLP" level="application" />
-    <orderEntry type="module-library">
-      <library name="scala-compiler.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/scala-compiler.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library">
-      <library name="scala-library.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/scala-library.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library" scope="RUNTIME">
-      <library name="postgresql.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/postgresql.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library" scope="RUNTIME">
-      <library name="sqlite.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/sqlite.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library" scope="RUNTIME">
-      <library name="mysql.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/mysql.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library">
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="module-library" exported="">
       <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/scalatest.jar!/" />
+          <root url="file://$MODULE_DIR$/etc" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES />
+        <SOURCES>
+          <root url="file://$MODULE_DIR$/etc" />
+        </SOURCES>
+        <jarDirectory url="file://$MODULE_DIR$/etc" recursive="false" />
+        <jarDirectory url="file://$MODULE_DIR$/etc" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
-    <orderEntry type="module-library">
-      <library name="junit.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/junit.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library">
-      <library name="jchart2d.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/etc/jchart2d.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="inheritedJdk" />
   </component>
 </module>
 
