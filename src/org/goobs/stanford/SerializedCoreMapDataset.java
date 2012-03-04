@@ -100,6 +100,13 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 	public void save(){
 		saveAs(this.file, this.isPiecewise);
 	}
+	
+	public void chdir(String newDir){
+		this.file = newDir;
+		if(isPiecewise){
+			new File(newDir).mkdirs();
+		}
+	}
 
 	public void saveDatum(int index){
 		if(!this.isPiecewise){
