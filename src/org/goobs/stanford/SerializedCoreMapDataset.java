@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
+import java.util.Comparator;
 
 public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements Serializable, PrettyLoggable {
 	private static final long serialVersionUID = 1L;
@@ -24,19 +25,31 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 	private WeakReference<CoreMapDatum>[] weakMaps;
 	private File[] files;
 
+	@SuppressWarnings("unchecked")
 	public <E extends CoreMap> SerializedCoreMapDataset(String file, E[] maps, boolean piecewise){
 		//(create dataset)
 		this.file = file;
-		this.maps = new CoreMapDatum[maps.length];
-		for(int i=0; i<maps.length; i++){
-			this.maps[i] = new CoreMapDatum(maps[i],i);
-		}
 		this.isPiecewise = piecewise;
-		if(this.isPiecewise){
-			new File(file).mkdirs();
+		if(isPiecewise){
+			if(!new File(file).mkdirs()){
+				throw new IllegalArgumentException("Could not create directory: " + file);
+			}
+			this.weakMaps = new WeakReference[maps.length];
+			this.files = new File[maps.length];
+			for(int i=0; i<maps.length; i++){
+				this.weakMaps[i] = new WeakReference<CoreMapDatum>(new CoreMapDatum(maps[i],i));
+				this.files[i] = new File(this.file+"/"+i+".ser.gz");
+				this.saveDatum(i);
+				assert this.get(i) != null;
+			}
+		} else {
+			this.maps = new CoreMapDatum[maps.length];
+			for(int i=0; i<maps.length; i++){
+				this.maps[i] = new CoreMapDatum(maps[i],i);
+			}
+			save();
 		}
-		//(save dataset)
-		save();
+
 	}
 
 	public <E extends CoreMap> SerializedCoreMapDataset(String file, E[] maps){
@@ -55,10 +68,23 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 					return file.length() > 0;
 				}
 			});
-			Arrays.sort(files);
+			Arrays.sort(this.files, new Comparator<File>(){
+				@Override
+				public int compare(File a, File b) {
+					String nameA = a.getName();
+					String nameB = b.getName();
+					String truncA = nameA.substring(0,nameA.indexOf("."));
+					String truncB = nameB.substring(0,nameB.indexOf("."));
+					try {
+						return Integer.parseInt(truncA) - Integer.parseInt(truncB);
+					} catch (NumberFormatException e){
+						return truncA.compareTo(truncB);
+					}
+				}
+			});
 			//(load files)
 			this.weakMaps = (WeakReference<CoreMapDatum>[]) new WeakReference[files.length];
-			for(int i=0; i<files.length; i++){
+			for(int i=0; i<this.files.length; i++){
 				this.weakMaps[i] = new WeakReference<CoreMapDatum>( null );
 			}
 		} else {
