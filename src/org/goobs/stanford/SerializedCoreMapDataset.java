@@ -130,15 +130,25 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 	public void chdir(String newDir){
 		this.file = newDir;
 		if(isPiecewise){
+			//(change directory)
 			new File(newDir).mkdirs();
+			//(copy datums)
+			for(int i=0; i<files.length; i++){
+				CoreMapDatum datumI = get(i);
+				files[i] = new File(this.file + "/" + i + ".ser.gz");
+				saveDatum(i);
+			}
 		}
 	}
 
-	public void saveDatum(int index){
+	public void saveDatum(int index, CoreMapDatum datum){
 		if(!this.isPiecewise){
 			throw new IllegalStateException("Cannot save single datum in non-piecewise mode");
 		}
-		writeObject(files[index].getAbsolutePath(), get(index));
+		writeObject(files[index].getAbsolutePath(), datum == null ? get(index) : datum);
+	}
+	public void saveDatum(int index){
+		saveDatum(index, null);
 	}
 
 	@Override public int numExamples() {
@@ -166,6 +176,12 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 				weakMaps[id] = new WeakReference<CoreMapDatum>(rtn);
 			}
 			return rtn;
+		}
+	}
+
+	public void release(int id) {
+		if(weakMaps != null){
+			weakMaps[id].clear();
 		}
 	}
 

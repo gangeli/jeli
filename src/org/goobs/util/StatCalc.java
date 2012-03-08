@@ -76,6 +76,10 @@ public class StatCalc {
 	public void enter(int num){
 		enter( (double) num );
 	}
+	
+	public void enter(Number num){
+		enter(num.doubleValue());
+	}
 
 	public int getCount() {
 		// Return number of items that have been entered.
@@ -144,6 +148,28 @@ public class StatCalc {
 	}
 
 	public double getStdev(){ return getStandardDeviation(); }
-    public double stdev(){ return getStandardDeviation(); }
+	public double stdev(){ return getStandardDeviation(); }
+	
+	public String toString(){
+		return ""+mean()+" +/- "+stdev();
+	}
 
-} // end of class StatCalc
+	
+	public StatCalc create(double[] vals){
+		StatCalc toReturn = new StatCalc();
+		for(double d : vals){ toReturn.enter(d); }
+		return toReturn;
+	}
+
+	public StatCalc create(int[] vals){
+		StatCalc toReturn = new StatCalc();
+		for(int d : vals){ toReturn.enter(d); }
+		return toReturn;
+	}
+	public StatCalc create(Iterable<Number> vals){
+		StatCalc toReturn = new StatCalc();
+		for(Number d : vals){ toReturn.enter(d); }
+		return toReturn;
+	}
+
+	} // end of class StatCalc

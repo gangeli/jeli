@@ -9,6 +9,7 @@ import org.goobs.testing.*;
 import org.goobs.util.Marker;
 import org.goobs.util.Utils;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -609,6 +610,14 @@ public class Execution {
 		File rtn = new File(execDirFull + "/" + relativePath);
 		rtn.createNewFile();
 		return rtn;
+	}
+
+	public static void touchAndWrite(String filename, String content) throws IOException {
+		File file = touch(filename);
+		FileWriter fstream = new FileWriter(file);
+  	BufferedWriter out = new BufferedWriter(fstream);
+		out.write(content);
+		out.close();
 	}
 
 	private static final void dumpOptions(Map<String,String> options){
