@@ -2,10 +2,7 @@ package org.goobs.stats;
 
 import java.lang.reflect.InvocationTargetException;
 
-/**
- * @author Gabor Angeli (angeli at cs.stanford)
- */
-public class Null<DOMAIN,DISTRIBUTION extends DiscreteDistribution<DOMAIN>> implements Prior<DOMAIN,DISTRIBUTION> {
+public class NullPrior<DOMAIN,DISTRIBUTION extends DiscreteDistribution<DOMAIN>> implements Prior<DOMAIN,DISTRIBUTION> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public DISTRIBUTION posterior(DISTRIBUTION empirical) {

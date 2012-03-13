@@ -178,7 +178,7 @@ public class ConfigFile {
 					//(end of list)
 					if(term.length() == 0){ 
 						if(lst.size() > 0){
-							throw new IOException("Null last list element (ends with a ','): " + left.toString());
+							throw new IOException("NullPrior last list element (ends with a ','): " + left.toString());
 						}
 					}else{
 						lst.add(term.toString().trim());

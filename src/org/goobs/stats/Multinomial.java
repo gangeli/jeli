@@ -4,7 +4,7 @@ package org.goobs.stats;
 import java.text.DecimalFormat;
 import java.util.*;
 
-public class Multinomial <DOMAIN> implements Bayesian<DOMAIN,Multinomial<DOMAIN>,Prior<DOMAIN,Multinomial<DOMAIN>>>, DiscreteDistribution<DOMAIN> {
+public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implements Bayesian<DOMAIN,Multinomial<DOMAIN>,Prior<DOMAIN,Multinomial<DOMAIN>>> {
 	/*
 		VARIABLES
 	 */

@@ -31,7 +31,7 @@ case class NodeType(name:Symbol,id:Int,flag:Set[Symbol]) {
 						this + "("+this.id+") " + o +"("+otherId+")")
 					true
 				} else {
-					assert(id != otherId, "Names don't match but IDs do")
+					assert(id != otherId, "Names don't match but IDs do: " + name + " ids: " + id + " vs " + otherId)
 					false
 				}
 			case _ => false

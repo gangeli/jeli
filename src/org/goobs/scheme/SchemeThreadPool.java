@@ -214,7 +214,7 @@ public class SchemeThreadPool {
 			throw new IllegalStateException("Calling append before beginAppend");
 		}
 		if(thisThread == null){
-			throw new IllegalStateException("Null thread passed to append");
+			throw new IllegalStateException("NullPrior thread passed to append");
 		}
 		toAppend.add(new SchemeThread(toEval, env, toFill, nextThreadID(), thisThread.tid));
 	}

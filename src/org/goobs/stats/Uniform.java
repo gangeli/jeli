@@ -6,7 +6,7 @@ import java.util.Set;
 /**
  * @author Gabor Angeli (angeli at cs.stanford)
  */
-public class Uniform<DOMAIN> implements DiscreteDistribution<DOMAIN>, Bayesian<DOMAIN,Uniform<DOMAIN>,MLEPrior<DOMAIN, Uniform<DOMAIN>>> {
+public class Uniform<DOMAIN> extends  DiscreteDistribution<DOMAIN> implements Bayesian<DOMAIN,Uniform<DOMAIN>,MLEPrior<DOMAIN, Uniform<DOMAIN>>> {
 
 	@Override
 	public void makeFlat() {

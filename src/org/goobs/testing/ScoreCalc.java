@@ -71,7 +71,7 @@ public class ScoreCalc <T> {
 		//(score)
 		if(guess == null && gold == null){
 			//(case: impossible)
-			throw new IllegalStateException("Null point entered");
+			throw new IllegalStateException("NullPrior point entered");
 		}else if(guess == null){
 			//(case: gold without matching guess: recall bug)
 			// no action

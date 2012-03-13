@@ -89,7 +89,7 @@ import edu.stanford.nlp.ling.tokensregex.SequencePattern._
 //case class AnnotationWrapper[A](ann:Class[_<:CoreAnnotation[A]]){
 //	type AClass = Class[_<:Any]
 //	import CoreMapNodePattern.NumericAnnotationPattern.CmpType
-//	//--Null Apply
+//	//--NullPrior Apply
 //	def exists:Node = {
 //		val p = new CoreMapNodePattern.NotNilAnnotationPattern
 //		new Node(new CoreMapNodePattern(Map[AClass,NodePattern[_]]( (ann,p) )))
