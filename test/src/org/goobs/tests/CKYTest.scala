@@ -12,68 +12,68 @@ import org.goobs.util.{TrackedObjectOutputStream, SingletonIterator}
 object Grammars {
 	def TOY:Array[GrammarRule] = {
 		Array[GrammarRule](
-			BinaryGrammarRule(NodeType.ROOT, NodeType.make("S")),
-			BinaryGrammarRule(NodeType.make("S"), NodeType.make("NP"), NodeType.make("VP")),
-			BinaryGrammarRule(NodeType.make("NP"), NodeType.makePreterminal("NN")),
-			BinaryGrammarRule(NodeType.make("VP"), NodeType.makePreterminal("VB"), NodeType.make("NP")),
-		  LexGrammarRule(NodeType.makePreterminal("NN")),
-			LexGrammarRule(NodeType.makePreterminal("VB"))
+			BinaryGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("S")),
+			BinaryGrammarRule(NodeType.defaultFactory.make("S"), NodeType.defaultFactory.make("NP"), NodeType.defaultFactory.make("VP")),
+			BinaryGrammarRule(NodeType.defaultFactory.make("NP"), NodeType.defaultFactory.makePreterminal("NN")),
+			BinaryGrammarRule(NodeType.defaultFactory.make("VP"), NodeType.defaultFactory.makePreterminal("VB"), NodeType.defaultFactory.make("NP")),
+		  LexGrammarRule(NodeType.defaultFactory.makePreterminal("NN")),
+			LexGrammarRule(NodeType.defaultFactory.makePreterminal("VB"))
 		)
 	}
 	def MATH_TYPE:Array[GrammarRule] = {
 		Array[GrammarRule](
-			BinaryGrammarRule(NodeType.ROOT, NodeType.make("double")),
-			BinaryGrammarRule(NodeType.make("double"), NodeType.make("int")),
-			BinaryGrammarRule(NodeType.make("int"), NodeType.makePreterminal("int_tag")),
-			BinaryGrammarRule(NodeType.make("int"), NodeType.make("int"), NodeType.make("int")),
-			BinaryGrammarRule(NodeType.make("double"), NodeType.make("int"), NodeType.make("double")),
-			BinaryGrammarRule(NodeType.make("double"), NodeType.make("double"), NodeType.make("int")),
-			BinaryGrammarRule(NodeType.make("double"), NodeType.make("double"), NodeType.make("double")),
-			LexGrammarRule(NodeType.makePreterminal("int_tag"))
+			BinaryGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("double")),
+			BinaryGrammarRule(NodeType.defaultFactory.make("double"), NodeType.defaultFactory.make("int")),
+			BinaryGrammarRule(NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("int_tag")),
+			BinaryGrammarRule(NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("int")),
+			BinaryGrammarRule(NodeType.defaultFactory.make("double"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("double")),
+			BinaryGrammarRule(NodeType.defaultFactory.make("double"), NodeType.defaultFactory.make("double"), NodeType.defaultFactory.make("int")),
+			BinaryGrammarRule(NodeType.defaultFactory.make("double"), NodeType.defaultFactory.make("double"), NodeType.defaultFactory.make("double")),
+			LexGrammarRule(NodeType.defaultFactory.makePreterminal("int_tag"))
 		)
 	}
 
 	def MATH_PLUS:Array[GrammarRule] = {
 		Array[GrammarRule](
-			GrammarRule((x:Any) => x, NodeType.ROOT, NodeType.make("double")),
-			GrammarRule((x:Int) => x.asInstanceOf[Double], NodeType.make("double"), NodeType.make("int")),
-			GrammarRule((x:Any) => x, NodeType.make("int"), NodeType.makePreterminal("int_")),
-			GrammarRule((x:Int,plus:Any,y:Int) => {x + y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("+_"), NodeType.make("int")),
-			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.makePreterminal("int_")),
-			GrammarRule((sent:Option[Sentence],index:Int) => 'plus, NodeType.makePreterminal("+_"))
+			GrammarRule((x:Any) => x, NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("double")),
+			GrammarRule((x:Int) => x.asInstanceOf[Double], NodeType.defaultFactory.make("double"), NodeType.defaultFactory.make("int")),
+			GrammarRule((x:Any) => x, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("int_")),
+			GrammarRule((x:Int,plus:Any,y:Int) => {x + y}, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("+_"), NodeType.defaultFactory.make("int")),
+			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.defaultFactory.makePreterminal("int_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'plus, NodeType.defaultFactory.makePreterminal("+_"))
 		)
 	}
 
 	def MATH_MINUS:Array[GrammarRule] = {
 		Array[GrammarRule](
-			GrammarRule((x:Any) => x, NodeType.ROOT, NodeType.make("double")),
-			GrammarRule((x:Int) => x.asInstanceOf[Double], NodeType.make("double"), NodeType.make("int")),
-			GrammarRule((x:Any) => x, NodeType.make("int"), NodeType.makePreterminal("int_")),
-			GrammarRule((x:Int,minus:Any,y:Int) => {x - y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("-_"), NodeType.make("int")),
-			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.makePreterminal("int_")),
-			GrammarRule((sent:Option[Sentence],index:Int) => 'minus, NodeType.makePreterminal("-_"))
+			GrammarRule((x:Any) => x, NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("double")),
+			GrammarRule((x:Int) => x.asInstanceOf[Double], NodeType.defaultFactory.make("double"), NodeType.defaultFactory.make("int")),
+			GrammarRule((x:Any) => x, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("int_")),
+			GrammarRule((x:Int,minus:Any,y:Int) => {x - y}, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("-_"), NodeType.defaultFactory.make("int")),
+			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.defaultFactory.makePreterminal("int_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'minus, NodeType.defaultFactory.makePreterminal("-_"))
 		)
 	}
 
 	def MATH:Array[GrammarRule] = {
 		Array[GrammarRule](
-			GrammarRule((x:Any) => x, NodeType.ROOT, NodeType.make("double")),
-			GrammarRule((x:Int) => x.asInstanceOf[Double], NodeType.make("double"), NodeType.make("int")),
-			GrammarRule((x:Any) => x, NodeType.make("int"), NodeType.makePreterminal("int_")),
-			GrammarRule((x:Int,plus:Any, y:Int) => {x + y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("+_"), NodeType.make("int")),
-			GrammarRule((x:Int,minus:Any,y:Int) => {x - y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("-_"), NodeType.make("int")),
-			GrammarRule((x:Int,times:Any,y:Int) => {x * y}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("*_"), NodeType.make("int")),
-			GrammarRule((x:Int,div:Any,  y:Int) => {if(y==0){ 0 } else {x / y}}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("/_"), NodeType.make("int")),
-			GrammarRule((x:Int,pow:Any,  y:Int) => {math.pow(x,y).toInt}, NodeType.make("int"), NodeType.make("int"), NodeType.makePreterminal("^_"), NodeType.make("int")),
-			GrammarRule((l:Any,x:Int,y:Any) => { x }, NodeType.make("int"), NodeType.makePreterminal("(_"), NodeType.make("int"), NodeType.makePreterminal(")_")),
-			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.makePreterminal("int_")).restrict(_ == math2str.indexOf("#")),
-			GrammarRule((sent:Option[Sentence],index:Int) => 'plus, NodeType.makePreterminal("+_")),
-			GrammarRule((sent:Option[Sentence],index:Int) => 'minus, NodeType.makePreterminal("-_")),
-			GrammarRule((sent:Option[Sentence],index:Int) => 'timex, NodeType.makePreterminal("*_")),
-			GrammarRule((sent:Option[Sentence],index:Int) => 'div, NodeType.makePreterminal("/_")),
-			GrammarRule((sent:Option[Sentence],index:Int) => 'pow, NodeType.makePreterminal("^_")),
-			GrammarRule((sent:Option[Sentence],index:Int) => 'lparen, NodeType.makePreterminal("(_")),
-			GrammarRule((sent:Option[Sentence],index:Int) => 'rparen, NodeType.makePreterminal(")_"))
+			GrammarRule((x:Any) => x, NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("double")),
+			GrammarRule((x:Int) => x.asInstanceOf[Double], NodeType.defaultFactory.make("double"), NodeType.defaultFactory.make("int")),
+			GrammarRule((x:Any) => x, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("int_")),
+			GrammarRule((x:Int,plus:Any, y:Int) => {x + y}, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("+_"), NodeType.defaultFactory.make("int")),
+			GrammarRule((x:Int,minus:Any,y:Int) => {x - y}, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("-_"), NodeType.defaultFactory.make("int")),
+			GrammarRule((x:Int,times:Any,y:Int) => {x * y}, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("*_"), NodeType.defaultFactory.make("int")),
+			GrammarRule((x:Int,div:Any,  y:Int) => {if(y==0){ 0 } else {x / y}}, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("/_"), NodeType.defaultFactory.make("int")),
+			GrammarRule((x:Int,pow:Any,  y:Int) => {math.pow(x,y).toInt}, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("^_"), NodeType.defaultFactory.make("int")),
+			GrammarRule((l:Any,x:Int,y:Any) => { x }, NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal("(_"), NodeType.defaultFactory.make("int"), NodeType.defaultFactory.makePreterminal(")_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => sent.get.asNumber(index), NodeType.defaultFactory.makePreterminal("int_")).restrict(_ == math2str.indexOf("#")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'plus, NodeType.defaultFactory.makePreterminal("+_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'minus, NodeType.defaultFactory.makePreterminal("-_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'timex, NodeType.defaultFactory.makePreterminal("*_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'div, NodeType.defaultFactory.makePreterminal("/_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'pow, NodeType.defaultFactory.makePreterminal("^_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'lparen, NodeType.defaultFactory.makePreterminal("(_")),
+			GrammarRule((sent:Option[Sentence],index:Int) => 'rparen, NodeType.defaultFactory.makePreterminal(")_"))
 		)
 	}
 	
@@ -110,26 +110,26 @@ object Trees {
 	 * (S (NP (NN I)) (VP (VB like) (NP (NN nlp))))
 	 */
 	def TOY:Array[ParseTree] = Array[ParseTree](
-		ParseTree(NodeType.make("S"), Array[ParseTree](
-			ParseTree(NodeType.make("NP"),Array[ParseTree](
-				ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("I"))), 1.0, true ),
-			ParseTree(NodeType.make("VP"),Array[ParseTree](
-				ParseTree(NodeType.makePreterminal("VB"), Grammars.w2str.indexOf("like")),
-				ParseTree(NodeType.make("NP"),Array[ParseTree](
-					ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("sugar") ) ), 1.0, true)), 1.0, true )), 1.0, true ),
-		ParseTree(NodeType.make("S"), Array[ParseTree](
-			ParseTree(NodeType.make("NP"),Array[ParseTree](
-				ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("I"))), 1.0, true ),
-			ParseTree(NodeType.make("VP"),Array[ParseTree](
-				ParseTree(NodeType.makePreterminal("VB"), Grammars.w2str.indexOf("like")),
-				ParseTree(NodeType.make("NP"),Array[ParseTree](
-					ParseTree(NodeType.makePreterminal("NN"), Grammars.w2str.indexOf("NLP") ) ), 1.0, true)), 1.0, true )), 1.0, true )
+		ParseTree(NodeType.defaultFactory.make("S"), Array[ParseTree](
+			ParseTree(NodeType.defaultFactory.make("NP"),Array[ParseTree](
+				ParseTree(NodeType.defaultFactory.makePreterminal("NN"), Grammars.w2str.indexOf("I"))), 1.0, NodeType.defaultFactory, true ),
+			ParseTree(NodeType.defaultFactory.make("VP"),Array[ParseTree](
+				ParseTree(NodeType.defaultFactory.makePreterminal("VB"), Grammars.w2str.indexOf("like")),
+				ParseTree(NodeType.defaultFactory.make("NP"),Array[ParseTree](
+					ParseTree(NodeType.defaultFactory.makePreterminal("NN"), Grammars.w2str.indexOf("sugar") ) ), 1.0, NodeType.defaultFactory, true)), 1.0, NodeType.defaultFactory, true )), 1.0, NodeType.defaultFactory, true ),
+		ParseTree(NodeType.defaultFactory.make("S"), Array[ParseTree](
+			ParseTree(NodeType.defaultFactory.make("NP"),Array[ParseTree](
+				ParseTree(NodeType.defaultFactory.makePreterminal("NN"), Grammars.w2str.indexOf("I"))), 1.0, NodeType.defaultFactory, true ),
+			ParseTree(NodeType.defaultFactory.make("VP"),Array[ParseTree](
+				ParseTree(NodeType.defaultFactory.makePreterminal("VB"), Grammars.w2str.indexOf("like")),
+				ParseTree(NodeType.defaultFactory.make("NP"),Array[ParseTree](
+					ParseTree(NodeType.defaultFactory.makePreterminal("NN"), Grammars.w2str.indexOf("NLP") ) ), 1.0, NodeType.defaultFactory, true)), 1.0, NodeType.defaultFactory, true )), 1.0, NodeType.defaultFactory, true )
 	)
 	
 	def UNARIES:ParseTree 
-		= ParseTree(NodeType.make("A"), Array[ParseTree](
-		  	ParseTree(NodeType.make("B"), Array[ParseTree](
-					ParseTree(NodeType.makePreterminal("C_"), Grammars.w2str.indexOf("NLP"))))))
+		= ParseTree(NodeType.defaultFactory.make("A"), Array[ParseTree](
+		  	ParseTree(NodeType.defaultFactory.make("B"), Array[ParseTree](
+					ParseTree(NodeType.defaultFactory.makePreterminal("C_"), Grammars.w2str.indexOf("NLP"))))))
 }
 
 class CKYParserSpec extends Spec with ShouldMatchers {
@@ -138,33 +138,33 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 	describe("A Node Type"){
 		it("should be createable"){
 			//(simple equality)
-			NodeType.make("S") should be (NodeType('S))
-			NodeType.make("S") should be (NodeType.make('S))
+			NodeType.defaultFactory.make("S") should be (NodeType.defaultFactory('S))
+			NodeType.defaultFactory.make("S") should be (NodeType.defaultFactory.make('S))
 			//(with flags)
-			NodeType.make("NN",NodeType.SYM_PRETERMINAL) should be (NodeType('NN))
+			NodeType.defaultFactory.make("NN",NodeType.SYM_PRETERMINAL) should be (NodeType.defaultFactory('NN))
 			//(constants)
-			NodeType.ROOT
-			NodeType.WORD
-			NodeType.WORD should be (NodeType.makeWord())
+			NodeType.defaultFactory.ROOT
+			NodeType.defaultFactory.WORD
+			NodeType.defaultFactory.WORD should be (NodeType.defaultFactory.makeWord())
 			//(duplicate create)
 			intercept[IllegalArgumentException]{
-				NodeType.make("S", NodeType.SYM_PRETERMINAL)
+				NodeType.defaultFactory.make("S", NodeType.SYM_PRETERMINAL)
 			}
 		}
 		it("should remember itself"){
-			NodeType.make("somerandomnode")
-			NodeType('somerandomnode)
-			NodeType("somerandomnode")
+			NodeType.defaultFactory.make("somerandomnode")
+			NodeType.defaultFactory('somerandomnode)
+			NodeType.defaultFactory("somerandomnode")
 		}
 		it("should recognize flags"){
-			NodeType.WORD.isWord should be (true)
-			NodeType.WORD.isPreterminal should be (false)
-			NodeType.makeWord().isWord should be (true)
-			NodeType.make("NN",NodeType.SYM_PRETERMINAL).isWord should be (false)
-			NodeType.make("NN",NodeType.SYM_PRETERMINAL).isPreterminal should be (true)
+			NodeType.defaultFactory.WORD.isWord should be (true)
+			NodeType.defaultFactory.WORD.isPreterminal should be (false)
+			NodeType.defaultFactory.makeWord().isWord should be (true)
+			NodeType.defaultFactory.make("NN",NodeType.SYM_PRETERMINAL).isWord should be (false)
+			NodeType.defaultFactory.make("NN",NodeType.SYM_PRETERMINAL).isPreterminal should be (true)
 		}
 		it("should hash well"){
-			def randomNode:NodeType = NodeType.make(scala.util.Random.nextString(10))
+			def randomNode:NodeType = NodeType.defaultFactory.make(scala.util.Random.nextString(10))
 			scala.util.Random.setSeed(42);
 			for(iter <- 0 until 100){
 				//(variables)
@@ -219,18 +219,18 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			TOY(0) should be (TOY(0))
 			TOY(0).hashCode should be (TOY(0).hashCode)
 			//(instance different equality)
-			val rootA = BinaryGrammarRule(NodeType.ROOT, NodeType.make("S"))
-			val rootB = BinaryGrammarRule(NodeType.ROOT, NodeType.make("S"))
-			val rootC = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("S"))
+			val rootA = BinaryGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("S"))
+			val rootB = BinaryGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("S"))
+			val rootC = new SimpleGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("S"))
 			rootA should be (rootB)
 			rootA should be (rootC)
 			rootB should be (rootC)
 			rootC should be (rootA)
 			//--All Types
 			//(unaries)
-			val simpleUnary = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"))
-			val binaryUnary = BinaryGrammarRule(NodeType.ROOT, NodeType.make("X"))
-			val ckyUnary = new CKYUnary(NodeType.ROOT, NodeType.make("X"));
+			val simpleUnary = new SimpleGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"))
+			val binaryUnary = BinaryGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"))
+			val ckyUnary = new CKYUnary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"));
 			simpleUnary should be (binaryUnary)
 			simpleUnary should be (ckyUnary)
 			binaryUnary should be (simpleUnary)
@@ -240,9 +240,9 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			simpleUnary.hashCode should be (binaryUnary.hashCode)
 			binaryUnary.hashCode should be (ckyUnary.hashCode)
 			//(binaries)
-			val simpleBinary = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"))
-			val binaryBinary = BinaryGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"))
-			val ckyBinary = new CKYBinary(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"));
+			val simpleBinary = new SimpleGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"), NodeType.defaultFactory.make("X"))
+			val binaryBinary = BinaryGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"), NodeType.defaultFactory.make("X"))
+			val ckyBinary = new CKYBinary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"), NodeType.defaultFactory.make("X"));
 			simpleBinary should be (binaryBinary)
 			simpleBinary should be (ckyBinary)
 			binaryBinary should be (simpleBinary)
@@ -252,11 +252,11 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			simpleBinary.hashCode should be (binaryBinary.hashCode)
 			binaryBinary.hashCode should be (ckyBinary.hashCode)
 			//--Not Equals
-			val simpleTrinary2 = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"), NodeType.make("X"))
-			val simpleBinary2 = new SimpleGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("X"))
-			val binaryBinary2 = BinaryGrammarRule(NodeType.ROOT, NodeType.make("X"), NodeType.make("Y"))
-			val ckyBinary2 = new CKYBinary(NodeType.ROOT, NodeType.make("X"), NodeType.make("Z"));
-			val ckyUnary2 = new CKYUnary(NodeType.ROOT, NodeType.make("X"))
+			val simpleTrinary2 = new SimpleGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"), NodeType.defaultFactory.make("X"), NodeType.defaultFactory.make("X"))
+			val simpleBinary2 = new SimpleGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"), NodeType.defaultFactory.make("X"))
+			val binaryBinary2 = BinaryGrammarRule(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"), NodeType.defaultFactory.make("Y"))
+			val ckyBinary2 = new CKYBinary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"), NodeType.defaultFactory.make("Z"));
+			val ckyUnary2 = new CKYUnary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("X"))
 			simpleTrinary2 should not be (simpleBinary2)
 			simpleTrinary2 should not be (binaryBinary2)
 			simpleTrinary2 should not be (ckyBinary2)
@@ -279,7 +279,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			ckyUnary2 should not be (simpleTrinary2)
 		}
 		it("should hash well"){
-			def randomNode:NodeType = NodeType.make(scala.util.Random.nextString(1))
+			def randomNode:NodeType = NodeType.defaultFactory.make(scala.util.Random.nextString(1))
 			scala.util.Random.setSeed(42);
 			for(iter <- 0 until 100){
 				//(variables)
@@ -300,11 +300,11 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 		}
 		it("should respect closure equality/hashcode"){
 			//--Variables
-			val top = new CKYUnary(NodeType.make('A), NodeType.make('B))
-			val mid = new CKYUnary(NodeType.make('B), NodeType.make('C))
-			val midClone = new CKYUnary(NodeType.make('B), NodeType.make('C))
-			val bottom = new CKYUnary(NodeType.make('C), NodeType.make('D))
-			val bottomWrong = new CKYUnary(NodeType.make('C), NodeType.make('E))
+			val top = new CKYUnary(NodeType.defaultFactory.make('A), NodeType.defaultFactory.make('B))
+			val mid = new CKYUnary(NodeType.defaultFactory.make('B), NodeType.defaultFactory.make('C))
+			val midClone = new CKYUnary(NodeType.defaultFactory.make('B), NodeType.defaultFactory.make('C))
+			val bottom = new CKYUnary(NodeType.defaultFactory.make('C), NodeType.defaultFactory.make('D))
+			val bottomWrong = new CKYUnary(NodeType.defaultFactory.make('C), NodeType.defaultFactory.make('E))
 			//--Closure Tests
 			//(equality)
 			new CKYClosure(top,mid,bottom) should be (new CKYClosure(top,mid,bottom))
@@ -316,11 +316,11 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			new CKYClosure(top,mid,bottom).hashCode should not be (new CKYClosure(top,mid,bottomWrong).hashCode)
 			//--Unary Tests
 			//(equality)
-			new CKYClosure(top,mid,bottom) should be (new CKYUnary(NodeType('A),NodeType('D)))
-			new CKYClosure(top,mid,bottom) should be (new SimpleGrammarRule(NodeType('A),NodeType('D)))
+			new CKYClosure(top,mid,bottom) should be (new CKYUnary(NodeType.defaultFactory('A),NodeType.defaultFactory('D)))
+			new CKYClosure(top,mid,bottom) should be (new SimpleGrammarRule(NodeType.defaultFactory('A),NodeType.defaultFactory('D)))
 			//(hash code)
-			new CKYClosure(top,mid,bottom).hashCode should be (new CKYUnary(NodeType('A),NodeType('D)).hashCode)
-			new CKYClosure(top,mid,bottom).hashCode should be (new SimpleGrammarRule(NodeType('A),NodeType('D)).hashCode)
+			new CKYClosure(top,mid,bottom).hashCode should be (new CKYUnary(NodeType.defaultFactory('A),NodeType.defaultFactory('D)).hashCode)
+			new CKYClosure(top,mid,bottom).hashCode should be (new SimpleGrammarRule(NodeType.defaultFactory('A),NodeType.defaultFactory('D)).hashCode)
 		}
 	}
 
@@ -331,29 +331,29 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 		it("should scrape constituent rules (no closure)"){
 			val (rules,lex) = CKYParser.scrapeGrammar(Array[ParseTree](Trees.UNARIES))
 			//(existence)
-			rules.keys.toArray.contains(GrammarRule(NodeType.make("A"), NodeType.make("B"))) should be (true)
-			rules.keys.toArray.contains(GrammarRule(NodeType.make("B"), NodeType.makePreterminal("C_"))) should be (true)
-			rules.keys.toArray.contains(GrammarRule(NodeType.make("A"), NodeType.makePreterminal("C_"))) should be (false)
+			rules.keys.toArray.contains(GrammarRule(NodeType.defaultFactory.make("A"), NodeType.defaultFactory.make("B"))) should be (true)
+			rules.keys.toArray.contains(GrammarRule(NodeType.defaultFactory.make("B"), NodeType.defaultFactory.makePreterminal("C_"))) should be (true)
+			rules.keys.toArray.contains(GrammarRule(NodeType.defaultFactory.make("A"), NodeType.defaultFactory.makePreterminal("C_"))) should be (false)
 			//(probabilities)
-			rules(new CKYUnary(NodeType.ROOT, NodeType.make("A"))) should be (1.0 plusOrMinus 0.000001)
-			rules(new CKYUnary(NodeType.make("A"), NodeType.make("B"))) should be (1.0 plusOrMinus 0.000001)
-			rules(new CKYUnary(NodeType.make("B"), NodeType.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory.make("A"))) should be (1.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.defaultFactory.make("A"), NodeType.defaultFactory.make("B"))) should be (1.0 plusOrMinus 0.000001)
+			rules(new CKYUnary(NodeType.defaultFactory.make("B"), NodeType.defaultFactory.makePreterminal("C_"))) should be (1.0 plusOrMinus 0.000001)
 		}
 	}
 	
-	describe("A toy binarized grammar") {
+	describe("A toy binarize(NodeType.defaultFactory)d grammar") {
 		it("can be created"){
 			val toyGrammar = TOY;
 		}
-		it("should binarize"){
+		it("should binarize(NodeType.defaultFactory)"){
 			val topRule = TOY(0);
-			topRule.binarize.foreach{ (rule:CKYRule) =>
+			topRule.binarize(NodeType.defaultFactory).foreach{ (rule:CKYRule) =>
 				//(parent)
-				rule.parent should  be (NodeType.ROOT)
+				rule.parent should  be (NodeType.defaultFactory.ROOT)
 				//(unary check)
 				assert(rule.isUnary)
 				assert(rule.isInstanceOf[CKYUnary])
-				rule.child should be (NodeType("S"))
+				rule.child should be (NodeType.defaultFactory("S"))
 				//(not binary check)
 				intercept[AssertionError]{
 					rule.leftChild;
@@ -364,44 +364,43 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			}
 		}
 		it("should know about its lexical elements"){
-			assert(!TOY(0).binarize.next().isLex)
-			assert(!TOY(1).binarize.next().isLex)
-			assert(!TOY(2).binarize.next().isLex)
-			assert(!TOY(3).binarize.next().isLex)
-			assert(TOY(4).binarize.next().isLex)
-			assert(TOY(5).binarize.next().isLex)
+			assert(!TOY(0).binarize(NodeType.defaultFactory).next().isLex)
+			assert(!TOY(1).binarize(NodeType.defaultFactory).next().isLex)
+			assert(!TOY(2).binarize(NodeType.defaultFactory).next().isLex)
+			assert(!TOY(3).binarize(NodeType.defaultFactory).next().isLex)
+			assert(TOY(4).binarize(NodeType.defaultFactory).next().isLex)
+			assert(TOY(5).binarize(NodeType.defaultFactory).next().isLex)
 		}
 		it("should be passable to a parser"){
 			CKYParser(w2str.length, TOY) should not be (null)
-			CKYParser(w2str.length, TOY:_*) should not be (null)
 		}
 		it("should have a proper rule distribution"){
 			val parser = CKYParser(w2str.length, TOY);
 			//(should have probabilities)
-			parser.ruleProb(new CKYBinary(NodeType('S), NodeType('NP), NodeType('VP))) should be (1.0)
-			parser.ruleProb(new CKYBinary(NodeType('VP), NodeType('VB), NodeType('NP))) should be (1.0)
-			parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('S))) should be (1.0)
-			parser.ruleProb(new CKYUnary(NodeType('NP), NodeType('NN))) should be (1.0)
+			parser.ruleProb(new CKYBinary(NodeType.defaultFactory('S), NodeType.defaultFactory('NP), NodeType.defaultFactory('VP))) should be (1.0)
+			parser.ruleProb(new CKYBinary(NodeType.defaultFactory('VP), NodeType.defaultFactory('VB), NodeType.defaultFactory('NP))) should be (1.0)
+			parser.ruleProb(new CKYUnary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory('S))) should be (1.0)
+			parser.ruleProb(new CKYUnary(NodeType.defaultFactory('NP), NodeType.defaultFactory('NN))) should be (1.0)
 			//(should not have probabilities)
 			intercept[NoSuchElementException]{
-				parser.ruleProb(new CKYUnary(NodeType('NN), NodeType.WORD))
+				parser.ruleProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD))
 			}
 			intercept[NoSuchElementException]{
-				parser.ruleProb(new CKYUnary(NodeType('VB), NodeType.WORD))
+				parser.ruleProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD))
 			}
 		}
 		it("should have a proper lex distribution"){
 			val parser = CKYParser(w2str.length, TOY);
 			(0 until w2str.length).foreach{ (w:Int) =>
 				//(should have probabilities)
-				parser.lexProb(new CKYUnary(NodeType('NN), NodeType.WORD), w) should be (1.0 / w2str.length.asInstanceOf[Double])
-				parser.lexProb(new CKYUnary(NodeType('VB), NodeType.WORD), w) should be (1.0 / w2str.length.asInstanceOf[Double])
+				parser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), w) should be (1.0 / w2str.length.asInstanceOf[Double])
+				parser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), w) should be (1.0 / w2str.length.asInstanceOf[Double])
 				//(should not have probabilities)
 				intercept[NoSuchElementException]{
-					parser.lexProb(new CKYUnary(NodeType.ROOT, NodeType('S)), w)
+					parser.lexProb(new CKYUnary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory('S)), w)
 				}
 				intercept[NoSuchElementException]{
-					parser.lexProb(new CKYUnary(NodeType('NP), NodeType('NN)), w)
+					parser.lexProb(new CKYUnary(NodeType.defaultFactory('NP), NodeType.defaultFactory('NN)), w)
 				}
 			}
 		}
@@ -412,7 +411,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			val parse1 = parser.parse(sent,1);
 			parse1 should not be (null)
 			parse1.length should be (1)
-			parse1(0).parent should be (NodeType.ROOT);
+			parse1(0).parent should be (NodeType.defaultFactory.ROOT);
 			parse1(0).asParseString() should not be (null)
 			parser.parse(sent) should not be (null)
 			//(parse another sentence)
@@ -420,7 +419,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			val parseOther = parser.parse(sent2,1)
 			parseOther.length should be (1)
 			parseOther.foreach{ (p:ParseTree) =>
-				p.parent should be (NodeType.ROOT)
+				p.parent should be (NodeType.defaultFactory.ROOT)
 			}
 		}
 		it("should define a single parse tree"){
@@ -441,14 +440,14 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			//(update parser)
 			val learnedParser = parser.update(parses)
 			//(check Output)
-			learnedParser.ruleProb(TOY(0).binarize.next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.ruleProb(TOY(1).binarize.next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.ruleProb(TOY(2).binarize.next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.ruleProb(TOY(3).binarize.next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(4).binarize.next.asInstanceOf[CKYUnary], w2str.indexOf("I")) should be (0.5 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(4).binarize.next.asInstanceOf[CKYUnary], w2str.indexOf("sugar")) should be (0.25 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(4).binarize.next.asInstanceOf[CKYUnary], w2str.indexOf("NLP")) should be (0.25 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(5).binarize.next.asInstanceOf[CKYUnary], w2str.indexOf("like")) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(0).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(1).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(2).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(3).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("I")) should be (0.5 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("sugar")) should be (0.25 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("NLP")) should be (0.25 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(5).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("like")) should be (1.0 plusOrMinus 0.00001)
 		}
 		it("should be creatable from trees"){
 			val parser = CKYParser(Trees.TOY);
@@ -458,7 +457,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			val parse1 = parser.parse(sentA,1);
 			parse1 should not be (null)
 			parse1.length should be (1)
-			parse1(0).parent should be (NodeType.ROOT);
+			parse1(0).parent should be (NodeType.defaultFactory.ROOT);
 			parse1(0).asParseString() should not be (null)
 			parser.parse(sentA) should not be (null)
 			//(parse another sentence)
@@ -466,7 +465,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			val parseOther = parser.parse(sentB,1)
 			parseOther.length should be (1)
 			parseOther.foreach{ (p:ParseTree) =>
-				p.parent should be (NodeType.ROOT)
+				p.parent should be (NodeType.defaultFactory.ROOT)
 			}
 			//--Update Parser
 			//(get parses)
@@ -477,14 +476,14 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			//(update parser)
 			val learnedParser = parser.update(parses)
 			//(check output)
-			learnedParser.ruleProb(TOY(0).binarize.next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.ruleProb(TOY(1).binarize.next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.ruleProb(TOY(2).binarize.next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.ruleProb(TOY(3).binarize.next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(4).binarize.next.asInstanceOf[CKYUnary], w2str.indexOf("I")) should be (0.5 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(4).binarize.next.asInstanceOf[CKYUnary], w2str.indexOf("sugar")) should be (0.25 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(4).binarize.next.asInstanceOf[CKYUnary], w2str.indexOf("NLP")) should be (0.25 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(5).binarize.next.asInstanceOf[CKYUnary], w2str.indexOf("like")) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(0).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(1).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(2).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(3).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("I")) should be (0.5 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("sugar")) should be (0.25 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("NLP")) should be (0.25 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(5).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("like")) should be (1.0 plusOrMinus 0.00001)
 		}
 	}
 	
@@ -492,60 +491,59 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 		it("can be created"){
 			val grammar = MATH_TYPE;
 		}
-		it("should binarize"){
+		it("should binarize(NodeType.defaultFactory)"){
 			MATH_TYPE.foreach{ (rule:GrammarRule) =>
-				rule.binarize.forall{ _.isInstanceOf[CKYRule] } should be (true)
+				rule.binarize(NodeType.defaultFactory).forall{ _.isInstanceOf[CKYRule] } should be (true)
 			}
 		}
 		it("should know about its lexical elements"){
-			assert(!MATH_TYPE(0).binarize.next().isLex)
-			assert(!MATH_TYPE(1).binarize.next().isLex)
-			assert(!MATH_TYPE(2).binarize.next().isLex)
-			assert(!MATH_TYPE(3).binarize.next().isLex)
-			assert(!MATH_TYPE(4).binarize.next().isLex)
-			assert(!MATH_TYPE(5).binarize.next().isLex)
-			assert(!MATH_TYPE(6).binarize.next().isLex)
-			assert( MATH_TYPE(7).binarize.next().isLex)
+			assert(!MATH_TYPE(0).binarize(NodeType.defaultFactory).next().isLex)
+			assert(!MATH_TYPE(1).binarize(NodeType.defaultFactory).next().isLex)
+			assert(!MATH_TYPE(2).binarize(NodeType.defaultFactory).next().isLex)
+			assert(!MATH_TYPE(3).binarize(NodeType.defaultFactory).next().isLex)
+			assert(!MATH_TYPE(4).binarize(NodeType.defaultFactory).next().isLex)
+			assert(!MATH_TYPE(5).binarize(NodeType.defaultFactory).next().isLex)
+			assert(!MATH_TYPE(6).binarize(NodeType.defaultFactory).next().isLex)
+			assert( MATH_TYPE(7).binarize(NodeType.defaultFactory).next().isLex)
 		}
 		it("should be passable to a parser"){
 			CKYParser(w2str.length, MATH_TYPE) should not be (null)
-			CKYParser(w2str.length, MATH_TYPE:_*) should not be (null)
 		}
 		it("should have a proper rule distribution"){
 			val parser = CKYParser(w2str.length, MATH_TYPE);
 			//(should have probabilities)
-			parser.ruleProb(new CKYBinary(NodeType('int), NodeType('int), NodeType('int))) should be (0.5)
-			parser.ruleProb(new CKYUnary(NodeType('int), NodeType('int_tag))) should be (0.5)
-			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('int), NodeType('double))) should be (0.25)
-			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('double), NodeType('int))) should be (0.25)
-			parser.ruleProb(new CKYBinary(NodeType('double), NodeType('double), NodeType('double))) should be (0.25)
-			parser.ruleProb(new CKYUnary(NodeType('double), NodeType('int))) should be (0.25)
+			parser.ruleProb(new CKYBinary(NodeType.defaultFactory('int), NodeType.defaultFactory('int), NodeType.defaultFactory('int))) should be (0.5)
+			parser.ruleProb(new CKYUnary(NodeType.defaultFactory('int), NodeType.defaultFactory('int_tag))) should be (0.5)
+			parser.ruleProb(new CKYBinary(NodeType.defaultFactory('double), NodeType.defaultFactory('int), NodeType.defaultFactory('double))) should be (0.25)
+			parser.ruleProb(new CKYBinary(NodeType.defaultFactory('double), NodeType.defaultFactory('double), NodeType.defaultFactory('int))) should be (0.25)
+			parser.ruleProb(new CKYBinary(NodeType.defaultFactory('double), NodeType.defaultFactory('double), NodeType.defaultFactory('double))) should be (0.25)
+			parser.ruleProb(new CKYUnary(NodeType.defaultFactory('double), NodeType.defaultFactory('int))) should be (0.25)
 			intercept[NoSuchElementException]{
-				parser.ruleProb(new CKYUnary(NodeType('double), NodeType('int_tag)))
+				parser.ruleProb(new CKYUnary(NodeType.defaultFactory('double), NodeType.defaultFactory('int_tag)))
 			}
-			parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('double))) should be (1.0 plusOrMinus 0.000001)
+			parser.ruleProb(new CKYUnary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory('double))) should be (1.0 plusOrMinus 0.000001)
 			intercept[NoSuchElementException]{
-				parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('int)))
+				parser.ruleProb(new CKYUnary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory('int)))
 			}
 			intercept[NoSuchElementException]{
-				parser.ruleProb(new CKYUnary(NodeType.ROOT, NodeType('int_tag)))
+				parser.ruleProb(new CKYUnary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory('int_tag)))
 			}
 			//(should not have probabilities)
 			intercept[NoSuchElementException]{
-				parser.ruleProb(new CKYUnary(NodeType('int), NodeType.WORD))
+				parser.ruleProb(new CKYUnary(NodeType.defaultFactory('int), NodeType.defaultFactory.WORD))
 			}
 		}
 		it("should have a proper lex distribution"){
 			val parser = CKYParser(mathtyp2str.length, MATH_TYPE);
 			(0 until mathtyp2str.length).foreach{ (w:Int) =>
 			//(should have probabilities)
-				parser.lexProb(new CKYUnary(NodeType('int_tag), NodeType.WORD), w) should be (1.0 / mathtyp2str.length.asInstanceOf[Double])
+				parser.lexProb(new CKYUnary(NodeType.defaultFactory('int_tag), NodeType.defaultFactory.WORD), w) should be (1.0 / mathtyp2str.length.asInstanceOf[Double])
 				//(should not have probabilities)
 				intercept[NoSuchElementException]{
-					parser.lexProb(new CKYUnary(NodeType.ROOT, NodeType('double)), w)
+					parser.lexProb(new CKYUnary(NodeType.defaultFactory.ROOT, NodeType.defaultFactory('double)), w)
 				}
 				intercept[NoSuchElementException]{
-					parser.lexProb(new CKYUnary(NodeType('double), NodeType('int)), w)
+					parser.lexProb(new CKYUnary(NodeType.defaultFactory('double), NodeType.defaultFactory('int)), w)
 				}
 			}
 		}
@@ -556,7 +554,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			val parse1 = parser.parse(sent,1);
 			parse1 should not be (null)
 			parse1.length should be (1)
-			parse1(0).parent should be (NodeType.ROOT);
+			parse1(0).parent should be (NodeType.defaultFactory.ROOT);
 			parse1(0).asParseString() should not be (null)
 			parser.parse(sent) should not be (null)
 			//(parse with a beam)
@@ -565,7 +563,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			parse2.length should be > 1
 			parse2.length should be <= 100
 			parse2.foreach{ (p:ParseTree) =>
-				p.parent should be (NodeType.ROOT)
+				p.parent should be (NodeType.defaultFactory.ROOT)
 			}
 		}
 	}
@@ -597,9 +595,9 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 		it("can be created"){
 			val grammar = MATH;
 		}
-		it("should binarize"){
+		it("should binarize(NodeType.defaultFactory)"){
 			MATH.foreach{ (rule:GrammarRule) =>
-				rule.binarize.forall{ _.isInstanceOf[CKYRule] } should be (true)
+				rule.binarize(NodeType.defaultFactory).forall{ _.isInstanceOf[CKYRule] } should be (true)
 			}
 		}
 		it("should create a parser"){

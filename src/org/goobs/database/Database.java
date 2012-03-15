@@ -1206,9 +1206,13 @@ public final class Database implements Decodable{
 	
 	private void ensureConnection(){
 		if (conn != null) {
+			Statement statement = null;
 			try {
+				//(try a statement)
+				statement = conn.createStatement();
+				statement.execute("SELECT 1");
 				if(conn.getMetaData() == null){
-					//(case: no metadata returned)
+					//(case: statement failed)
 					conn = null;
 					connect();
 				}
@@ -1216,6 +1220,12 @@ public final class Database implements Decodable{
 				//(case: conn exception'd)
 				conn = null;
 				connect();
+			} finally {
+				if(statement != null){
+					try {
+						statement.close();
+					} catch (SQLException e) { }
+				}
 			}
 		} else {
 			//(case; never pretended to be connected)
@@ -1423,8 +1433,8 @@ public final class Database implements Decodable{
 	 */
 	private ResultSet query(String query) {
 		try {
-            prepareStatement();
-            return lastStatement.executeQuery(query);
+    	prepareStatement();
+      return lastStatement.executeQuery(query);
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
 		}
