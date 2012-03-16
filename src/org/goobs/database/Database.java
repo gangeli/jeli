@@ -878,6 +878,7 @@ public final class Database implements Decodable{
 			if(info.primaryKey == null){ throw new DatabaseException("Cannot delete object by id: object has no primary key: " + clazz); }
 			PreparedStatement psmt = info.keyDelete.get(info.primaryKey);
 			psmt.setInt(1, id);
+			ensureConnection();
 			int updated = psmt.executeUpdate();
 			return updated == 1;
 		} catch (SQLException e) {
@@ -954,6 +955,7 @@ public final class Database implements Decodable{
 			if(info.primaryKey == null){ throw new DatabaseException("Cannot get object by id: object has no primary key: " + clazz); }
 			PreparedStatement psmt = info.keySearch.get(info.primaryKey);
 			psmt.setInt(1, id);
+			ensureConnection();
 			ResultSet results = psmt.executeQuery();
 			if(!results.next()){
 				return null;
@@ -991,6 +993,7 @@ public final class Database implements Decodable{
 			//(run query)
 			if(value instanceof Class){ value = ((Class) value).getName(); }
 			psmt.setObject(1, value);
+			ensureConnection();
 			psmt.execute();
 			ResultSet results = psmt.getResultSet();
 			if(!results.next()){
@@ -1028,6 +1031,7 @@ public final class Database implements Decodable{
 			}
 			//(get object)
 			psmt.setObject(1, value);
+			ensureConnection();
 			psmt.execute();
 			ResultSet results = psmt.getResultSet();
 			return new ResultSetIterator<E>(results,clazz);			
@@ -1294,6 +1298,7 @@ public final class Database implements Decodable{
 		}
 		try {
 			//(execute)
+			ensureConnection();
 			info.onCreate.execute();
 			//(set primary key)
 			if (info.onCreate.getUpdateCount() == 1 && info.primaryKey != null) {
@@ -1383,6 +1388,7 @@ public final class Database implements Decodable{
 		}
 		//(flush)
 		try {
+			ensureConnection();
 			info.onUpdate.execute();
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
@@ -1433,6 +1439,7 @@ public final class Database implements Decodable{
 	 */
 	private ResultSet query(String query) {
 		try {
+			ensureConnection();
     	prepareStatement();
       return lastStatement.executeQuery(query);
 		} catch (SQLException e) {
@@ -1447,6 +1454,7 @@ public final class Database implements Decodable{
 	 */
 	private int update(String query) {
 		try {
+			ensureConnection();
 			prepareStatement();
 			return lastStatement.executeUpdate(query);
 		} catch (SQLException e) {
