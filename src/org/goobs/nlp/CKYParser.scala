@@ -2248,7 +2248,7 @@ class CKYParser (
 		//--Lex
 		(0 until sent.length).foreach{ (elem:Int) =>
 			assert(klex(elem).length > 0, 
-				"No lexical terms for " + sent.gloss(elem) + " -- " + lexProbDomain)
+				"No lexical terms for " + sent.gloss(elem) + " -- lexProbDomain=\n" + lexProbDomain.mkString("\n"))
 			var lastLogProb = Double.PositiveInfinity
 			klex(elem).foreach{ case (rule:CKYUnary,logProb:Double) =>
 				//(add term)
