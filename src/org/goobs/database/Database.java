@@ -32,23 +32,41 @@ public final class Database implements Decodable{
 	
 	private static final Pattern PATTERN_CONNINFO 
 		= Pattern.compile(" *([a-zA-Z][a-zA-Z0-9]*)@([a-zA-Z][a-zA-Z0-9]*(\\.[a-zA-Z][a-zA-Z0-9]*)*):([a-zA-Z0-9]+)(<.+)? *");
-	
+
+	private static abstract class PromiseOfStatement {
+		private Connection active = null;
+		private PreparedStatement cached = null;
+		public PreparedStatement get(Connection conn){
+			if(active != conn){
+				active = conn;
+				try {
+					cached = create(conn);
+				} catch (SQLException e) {
+					throw new DatabaseException(e);
+				}
+			}
+			return cached;
+		}
+		
+		protected abstract PreparedStatement create(Connection conn) throws SQLException;
+	}
+
 	protected static final class DBClassInfo<E>{
 		protected MetaClass.ClassFactory <E> factory;
 		private Field primaryKey;
-		private PreparedStatement onCreate, onUpdate;
-		private Map<Field,PreparedStatement> keySearch;
-		private Map<Field,PreparedStatement> keyDelete;
+		private PromiseOfStatement onCreate, onUpdate;
+		private Map<Field,PromiseOfStatement> keySearch;
+		private Map<Field,PromiseOfStatement> keyDelete;
 		private Field[] fields;
 		private int primaryKeyIndex = -1;
 
 		private DBClassInfo(
 				MetaClass.ClassFactory <E> factory, 
 				Field primaryKey,
-				PreparedStatement onCreate, 
-				PreparedStatement onUpdate,
-				Map<Field,PreparedStatement> keySearch,
-				Map<Field,PreparedStatement> keyDelete,
+				PromiseOfStatement onCreate,
+				PromiseOfStatement onUpdate,
+				Map<Field,PromiseOfStatement> keySearch,
+				Map<Field,PromiseOfStatement> keyDelete,
 				Field[] fields){
 			//--Set Variables
 			this.factory    = factory;
@@ -872,11 +890,12 @@ public final class Database implements Decodable{
 		return update(query.toString());
     }
 
-    public <E extends DatabaseObject> boolean deleteObjectById(Class<E> clazz, int id){
+  public <E extends DatabaseObject> boolean deleteObjectById(Class<E> clazz, int id){
+		ensureConnection();
 		try {
 			DBClassInfo<E> info = ensureClassInfo(clazz);
 			if(info.primaryKey == null){ throw new DatabaseException("Cannot delete object by id: object has no primary key: " + clazz); }
-			PreparedStatement psmt = info.keyDelete.get(info.primaryKey);
+			PreparedStatement psmt = info.keyDelete.get(info.primaryKey).get(conn);
 			psmt.setInt(1, id);
 			int updated = psmt.executeUpdate();
 			return updated == 1;
@@ -949,10 +968,11 @@ public final class Database implements Decodable{
 	
 	
 	public <E extends DatabaseObject> E getObjectById(Class<E> clazz, int id){
+		ensureConnection();
 		try {
 			DBClassInfo<E> info = ensureClassInfo(clazz);
 			if(info.primaryKey == null){ throw new DatabaseException("Cannot get object by id: object has no primary key: " + clazz); }
-			PreparedStatement psmt = info.keySearch.get(info.primaryKey);
+			PreparedStatement psmt = info.keySearch.get(info.primaryKey).get(conn);
 			psmt.setInt(1, id);
 			ResultSet results = psmt.executeQuery();
 			if(!results.next()){
@@ -965,6 +985,7 @@ public final class Database implements Decodable{
 	}
 	
 	public <E extends DatabaseObject> E getObjectByKey(Class<E> clazz, String key, Object value){
+		ensureConnection();
 		try {
 			DBClassInfo<E> info = ensureClassInfo(clazz);
 			PreparedStatement psmt = null;
@@ -972,15 +993,15 @@ public final class Database implements Decodable{
 			for(Field x : info.keySearch.keySet()){
 				if(x.getAnnotation(Key.class) != null){
 					if(x.getAnnotation(Key.class).name().equalsIgnoreCase(key)){
-						psmt = info.keySearch.get(x);
+						psmt = info.keySearch.get(x).get(conn);
 					}
 				}else if(x.getAnnotation(PrimaryKey.class) != null){
 					if(x.getAnnotation(PrimaryKey.class).name().equalsIgnoreCase(key)){
-						psmt = info.keySearch.get(x);
+						psmt = info.keySearch.get(x).get(conn);
 					}
 				}else if(x.getAnnotation(Parent.class) != null){
 					if(x.getAnnotation(Parent.class).localField().equalsIgnoreCase(key)){
-						psmt = info.keySearch.get(x);
+						psmt = info.keySearch.get(x).get(conn);
 					}
 				}
 			}
@@ -1003,6 +1024,7 @@ public final class Database implements Decodable{
 	}
 	
 	public <E extends DatabaseObject> Iterator<E> getObjectsByKey(Class<E> clazz, String key, Object value){
+		ensureConnection();
 		try {
 			DBClassInfo<E> info = ensureClassInfo(clazz);
 			PreparedStatement psmt = null;
@@ -1010,15 +1032,15 @@ public final class Database implements Decodable{
 			for(Field x : info.keySearch.keySet()){
 				if(x.getAnnotation(Key.class) != null){
 					if(x.getAnnotation(Key.class).name().equalsIgnoreCase(key)){
-						psmt = info.keySearch.get(x);
+						psmt = info.keySearch.get(x).get(conn);
 					}
 				}else if(x.getAnnotation(PrimaryKey.class) != null){
 					if(x.getAnnotation(PrimaryKey.class).name().equalsIgnoreCase(key)){
-						psmt = info.keySearch.get(x);
+						psmt = info.keySearch.get(x).get(conn);
 					}
 				}else if(x.getAnnotation(Parent.class) != null){
 					if(x.getAnnotation(Parent.class).localField().equalsIgnoreCase(key)){
-						psmt = info.keySearch.get(x);
+						psmt = info.keySearch.get(x).get(conn);
 					}
 				}
 			}
@@ -1040,14 +1062,14 @@ public final class Database implements Decodable{
 	protected <F extends DatabaseObject> DBClassInfo<F>  createObjectInfo(Class<F> clazz, Class<?>[] constructorParams){
 		//--Overhead
 		//(query)
-		StringBuilder onCreate = new StringBuilder();
-		StringBuilder onUpdate = new StringBuilder();
+		final StringBuilder onCreate = new StringBuilder();
+		final StringBuilder onUpdate = new StringBuilder();
 		//(variables)
 		HashMap<String,Field> keys = new HashMap <String,Field> ();
 		List<String> foreignKeys = new LinkedList<String>();
 		Field primaryKey = null; PrimaryKey pKey = null;
-		HashMap <Field, PreparedStatement> findByIndex = new HashMap <Field,PreparedStatement>();
-        HashMap <Field, PreparedStatement> delByIndex = new HashMap <Field,PreparedStatement>();
+		HashMap <Field, PromiseOfStatement> findByIndex = new HashMap <Field,PromiseOfStatement>();
+        HashMap <Field, PromiseOfStatement> delByIndex = new HashMap <Field,PromiseOfStatement>();
 		HashSet <Field> indexedTerms = new HashSet <Field>();
 		
 		try{
@@ -1122,21 +1144,31 @@ public final class Database implements Decodable{
 				names[index] = str;
 				fields[index] = keys.get(str);
 			}
-			
+
 			//--Create Indices
 			for(Field key : indexedTerms){
-                //(find query)
-				StringBuilder q = new StringBuilder();
+				//(find query)
+				final StringBuilder q = new StringBuilder();
 				q.append("SELECT * FROM ").append(table).append(" WHERE ")
-					.append(field2name(key)).append("=?");
-				findByIndex.put(key, conn.prepareStatement(q.toString()));
-                //(delete query)
-                StringBuilder d = new StringBuilder();
-                d.append("DELETE FROM ").append(table).append(" WHERE ")
-                    .append(field2name(key)).append("=?");
-                delByIndex.put(key, conn.prepareStatement(d.toString()));
+						.append(field2name(key)).append("=?");
+				findByIndex.put(key, new PromiseOfStatement(){
+						@Override
+						protected PreparedStatement create(Connection conn) throws SQLException {
+							return conn.prepareStatement(q.toString());
+						}
+					});
+				//(delete query)
+				final StringBuilder d = new StringBuilder();
+				d.append("DELETE FROM ").append(table).append(" WHERE ")
+						.append(field2name(key)).append("=?");
+				delByIndex.put(key, new PromiseOfStatement(){
+						@Override
+						protected PreparedStatement create(Connection conn) throws SQLException {
+							return conn.prepareStatement(d.toString());
+						}
+					});
 			}
-			
+
 			//--On Create Query
 			onCreate.append("INSERT INTO ").append(table).append(" (");
 			//(keys)
@@ -1144,7 +1176,7 @@ public final class Database implements Decodable{
 			for(i=0; i<names.length; i++){
 				if(pKey == null || !names[i].equals(pKey.name())){
 					if(!first) onCreate.append(", ");
-					onCreate.append(names[i]);	
+					onCreate.append(names[i]);
 					first = false;
 				}
 			}
@@ -1168,13 +1200,22 @@ public final class Database implements Decodable{
 			onUpdate.append(";");
 	
 			//--Return
-			PreparedStatement stmtCreate = null;
-			if(type == SQLITE){
-				stmtCreate = conn.prepareStatement(onCreate.toString());
-			}else{
-				stmtCreate = conn.prepareStatement(onCreate.toString(), Statement.RETURN_GENERATED_KEYS);
-			}
-			PreparedStatement stmtUpdate = conn.prepareStatement(onUpdate.toString());
+			PromiseOfStatement stmtCreate = new PromiseOfStatement(){
+					@Override
+					protected PreparedStatement create(Connection conn) throws SQLException {
+						if(type == SQLITE){
+							return conn.prepareStatement(onCreate.toString());
+						} else {
+							return conn.prepareStatement(onCreate.toString(), Statement.RETURN_GENERATED_KEYS);
+						}
+					}
+				};
+			PromiseOfStatement stmtUpdate = new PromiseOfStatement(){
+				@Override
+				protected PreparedStatement create(Connection conn) throws SQLException {
+					return conn.prepareStatement(onUpdate.toString());
+				}
+			};
 			MetaClass.ClassFactory<F> factory = MetaClass.create(clazz).createFactory(constructorParams);
 			return new DBClassInfo<F>(factory, primaryKey, stmtCreate, stmtUpdate, findByIndex, delByIndex, fields);
 		} catch (Exception e) {
@@ -1206,9 +1247,13 @@ public final class Database implements Decodable{
 	
 	private void ensureConnection(){
 		if (conn != null) {
+			Statement statement = null;
 			try {
+				//(try a statement)
+				statement = conn.createStatement();
+				statement.execute("SELECT 1");
 				if(conn.getMetaData() == null){
-					//(case: no metadata returned)
+					//(case: statement failed)
 					conn = null;
 					connect();
 				}
@@ -1216,6 +1261,12 @@ public final class Database implements Decodable{
 				//(case: conn exception'd)
 				conn = null;
 				connect();
+			} finally {
+				if(statement != null){
+					try {
+						statement.close();
+					} catch (SQLException e) { }
+				}
 			}
 		} else {
 			//(case; never pretended to be connected)
@@ -1225,6 +1276,7 @@ public final class Database implements Decodable{
 	
 	@SuppressWarnings("unchecked")
 	private <E extends DatabaseObject> void addRow(DBClassInfo<E> info, E instance){
+		ensureConnection();
 		int slot = 1;
 		for(int i=0; i<info.fields.length; i++){
 			try {
@@ -1239,7 +1291,7 @@ public final class Database implements Decodable{
 					//(case: foreign key)
 					E foreign = (E) f.get(instance);
 					if(foreign == null){
-						info.onCreate.setObject(slot, null);
+						info.onCreate.get(conn).setObject(slot, null);
 					}else{
 						String pkey = foreign.getInfo().primaryKey.getAnnotation(PrimaryKey.class).name();
 						if(pkey == null){ throw new DatabaseException("Referenced object has no primary key: " + f.getType()); }
@@ -1257,19 +1309,19 @@ public final class Database implements Decodable{
 							if(!restore) f.setAccessible(false);
 							throw new DatabaseException(e);
 						}
-						info.onCreate.setObject(slot, primaryKey);
+						info.onCreate.get(conn).setObject(slot, primaryKey);
 					}
 				}else if(Decodable.class.isAssignableFrom(f.getType())){
 					Object o = f.get(instance);
-					if(o == null){ info.onCreate.setString(slot, null); }
-					else { info.onCreate.setString(slot, ((Decodable) f.get(instance)).encode()); }
+					if(o == null){ info.onCreate.get(conn).setString(slot, null); }
+					else { info.onCreate.get(conn).setString(slot, ((Decodable) f.get(instance)).encode()); }
 				} else if(nonNative(ftype) && !Class.class.isAssignableFrom(ftype) && Serializable.class.isAssignableFrom(ftype)){
 					//(case: non-native serializable)
 					if(type == SQLITE) throw new DatabaseException("Cannot write serializable objects to sqlite database (try Decodable instead?)");
-					info.onCreate.setBytes(slot, Utils.obj2bytes((Serializable) f.get(instance)));
+					info.onCreate.get(conn).setBytes(slot, Utils.obj2bytes((Serializable) f.get(instance)));
 				}else{
 					//(case: native)
-					if(f != info.primaryKey) obj2db(info.onCreate, slot, f.get(instance));
+					if(f != info.primaryKey) obj2db(info.onCreate.get(conn), slot, f.get(instance));
 				}
 				//(overhead)
 				if(!restore) f.setAccessible(false);
@@ -1284,10 +1336,10 @@ public final class Database implements Decodable{
 		}
 		try {
 			//(execute)
-			info.onCreate.execute();
+			info.onCreate.get(conn).execute();
 			//(set primary key)
-			if (info.onCreate.getUpdateCount() == 1 && info.primaryKey != null) {
-				ResultSet res = info.onCreate.getGeneratedKeys();
+			if (info.onCreate.get(conn).getUpdateCount() == 1 && info.primaryKey != null) {
+				ResultSet res = info.onCreate.get(conn).getGeneratedKeys();
 				if(res == null || !res.next()){ throw new DatabaseException("Could not get created row (res.next() call failed)"); }
 				int id = -1;
 				if(type == PSQL){
@@ -1312,6 +1364,7 @@ public final class Database implements Decodable{
 	}
 
 	private <E extends DatabaseObject> void updateRow(DBClassInfo<E> info, E instance){
+		ensureConnection();
 		//(set fields)
 		for(int i=0; i<info.fields.length; i++){
 			try {
@@ -1327,7 +1380,7 @@ public final class Database implements Decodable{
 					Parent fkey = f.getAnnotation(Parent.class);
 					Object target = f.get(instance);
 					if(target == null){
-						info.onUpdate.setNull(i+1, java.sql.Types.INTEGER);
+						info.onUpdate.get(conn).setNull(i + 1, java.sql.Types.INTEGER);
 					}else{
 						Field toFillFrom;
 						try {
@@ -1339,14 +1392,14 @@ public final class Database implements Decodable{
 						}
 						boolean accessible = toFillFrom.isAccessible();
 						if(!accessible){ toFillFrom.setAccessible(true); }
-						info.onUpdate.setInt(i+1, toFillFrom.getInt(target));
+						info.onUpdate.get(conn).setInt(i + 1, toFillFrom.getInt(target));
 						if(!accessible){ toFillFrom.setAccessible(false); }
 					}
 				}else if(nonNative(ftype) && ftype != Class.class && ftype instanceof Serializable){
 					if(type == SQLITE) throw new DatabaseException("Cannot write serializable objects to sqlite database (try Decodable?)");
-					info.onUpdate.setBytes(i+1, Utils.obj2bytes((Serializable) f.get(instance)));
+					info.onUpdate.get(conn).setBytes(i + 1, Utils.obj2bytes((Serializable) f.get(instance)));
 				}else{
-					obj2db(info.onUpdate, i+1, f.get(instance));
+					obj2db(info.onUpdate.get(conn), i+1, f.get(instance));
 				}
 				if(!restore) f.setAccessible(false);
 			} catch (IllegalArgumentException e) {
@@ -1363,7 +1416,7 @@ public final class Database implements Decodable{
 			if(!info.primaryKey.isAccessible()){ info.primaryKey.setAccessible(true); restore = false; }
 			int key = info.primaryKey.getInt(instance);
 			if(!restore) info.primaryKey.setAccessible(false);
-			info.onUpdate.setInt(info.fields.length+1, key);
+			info.onUpdate.get(conn).setInt(info.fields.length + 1, key);
 		} catch (IllegalArgumentException e1) {
 			throw new DatabaseException(e1);
 		} catch (IllegalAccessException e1) {
@@ -1373,7 +1426,7 @@ public final class Database implements Decodable{
 		}
 		//(flush)
 		try {
-			info.onUpdate.execute();
+			info.onUpdate.get(conn).execute();
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
 		}
@@ -1423,8 +1476,9 @@ public final class Database implements Decodable{
 	 */
 	private ResultSet query(String query) {
 		try {
-            prepareStatement();
-            return lastStatement.executeQuery(query);
+			ensureConnection();
+    	prepareStatement();
+      return lastStatement.executeQuery(query);
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
 		}
@@ -1437,6 +1491,7 @@ public final class Database implements Decodable{
 	 */
 	private int update(String query) {
 		try {
+			ensureConnection();
 			prepareStatement();
 			return lastStatement.executeUpdate(query);
 		} catch (SQLException e) {
