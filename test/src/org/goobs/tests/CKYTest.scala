@@ -1,6 +1,7 @@
 package org.goobs.tests
 
 import scala.util.Random
+import scala.collection.JavaConversions._
 
 
 import org.scalatest.Spec
@@ -8,6 +9,7 @@ import org.scalatest.matchers.ShouldMatchers
 import org.goobs.nlp._
 import java.io._
 import org.goobs.util.{TrackedObjectOutputStream, SingletonIterator}
+import org.goobs.stats._
 
 object Grammars {
 	def TOY:Array[GrammarRule] = {
@@ -102,6 +104,29 @@ object Grammars {
 		"(",
 		")"
 	)
+
+	case class MSent(gloss:String) extends Sentence {
+		val words = gloss.split("""\s+""").map{ (s:String) =>
+			try {
+				s.toDouble
+				math2str.indexOf("#")
+			} catch {
+				case (e:Exception) => math2str.indexOf(s)
+			}
+		}
+		val nums = gloss.split("""\s+""").map{ (s:String) =>
+			try {
+				s.toDouble
+			} catch {
+				case (e:Exception) => Double.NaN
+			}
+		}
+		override def apply(i:Int) = words(i)
+		override def length:Int = words.length
+		override def gloss(i:Int) = math2str(words(i))
+		override def asNumber(i:Int) = nums(i).toInt
+		override def asDouble(i:Int) = nums(i)
+	}
 }
 
 object Trees {
@@ -341,7 +366,7 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 		}
 	}
 	
-	describe("A toy binarize(NodeType.defaultFactory)d grammar") {
+	describe("A toy binarized grammar") {
 		it("can be created"){
 			val toyGrammar = TOY;
 		}
@@ -476,18 +501,18 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			//(update parser)
 			val learnedParser = parser.update(parses)
 			//(check output)
-			learnedParser.ruleProb(TOY(0).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.ruleProb(TOY(1).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.ruleProb(TOY(2).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.ruleProb(TOY(3).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("I")) should be (0.5 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("sugar")) should be (0.25 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("NLP")) should be (0.25 plusOrMinus 0.00001)
-			learnedParser.lexProb( TOY(5).binarize(NodeType.defaultFactory).next.asInstanceOf[CKYUnary], w2str.indexOf("like")) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(0).binarize(NodeType.defaultFactory).next().asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(1).binarize(NodeType.defaultFactory).next().asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(2).binarize(NodeType.defaultFactory).next().asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.ruleProb(TOY(3).binarize(NodeType.defaultFactory).next().asInstanceOf[CKYRule]) should be (1.0 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next().asInstanceOf[CKYUnary], w2str.indexOf("I")) should be (0.5 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next().asInstanceOf[CKYUnary], w2str.indexOf("sugar")) should be (0.25 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(4).binarize(NodeType.defaultFactory).next().asInstanceOf[CKYUnary], w2str.indexOf("NLP")) should be (0.25 plusOrMinus 0.00001)
+			learnedParser.lexProb( TOY(5).binarize(NodeType.defaultFactory).next().asInstanceOf[CKYUnary], w2str.indexOf("like")) should be (1.0 plusOrMinus 0.00001)
 		}
 	}
 	
-	describe("a general grammar"){
+	describe("A general grammar"){
 		it("can be created"){
 			val grammar = MATH_TYPE;
 		}
@@ -547,6 +572,51 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 				}
 			}
 		}
+		it("should have a proper lex distribution with a prior"){
+			//--Fixed Prior
+			//(create parser)
+			val lexPrior:java.util.Map[Int,java.lang.Double] = Map( 0 -> 1.0, 1 -> 2.0, 2 -> 10.0 )
+					.map{ case (x,y) => (x, y.asInstanceOf[java.lang.Double]) }
+			//(test dirichlet)
+			val dir = Dirichlet.fromMap(lexPrior)
+			val mult = dir.posterior( new Multinomial[java.lang.Integer](CountStores.ARRAY(mathtyp2str.length)).initUniform().asInstanceOf[Multinomial[Int]] )
+			mult.prob(0) should be (1.0 / 13.0)
+			println(mult)
+			val fixedParser = CKYParser(mathtyp2str.length, MATH_TYPE.map{ (_, 0.0) }, NodeType.defaultFactory,
+				(n:NodeType) => Dirichlet.fromMap(lexPrior))
+			//(test lexProb)
+			fixedParser.lexProb(new CKYUnary(NodeType.defaultFactory('int_tag), NodeType.defaultFactory.WORD), 0) should be (1.0 / 13.0)
+			fixedParser.lexProb(new CKYUnary(NodeType.defaultFactory('int_tag), NodeType.defaultFactory.WORD), 1) should be (2.0 / 13.0)
+			fixedParser.lexProb(new CKYUnary(NodeType.defaultFactory('int_tag), NodeType.defaultFactory.WORD), 2) should be (10.0 / 13.0)
+			fixedParser.lexProb(new CKYUnary(NodeType.defaultFactory('int_tag), NodeType.defaultFactory.WORD), 3) should be (0.0 / 13.0)
+			fixedParser.lexProb(new CKYUnary(NodeType.defaultFactory('int_tag), NodeType.defaultFactory.WORD), 4) should be (0.0 / 13.0)
+			//--Dynamic Prior
+			val dynParser = CKYParser(w2str.length, TOY.map{ (_, 0.0) }, NodeType.defaultFactory,
+				(n:NodeType) => {
+					if(n == NodeType.defaultFactory('NN)){
+						Dirichlet.fromMap(lexPrior)
+					} else if(n == NodeType.defaultFactory('VB)){
+						val lexPrior:java.util.Map[Int,java.lang.Double] = Map( 0 -> 2.0, 1 -> 1.0, 2 -> 3.0 )
+							.map{ case (x,y) => (x, y.asInstanceOf[java.lang.Double]) }
+						Dirichlet.fromMap(lexPrior)
+					} else {
+						Dirichlet.symmetric(0.0)
+					}
+				})
+			//(NN)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), 0) should be (1.0 / 13.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), 1) should be (2.0 / 13.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), 2) should be (10.0 / 13.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), 3) should be (0.0 / 13.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), 4) should be (0.0 / 13.0)
+			//(VB)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 0) should be (2.0 / 5.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 1) should be (1.0 / 5.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 2) should be (3.0 / 5.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 3) should be (0.0 / 5.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 4) should be (0.0 / 5.0)
+
+		}
 		it("should parse simple sentences"){
 			val parser = CKYParser.apply(mathtyp2str.length, MATH_TYPE.map{ (_,0.0) }, paranoid=true);
 			val sent:Sentence = Sentence(mathtyp2str, "0 1 2 3 4")
@@ -569,28 +639,6 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 	}
 
 	describe("Arithmetic"){
-		case class MSent(gloss:String) extends Sentence {
-			val words = gloss.split("""\s+""").map{ (s:String) =>
-				try {
-					s.toDouble
-					math2str.indexOf("#")
-				} catch {
-					case (e:Exception) => math2str.indexOf(s)
-				}
-			}
-			val nums = gloss.split("""\s+""").map{ (s:String) =>
-				try {
-					s.toDouble
-				} catch {
-					case (e:Exception) => Double.NaN
-				}
-			}
-			override def apply(i:Int) = words(i)
-			override def length:Int = words.length
-			override def gloss(i:Int) = math2str(words(i))
-			override def asNumber(i:Int) = nums(i).toInt
-			override def asDouble(i:Int) = nums(i)
-		}
 
 		it("can be created"){
 			val grammar = MATH;
@@ -737,6 +785,48 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			val reReadParse = parser.parse(sent)
 			reReadParse should be (parseToMatch)
 			
+		}
+		it("should give stable parses"){
+			//--Comparison
+			//(create parse to compare to)
+			val parser = CKYParser(math2str.length, MATH);
+			val parses = parser.parse(MSent("1 + 2 - 3 + 4"),1000);
+			val numParses = parses.length
+			numParses should be > 1
+			//--Check Stability
+			(0 until 100).foreach{ (i:Int) =>
+				//(reparse)
+				val candParser = CKYParser(math2str.length, MATH);
+				val candParses = candParser.parse(MSent("1 + 2 - 3 + 4"),1000);
+				val candNumParses = candParses.length
+				//(tests)
+				candNumParses should be (numParses)
+				candParses.zip(parses).map{ case (a,b) => a == b}.forall{ a => a } should be (true)
+			}
+			//--Check Serialized Stability
+			val file = File.createTempFile("scalatest", ".ser");
+			//(write parser)
+			val out = new TrackedObjectOutputStream(new FileOutputStream(file));
+			try {
+				out.writeObject(parser);
+				out.close();
+			} catch {
+				case (e:Exception) => assert(false, "Could not serialize: " + out.getStack.toArray.mkString(" --> "))
+			}
+			//(read parser)
+			val in = new ObjectInputStream(new FileInputStream(file));
+			val parserReloaded:CKYParser = in.readObject().asInstanceOf[CKYParser];
+			val parsesReloaded = parserReloaded.parse(MSent("1 + 2 - 3 + 4"),1000);
+			val numParsesReloaded = parsesReloaded.length
+			(0 until 100).foreach{ (i:Int) =>
+				//(reparse)
+				val candParser = CKYParser(math2str.length, MATH);
+				val candParses = candParser.parse(MSent("1 + 2 - 3 + 4"),1000);
+				val candNumParses = candParses.length
+				//(tests)
+				candNumParses should be (numParsesReloaded)
+				candParses.zip(parsesReloaded).map{ case (a,b) => a == b}.forall{ a => a } should be (true)
+			}
 		}
 	}
 }

@@ -19,6 +19,7 @@ import org.goobs.util.SingletonIterator
 //------------------------------------------------------------------------------
 // NODES
 //------------------------------------------------------------------------------
+@SerialVersionUID(1L)
 case class NodeType(name:Symbol,id:Int,flag:Set[Symbol]) {
 	def isPreterminal:Boolean = flag(NodeType.SYM_PRETERMINAL)
 	def isWord:Boolean = flag(NodeType.SYM_WORD)
@@ -50,6 +51,7 @@ object NodeType {
 }
 
 
+@SerialVersionUID(1L)
 class NodeTypeFactory extends Serializable {
 	import NodeType._
 	//--State
@@ -335,6 +337,7 @@ trait LexEntry extends GrammarRule {
 }
 
 
+@SerialVersionUID(1L)
 class SimpleGrammarRule(_parent:NodeType, _children:NodeType*
 		) extends GrammarRule {
 	assert(children.length > 0, "Grammar rule with no children");
@@ -346,6 +349,7 @@ class SimpleGrammarRule(_parent:NodeType, _children:NodeType*
 	override def hashCode:Int = super.hashCode
 }
 
+@SerialVersionUID(1L)
 class LambdaGrammarRule
 		(lambda:Seq[Any]=>Any, parent:NodeType, children:NodeType*)
 		extends SimpleGrammarRule(parent,children:_*) with CanEvaluate[Any,Any] {
@@ -353,6 +357,7 @@ class LambdaGrammarRule
 		= (lambda(children.map{ _._1 }),parent)
 }
 
+@SerialVersionUID(1L)
 class TypedLambdaGrammarRule[ParentType,ChildType]
 		(lambda:Seq[ChildType]=>ParentType, parent:NodeType, children:NodeType*)
 		extends SimpleGrammarRule(parent,children:_*) 
@@ -387,6 +392,7 @@ case class BinaryGrammarRule(parent:NodeType, _children:NodeType*
 	override def hashCode:Int = super.hashCode
 }
 
+@SerialVersionUID(1L)
 case class LexGrammarRule(parent:NodeType,factory:NodeTypeFactory=NodeType.defaultFactory
 		) extends GrammarRule with HasNodeFactory with LexEntry {
 	assert(children.length > 0, "Grammar rule with no children");
@@ -398,6 +404,7 @@ case class LexGrammarRule(parent:NodeType,factory:NodeTypeFactory=NodeType.defau
 	override def hashCode:Int = super.hashCode
 }
 
+@SerialVersionUID(1L)
 case class LambdaLexGrammarRule[ParentType](
 		lambda:((Option[Sentence],Int)=>ParentType), parent:NodeType, 
 			factory:NodeTypeFactory=NodeType.defaultFactory)
@@ -492,6 +499,7 @@ trait CKYRule extends GrammarRule with CanEvaluate[Any,Any] {
 	}
 }
 
+@SerialVersionUID(1L)
 class CKYUnary(val lambda:Option[Any=>Any],_parent:NodeType,_child:NodeType
 		) extends CKYRule with LexEntry {
 	def this(lambda:Any=>Any,_parent:NodeType,_child:NodeType)
@@ -524,6 +532,7 @@ class CKYUnary(val lambda:Option[Any=>Any],_parent:NodeType,_child:NodeType
 	override def child:NodeType = _child
 }
 
+@SerialVersionUID(1L)
 class CKYLex(lambda:(Option[Sentence],Int)=>Any,parent:NodeType,
 		val factory:NodeTypeFactory=NodeType.defaultFactory)
 		extends CKYUnary(
@@ -533,6 +542,7 @@ class CKYLex(lambda:(Option[Sentence],Int)=>Any,parent:NodeType,
 	override def isLex:Boolean = true
 }
 
+@SerialVersionUID(1L)
 class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*) 
 		extends CKYUnary(lambda,chain(0).parent,chain.last.child) {
 	def this(chain:CKYUnary*) = this(None,chain:_*)
@@ -576,6 +586,7 @@ class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*)
 		= "Closure[" + chain.toArray.mkString(" ++ ") + "]"
 }
 
+@SerialVersionUID(1L)
 class CKYBinary(val lambda:Option[(Any,Any)=>Any],_parent:NodeType,
 		_leftChild:NodeType,_rightChild:NodeType) extends CKYRule {
 	def this(lambda:(Any,Any)=>Any,_parent:NodeType,
@@ -691,6 +702,7 @@ object Sentence {
 	}
 }
 
+@SerialVersionUID(1L)
 class SimpleSentence(w2str:Int=>String,words:Int*) extends Sentence{
 	//<<basic overrides>>
 	override def apply(i:Int):Int = words(i)
@@ -876,6 +888,7 @@ trait EvalTree[T] extends ParseTree {
 	def evaluate:T = apply
 }
 
+@SerialVersionUID(1L)
 case class ReweightedParseTree(tree:ParseTree,logProb:Double) extends ParseTree{
 	assert(logProb <= 0.0, "Invalid log prob")
 	//<<Tree overrides>>
@@ -1146,8 +1159,8 @@ object CKYParser {
 	*/
 	def apply(numWords:Int, grammar:Iterable[(GrammarRule,Double)],
 			factory:NodeTypeFactory=NodeType.defaultFactory,
-			lexPrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0),
-			rulePrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0),
+			lexPrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0),
+			rulePrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0),
 			paranoid:Boolean=false,algorithm:Int=3):CKYParser = {
 		//--Binarize Grammar
 		//(binarize)
@@ -1227,8 +1240,8 @@ object CKYParser {
 			new Multinomial[Int](intStore(rules.length)).initUniform
 		}
 		//(fill rule prob)
-		ruleProbDomain.zipWithIndex.foreach{ case (ruleArray:Array[CKYRule],i:Int)=> 
-			val ess = ruleProb(i).newStatistics(rulePrior)
+		ruleProbDomain.zipWithIndex.foreach{ case (ruleArray:Array[CKYRule],i:Int)=>
+			val ess = ruleProb(i).newStatistics(rulePrior(index2NodeType(i)))
 			ruleArray.zipWithIndex.foreach{ case (rule:CKYRule,j:Int) =>
 				val parent = rule.parent
 				val prob = rules(rule.parent)(rule)
@@ -1243,9 +1256,10 @@ object CKYParser {
 		//(lex prob index)
 		val lexProbIndex:Map[CKYUnary,Int] = Map(lexProbDomain.zipWithIndex:_*)
 		//(lex prob create/fill)
-		val lexProb = lexProbDomain.map{ (rule:CKYRule) => 
+		val lexProb = lexProbDomain.map{ (rule:CKYUnary) =>
+			assert(rule.child == factory.WORD, "Creating lexical prior on unary that doens't go to a word")
 			(new Multinomial[Int](intStore(numWords)))
-				.newStatistics(lexPrior).distribution
+				.newStatistics(lexPrior(rule.parent)).distribution
 		}
 		//--Create Parser
 		new CKYParser(
@@ -1275,6 +1289,7 @@ object CKYParser {
 //------------------------------------------------------------------------------
 // PARSER
 //------------------------------------------------------------------------------
+@SerialVersionUID(1L)
 class CKYParser (
 		//(sizes)
 		val numWords:Int,
@@ -1297,8 +1312,9 @@ class CKYParser (
 		kbestCKYAlgorithm:Int = 3
 			) extends Serializable {
 	//-----
-	// Asserts
+	// Initialization
 	//-----
+	//<<Asserts>>
 	assert(lexProbDomain.length > 0, "No lexical entries")
 	assert(ruleProbDomain.length > 0, "No rule entries")
 	assert(numWords > 0, "No words in vocabulary")
@@ -2080,16 +2096,16 @@ class CKYParser (
 		ruleProb(head).prob(index)
 	}
 	def ruleLogProb(rule:CKYRule):Double = safeLn(ruleProb(rule))
-	def lexProb(rule:CKYUnary,w:Int):Double = {
+	def lexProb(rule:CKYUnary,w:Int,normalizeTo:Double=1.0):Double = {
 		if(w >= 0 && w < numWords) {
 			assert(!lexProb(lexProbIndex(rule)).prob(w).isNaN, "NaN lex probability")
-			lexProb(lexProbIndex(rule)).prob(w)
+			lexProb(lexProbIndex(rule)).prob(w) / normalizeTo
 		} else {
 			throw new IllegalArgumentException(
 				"Unknown word: " + w + " (W=" + numWords + ")");
 		}
 	}
-	def lexLogProb(rule:CKYUnary,w:Int):Double = safeLn(lexProb(rule,w))
+	def lexLogProb(rule:CKYUnary,w:Int,normalizeTo:Double=1.0):Double = safeLn(lexProb(rule,w,normalizeTo))
 	def parameters(
 			w2str:Int=>String = _.toString,
 			r2str:CKYRule=>String= _.toString):String = {
@@ -2233,21 +2249,22 @@ class CKYParser (
 		//--Asserts
 		assert(sent.length > 0, "Sentence of length 0 cannot be parsed")
 		//--Get Lexical Entries
-		def klex(elem:Int):Array[(CKYRule,Double)] = {
+		def klex(elem:Int):Iterable[(CKYRule,Double)] = {
+			//(get word)
 			val word:Int = sent(elem)
+			//(get valid rules)
 			lexProbDomain
 				.filter{ (term:CKYUnary) => term.validLexApplication(sent,elem) }
-				.map{ (term:CKYUnary) => (term, lexProb(term,word))  }
-				.sortWith{ case ((rA,pA),(rB,pB)) => pA > pB }
-				.map{ (pair:(CKYUnary,Double)) => (pair._1,math.log(pair._2)) }
-				.toArray
+				.map{ (term:CKYUnary) =>
+					(term, lexLogProb(term,word))
+				}.sortWith{ case ((rA,pA),(rB,pB)) => pA > pB }
 		}
 		//--Create Chart
 		val chart = makeChart(Thread.currentThread.getId)(sent.length,beam)
 		assert(chart.length >= sent.length, "Chart is too small")
 		//--Lex
 		(0 until sent.length).foreach{ (elem:Int) =>
-			assert(klex(elem).length > 0, 
+			assert(klex(elem).size > 0,
 				"No lexical terms for " + sent.gloss(elem) + " -- lexProbDomain=\n" + lexProbDomain.mkString("\n"))
 			var lastLogProb = Double.PositiveInfinity
 			klex(elem).foreach{ case (rule:CKYUnary,logProb:Double) =>
@@ -2353,8 +2370,8 @@ class CKYParser (
 	// EM
 	//-----
 	def update(trees:Iterable[ParseTree],
-			rulePrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0),
-			lexPrior:Prior[Int,Multinomial[Int]] = Dirichlet.SYMMETRIC(0.0)
+			rulePrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0),
+			lexPrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0)
 				):CKYParser = {
 		//--Extract Grammar
 		val (rules:HashMap[CKYRule,Double],lex:HashMap[(CKYUnary,Int),Double]) 
@@ -2366,8 +2383,10 @@ class CKYParser (
 			},factory)
 		//--Update Probabilities
 		//(get ESS)
-		val ruleESS = ruleProb.map{ _.newStatistics(rulePrior) }
-		val lexESS = lexProb.map{ _.newStatistics(lexPrior) }
+		val ruleESS = ruleProbDomain.zipWithIndex.map{ case (domain:Array[CKYRule], i:Int) =>
+			ruleProb(i).newStatistics(rulePrior( index2NodeType(i) )) }
+		val lexESS = lexProbDomain.zipWithIndex.map{ case (lexRule:CKYUnary,i:Int) =>
+			lexProb(i).newStatistics(lexPrior(lexRule.parent)) }
 		//(update rule ESS)
 		rules.foreach{ case (rule:CKYRule,count:Double) =>
 				val (i:Int,j:Int) = ruleProbIndex(rule)
@@ -2406,10 +2425,10 @@ class CKYParser (
 	}
 	def update(trees:Iterable[ParseTree],rulePrior:Double,lexPrior:Double
 			):CKYParser = {
-		val rulePriorDist:Prior[Int,Multinomial[Int]] 
-			= Dirichlet.SYMMETRIC(rulePrior)
-		val lexPriorDist:Prior[Int,Multinomial[Int]]  
-			= Dirichlet.SYMMETRIC(lexPrior)
+		val rulePriorDist:NodeType=>Prior[Int,Multinomial[Int]]
+			= (h:NodeType) => Dirichlet.symmetric[Int](rulePrior)
+		val lexPriorDist:NodeType=>Prior[Int,Multinomial[Int]]
+			= (h:NodeType) => Dirichlet.symmetric[Int](lexPrior)
 		update( trees, rulePriorDist, lexPriorDist )
 	}
 }

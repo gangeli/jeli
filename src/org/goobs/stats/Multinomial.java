@@ -65,7 +65,7 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 
 	public Multinomial<DOMAIN> initUniform(){
 		for(DOMAIN key : counts){
-			setCount(key, 1.0);
+			setCount(key, 0.0);
 		}
 		return this;
 	}
@@ -289,6 +289,10 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 			}
 		}
 		@Override public int hashCode(){ return prior.hashCode() ^ posterior.hashCode(); }
+	}
+	
+	public static Multinomial<Integer> uniform(int size){
+		return new Multinomial<Integer>(CountStores.ARRAY(size)).initUniform();
 	}
 
 }

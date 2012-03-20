@@ -5,6 +5,7 @@ import org.goobs.util.Decodable;
 import java.lang.reflect.Type;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.Map;
 
 public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Decodable {
 	private CountStore<DOMAIN> counts;
@@ -77,7 +78,7 @@ public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Dec
 			StringBuilder b = new StringBuilder();
 			b.append("Dirichlet( ");
 			for(DOMAIN key : counts){
-				b.append(key).append(":").append(counts.getCount(key));
+				b.append(key).append(":").append(counts.getCount(key)).append(" ");
 			}
 			b.append(")");
 			return b.toString();
@@ -121,19 +122,28 @@ public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Dec
 		};
 	}
 
-	@SuppressWarnings({"unchecked"})
-	public static <D> Dirichlet<D> SYMMETRIC(final double count){
-		return new Dirichlet<D>((CountStore<D>) symmetricStore(count));
-	}
-
-	public static <D> Dirichlet<D> SYMMETRIC(Set<D> domain, double count){
+	public static <D> Dirichlet<D> fromSet(Set<D> domain, double count){
 		CountStore<D> counts = CountStores.MAP();
 		for(D key : domain){
 			counts.setCount(key, count);
 		}
 		return new Dirichlet<D>(counts);
 	}
-	public static Dirichlet<Integer> SYMMETRIC(int domainSize, double count){
+
+	public static <D> Dirichlet<D> fromMap(Map<D,Double> initialCounts){
+		CountStore<D> counts = CountStores.MAP();
+		for(D key : initialCounts.keySet()){
+			counts.setCount(key, initialCounts.get(key));
+		}
+		return new Dirichlet<D>(counts);
+	}
+
+	@SuppressWarnings({"unchecked"})
+	public static <D> Dirichlet<D> symmetric(final double count){
+		return new Dirichlet<D>((CountStore<D>) symmetricStore(count));
+	}
+
+	public static Dirichlet<Integer> symmetric(int domainSize, double count){
 		CountStore<Integer> counts = CountStores.ARRAY(domainSize);
 		for(int i=0; i<domainSize; i++){
 			counts.setCount(i,count);
