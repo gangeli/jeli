@@ -492,8 +492,7 @@ public class Utils {
 				throw new IllegalArgumentException("Decodable must have a parameter-less constructor to be cast from String");
 			}
 			Decodable rtn = mc.createInstance();
-			rtn.decode(value, params);
-			return (E) rtn;
+			return (E) rtn.decode(value, params);
 		}else if(java.util.Date.class.isAssignableFrom(clazz)){
 			//(case: date)
 			try {

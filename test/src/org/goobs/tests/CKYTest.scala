@@ -608,13 +608,11 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), 1) should be (2.0 / 13.0)
 			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), 2) should be (10.0 / 13.0)
 			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), 3) should be (0.0 / 13.0)
-			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('NN), NodeType.defaultFactory.WORD), 4) should be (0.0 / 13.0)
 			//(VB)
-			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 0) should be (2.0 / 5.0)
-			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 1) should be (1.0 / 5.0)
-			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 2) should be (3.0 / 5.0)
-			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 3) should be (0.0 / 5.0)
-			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 4) should be (0.0 / 5.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 0) should be (2.0 / 6.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 1) should be (1.0 / 6.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 2) should be (3.0 / 6.0)
+			dynParser.lexProb(new CKYUnary(NodeType.defaultFactory('VB), NodeType.defaultFactory.WORD), 3) should be (0.0 / 6.0)
 
 		}
 		it("should parse simple sentences"){

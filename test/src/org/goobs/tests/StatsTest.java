@@ -140,11 +140,21 @@ public class StatsTest {
 	
 	@Test
 	public void gaussianDecodeString(){
-		new Gaussian(0,0,1.0).decode("[0.0,1.0]", new Type[0]);
-		new Gaussian(0,0,1.0).decode("[0,1]", new Type[0]);
-		new Gaussian(0,0,1.0).decode("N[0.0,1.0]", new Type[0]);
-		new Gaussian(0,0,1.0).decode("N(0.0,1.0)", new Type[0]);
-		new Gaussian(0,0,1.0).decode("N(0,1)", new Type[0]);
+		Gaussian g = (Gaussian) new Gaussian(0,0,1.0).decode("[0.0,1.0]", new Type[0]);
+		assertEquals(0.0, g.mu, 1e-5);
+		assertEquals(1.0, g.sigma, 1e-5);
+		g = (Gaussian) new Gaussian(0,0,1.0).decode("[0,1]", new Type[0]);
+		assertEquals(0.0, g.mu, 1e-5);
+		assertEquals(1.0, g.sigma, 1e-5);
+		g = (Gaussian) new Gaussian(0,0,1.0).decode("N[0.0,1.0]", new Type[0]);
+		assertEquals(0.0, g.mu, 1e-5);
+		assertEquals(1.0, g.sigma, 1e-5);
+		g = (Gaussian) new Gaussian(0,0,1.0).decode("N(0.0,1.0)", new Type[0]);
+		assertEquals(0.0, g.mu, 1e-5);
+		assertEquals(1.0, g.sigma, 1e-5);
+		g = (Gaussian) new Gaussian(0,0,1.0).decode("N(0,1)", new Type[0]);
+		assertEquals(0.0, g.mu, 1e-5);
+		assertEquals(1.0, g.sigma, 1e-5);
 	}
 
 
