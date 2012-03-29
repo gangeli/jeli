@@ -118,13 +118,6 @@ public final class Database implements Decodable{
 			this.classType = classType;
 			this.info = ensureClassInfo(classType);
 			this.fact = new MetaClass(classType).createFactory(new Class[0]);
-			if(type == MYSQL){
-				try {
-					rs.beforeFirst();
-				} catch (SQLException e) {
-					throw new DatabaseException(e);
-				}
-			}
 		}
 		@Override
 		public boolean hasNext() {
@@ -248,6 +241,10 @@ public final class Database implements Decodable{
 	}
 
 	protected Database(){}
+	
+	public Database(String info){
+		decode(info, new Type[0]);
+	}
 	
 	public Database(ConnInfo info){
 		info.validate();
@@ -1474,17 +1471,21 @@ public final class Database implements Decodable{
 	 * @param query The raw query to run, in SQL syntax
 	 * @return The result of the query
 	 */
-	private ResultSet query(String query) {
+	public ResultSet query(String query) {
 		try {
 			ensureConnection();
     	prepareStatement();
-      return lastStatement.executeQuery(query);
+      ResultSet rs =  lastStatement.executeQuery(query);
+			if(type == MYSQL){
+				rs.beforeFirst();
+			}
+			return rs;
 		} catch (SQLException e) {
 			throw new DatabaseException(e);
 		}
 	}
 
-    /**
+   /**
 	 * Run a raw database update.
 	 * @param query The raw query to run, in SQL syntax
 	 * @return The number of updated rows

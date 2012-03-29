@@ -209,30 +209,30 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 	*/
 	private static class MultinomialSufficientStatistics<D,P extends Prior<D,Multinomial<D>>> extends ExpectedSufficientStatistics<D,Multinomial<D>> {
 		private final P prior;
-		private final Multinomial<D> posterior;
+		private final Multinomial<D> mle;
 		private MultinomialSufficientStatistics(P prior, CountStore<D> store){
 			this.prior = prior;
-			this.posterior = new Multinomial<D>(store);
+			this.mle = new Multinomial<D>(store);
 		}
 		@Override
 		public void registerDatum(D datum, double prob) {
-			this.posterior.incrementCount(datum, prob);
+			this.mle.incrementCount(datum, prob);
 		}
 		@Override
 		public void clear() {
-			posterior.clear();
+			mle.clear();
 		}
 
 		@Override
 		public String toString(){
-			return "ESS: " + posterior.toString() + " of " + posterior.totalCount + " with prior " + prior;
+			return "ESS: " + mle.toString() + " of " + mle.totalCount + " with prior " + prior;
 		}
 
 		public Iterable<D> domain() {
 			return new Iterable<D>(){
 				@Override
 				public Iterator<D> iterator() {
-					final Iterator<D> iter = posterior.iterator();
+					final Iterator<D> iter = mle.iterator();
 					return new Iterator<D>() {
 						private D next = null;
 						@Override
@@ -242,7 +242,7 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 							} else {
 								while(iter.hasNext() && next != null){
 									D cand = iter.next();
-									if(posterior.getCount(next()) > 0){
+									if(mle.getCount(next()) > 0){
 										next = cand;
 									}
 								}
@@ -265,14 +265,14 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 
 		@Override
 		public Multinomial<D> distribution() {
-			if(posterior.totalCount == 0.0){
+			if(mle.totalCount == 0.0){
 				try {
-					return this.prior.posterior(posterior.clone().initUniform());
+					return this.prior.posterior(mle.clone().initUniform());
 				} catch (CloneNotSupportedException e) {
 					throw new RuntimeException(e);
 				}
 			} else {
-				return this.prior.posterior(posterior);
+				return this.prior.posterior(mle);
 			}
 		}
 
@@ -280,7 +280,7 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 			if(o instanceof MultinomialSufficientStatistics){
 				try{
 					@SuppressWarnings({"unchecked"}) MultinomialSufficientStatistics<D,P> other = (MultinomialSufficientStatistics<D,P>) o;
-					return other.prior.equals(prior) && other.posterior.equals(posterior);
+					return other.prior.equals(prior) && other.mle.equals(mle);
 				} catch(ClassCastException e){
 					return false;
 				}
@@ -288,7 +288,7 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 				return false;
 			}
 		}
-		@Override public int hashCode(){ return prior.hashCode() ^ posterior.hashCode(); }
+		@Override public int hashCode(){ return prior.hashCode() ^ mle.hashCode(); }
 	}
 	
 	public static Multinomial<Integer> uniform(int size){

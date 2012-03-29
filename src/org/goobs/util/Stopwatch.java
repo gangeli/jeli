@@ -1,8 +1,11 @@
 package org.goobs.util;
 
+import java.text.DecimalFormat;
 import java.util.Date;
 
 public class Stopwatch {
+
+	private static final DecimalFormat milliFormat = new DecimalFormat("000");
 
 	private long start = 0;
 	private long lastLap = -1;
@@ -70,7 +73,7 @@ public class Stopwatch {
 			b.append(min).append(":");
 		}
 		if(min > 0 && sec < 10){ b.append("0"); }
-		b.append(sec).append(".").append(mili);
+		b.append(sec).append(mili > 0 ? "."+milliFormat.format(mili) : "");
 		if(min > 0) b.append(" minutes");
 		else b.append(" seconds");
 		return b.toString();

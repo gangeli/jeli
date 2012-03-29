@@ -1,7 +1,6 @@
 package org.goobs.tests;
 
-import org.goobs.stats.ExpectedSufficientStatistics;
-import org.goobs.stats.Gaussian;
+import org.goobs.stats.*;
 import org.junit.Test;
 
 import java.lang.reflect.Type;
@@ -14,6 +13,43 @@ import static org.junit.Assert.assertTrue;
  * @author Gabor Angeli (angeli at cs.stanford)
  */
 public class StatsTest {
+
+	@Test
+	public void multinomialDirichletPrior(){
+		//(initialize)
+		Multinomial<Integer> initial = Multinomial.uniform(5);
+		Dirichlet<Integer> prior = Dirichlet.symmetric(2.0);
+		ExpectedSufficientStatistics<Integer, Multinomial<Integer>> ess = initial.newStatistics(prior);
+		//(enter data)
+		ess.updateEStep(0, 1.0);
+		ess.updateEStep(3, 0.5);
+		//(check posterior)
+		Multinomial<Integer> posterior = ess.runMStep();
+		assertEquals(posterior.prob(0), 3.0 / 11.5, 1e-5);
+		assertEquals(posterior.prob(1), 2.0 / 11.5, 1e-5);
+		assertEquals(posterior.prob(2), 2.0 / 11.5, 1e-5);
+		assertEquals(posterior.prob(3), 2.5 / 11.5, 1e-5);
+		assertEquals(posterior.prob(4), 2.0 / 11.5, 1e-5);
+	}
+
+	@Test
+	public void multinomialUniformPrior(){
+		//(initialize)
+		Multinomial<Integer> initial = Multinomial.uniform(5);
+		Uniform<Integer> prior = Uniform.mkPrior();
+		ExpectedSufficientStatistics<Integer, Multinomial<Integer>> ess = initial.newStatistics(prior);
+		//(enter data)
+		ess.updateEStep(0, 1.0);
+		ess.updateEStep(3, 0.5);
+		//(check posterior)
+		Multinomial<Integer> posterior = ess.runMStep();
+		assertEquals(posterior.prob(0), 1.0 / 5.0, 1e-5);
+		assertEquals(posterior.prob(1), 1.0 / 5.0, 1e-5);
+		assertEquals(posterior.prob(2), 1.0 / 5.0, 1e-5);
+		assertEquals(posterior.prob(3), 1.0 / 5.0, 1e-5);
+		assertEquals(posterior.prob(4), 1.0 / 5.0, 1e-5);
+	}
+
 
 	private double check(double x, double s, double u){
 		return (1.0) / (s*Math.sqrt(2.0*Math.PI)) * Math.exp( -(x-u)*(x-u) / (2.0*s*s) );

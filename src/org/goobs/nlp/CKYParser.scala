@@ -574,7 +574,7 @@ class CKYClosure(lambda:Option[Any=>Any],val chain:CKYUnary*)
 		}
 		assert(!isEqual || this.hashCode == o.hashCode, "Hash Code mismatch")
 		assert(isEqual || this.toString != o.toString, 
-			"ToString mismatch: " + this.toString + " --> " +
+			"ToString mismatch in closure equality: \n\tthis.toString=" + this.toString + "\n\tother.toString="+o.toString+"\n\tchain equality=" +
 				this.chain.toArray
 					.zip(o.asInstanceOf[CKYClosure].chain)
 					.map{ case (a,b) => a == b }
@@ -2370,8 +2370,8 @@ class CKYParser (
 	// EM
 	//-----
 	def update(trees:Iterable[ParseTree],
-			rulePrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0),
-			lexPrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0)
+			lexPrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0),
+			rulePrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0)
 				):CKYParser = {
 		//--Extract Grammar
 		val (rules:HashMap[CKYRule,Double],lex:HashMap[(CKYUnary,Int),Double]) 
@@ -2423,12 +2423,12 @@ class CKYParser (
 				kbestCKYAlgorithm
 			)
 	}
-	def update(trees:Iterable[ParseTree],rulePrior:Double,lexPrior:Double
+	def update(trees:Iterable[ParseTree],lexPrior:Double,rulePrior:Double
 			):CKYParser = {
+		val lexPriorDist:NodeType=>Prior[Int,Multinomial[Int]]
+		= (h:NodeType) => Dirichlet.symmetric[Int](lexPrior)
 		val rulePriorDist:NodeType=>Prior[Int,Multinomial[Int]]
 			= (h:NodeType) => Dirichlet.symmetric[Int](rulePrior)
-		val lexPriorDist:NodeType=>Prior[Int,Multinomial[Int]]
-			= (h:NodeType) => Dirichlet.symmetric[Int](lexPrior)
-		update( trees, rulePriorDist, lexPriorDist )
+		update( trees, lexPriorDist, rulePriorDist )
 	}
 }

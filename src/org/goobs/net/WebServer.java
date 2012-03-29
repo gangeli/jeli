@@ -4,7 +4,9 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import org.goobs.util.Utils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -41,49 +43,74 @@ public class WebServer {
 	}
 
 	public WebServer register(final String uri, final WebServerHandler handler){
-    if(server == null){
-      throw new IllegalStateException("Start the server before registering listeners");
-    }
+		if(server == null){
+			throw new IllegalStateException("Start the server before registering listeners");
+		}
 		server.createContext(uri, new HttpHandler(){
 			@Override
 			public void handle(HttpExchange exchange) throws IOException {
-				if(exchange.getRequestMethod().equalsIgnoreCase("GET")){
-					OutputStream responseBody = exchange.getResponseBody();
-					//--Custom Icon
-					if(exchange.getRequestURI().getPath().matches(ICON_REGEX)){
-						responseBody.write(getIcon());
+				try {
+					if(exchange.getRequestMethod().equalsIgnoreCase("GET")){
+						OutputStream responseBody = exchange.getResponseBody();
+						//--Custom Icon
+						if(exchange.getRequestURI().getPath().matches(ICON_REGEX)){
+							exchange.getResponseHeaders().set("Content-Type", "image/x-icon");
+							exchange.sendResponseHeaders(200, 0);
+							responseBody.write(getIcon());
+							responseBody.close();
+							return;
+						}
+						String query = exchange.getRequestURI().getQuery();
+						HashMap <String,String> values = parseQuery(query);
+						//--Create Values Map
+						//--Create Info
+						HttpInfo info = new HttpInfo();
+						Headers responseHeaders = exchange.getResponseHeaders();
+						responseHeaders.set("Content-Type", "text/html");
+						handler.setHeaders(responseHeaders);
+						exchange.sendResponseHeaders(200, 0);
+						Headers requestHeaders = exchange.getRequestHeaders();
+						Set<String> keySet = requestHeaders.keySet();
+						Iterator<String> iter = keySet.iterator();
+						HashMap <String,List<String>> headers = new HashMap<String,List<String>>();
+						while (iter.hasNext()) {
+							String key = iter.next();
+							List <String> vals = requestHeaders.get(key);
+							headers.put(key, vals);
+						}
+						info.headers = headers;
+
+
+						responseBody.write( handler.handle(values, info).getBytes() );
 						responseBody.close();
-						return;
+					} else {
+						System.err.println("[WebServer]: Warning: unhandled request of type: " + exchange.getRequestMethod());
 					}
-					String query = exchange.getRequestURI().getQuery();
-					HashMap <String,String> values = parseQuery(query);
-					//--Create Values Map
-					//--Create Info
-					HttpInfo info = new HttpInfo();
-					Headers responseHeaders = exchange.getResponseHeaders();
-					responseHeaders.set("Content-Type", "text/html");
-          handler.setHeaders(responseHeaders);
-					exchange.sendResponseHeaders(200, 0);
-					Headers requestHeaders = exchange.getRequestHeaders();
-					Set<String> keySet = requestHeaders.keySet();
-					Iterator<String> iter = keySet.iterator();
-					HashMap <String,List<String>> headers = new HashMap<String,List<String>>();
-					while (iter.hasNext()) {
-						String key = iter.next();
-						List <String> vals = requestHeaders.get(key);
-						headers.put(key, vals);
-					}
-					info.headers = headers;
-
-
-					responseBody.write( handler.handle(values, info).getBytes() );
-					responseBody.close();
-				} else {
-					System.err.println("[WebServer]: Warning: unhandled request of type: " + exchange.getRequestMethod());
+				} catch(Exception e){
+					e.printStackTrace();
 				}
 			}
 		});
     return this;
+	}
+	
+	public WebServer mount(String uri, final File directory){
+		while(uri.endsWith("/")){
+			uri = uri.substring(0, uri.length()-1);
+		}
+		for(File toMount : Utils.filesInDirectory(directory)){
+			String uriPath = uri + toMount.getPath().substring(directory.getPath().length());
+			FileHandler handler = new FileHandler(toMount);
+			register(uriPath, handler);
+			if(toMount.getName().equals("index.html")){
+				register(uriPath.substring(0,uriPath.length()-10), handler);
+			}
+		}
+		return this;
+	}
+
+	public void setIcon(byte[] icon){
+		this.icon = icon;
 	}
 	
 	private byte[] getIcon(){
@@ -93,10 +120,7 @@ public class WebServer {
 			return icon;
 		}
 	}
-	
-	public void setIcon(byte[] icon){
-		this.icon = icon;
-	}
+
 	
 	private static HashMap<String, String> parseQuery(String query) {
 		HashMap <String,String> rtn = new HashMap <String,String>();

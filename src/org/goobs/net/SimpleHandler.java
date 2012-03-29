@@ -7,5 +7,7 @@ import com.sun.net.httpserver.Headers;
  */
 public abstract class SimpleHandler implements WebServerHandler {
   @Override
-  public void setHeaders(Headers responseHeaders) { }
+  public void setHeaders(Headers responseHeaders) {
+		responseHeaders.set("Content-Type", "text/plain");
+	}
 }

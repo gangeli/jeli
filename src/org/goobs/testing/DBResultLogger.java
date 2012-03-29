@@ -1,5 +1,8 @@
 package org.goobs.testing;
 
+import org.goobs.database.*;
+import org.goobs.util.SparseList;
+
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -7,9 +10,7 @@ import java.util.Queue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.goobs.database.*;
 import static org.goobs.exec.Log.*;
-import org.goobs.util.SparseList;
 
 public class DBResultLogger extends ResultLogger{
 
@@ -18,7 +19,7 @@ public class DBResultLogger extends ResultLogger{
 	 */
 	@SuppressWarnings("unused")
 	@Table(name="RUN")
-	private static final class Run extends DatabaseObject{
+	public static final class Run extends DatabaseObject{
 		@PrimaryKey(name="rid", autoIncrement=true)
 		private int rid;
 		@Key(name="name", length=63)@Index(type=Index.Type.HASH)
@@ -32,6 +33,7 @@ public class DBResultLogger extends ResultLogger{
 		private Run(String name){
 			this.name = name;
 		}
+		private Run(){}
 		@Key(name="parent")@Index(type=Index.Type.HASH)
 		private int parent = -1;
 		private void complete(){
@@ -39,30 +41,17 @@ public class DBResultLogger extends ResultLogger{
 			this.stop = new Date(System.currentTimeMillis());
 			this.flush();
 		}
-	}
-	@SuppressWarnings("unused")
-	@Table(name="PARAM")
-	private static final class Param extends DatabaseObject{
-		@PrimaryKey(name="pid", autoIncrement=true)
-		private int pid;
-		@Parent(localField="rid", parentField = "rid")
-		private Run rid;
-		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
-		private String key;
-		@Key(name="value", length=255)
-		private String value;
-		public Param(Run result, String key, String value){
-			this.rid = result;
-			this.key = key;
-			this.value = value;
-		}
+		public int rid(){ return rid; }
+		public long start(){ return start.getTime(); }
+		public long stop(){ return stop.getTime(); }
+		public String name(){ return name; }
 	}
 	@SuppressWarnings("unused")
 	@Table(name="OPTION")
-	private static final class Option extends DatabaseObject{
+	public static final class Option extends DatabaseObject{
 		@PrimaryKey(name="oid", autoIncrement=true)
 		private int oid;
-		@Parent(localField="rid", parentField = "rid")
+		@Parent(localField="rid", parentField="rid", indexType=Index.Type.BTREE)
 		private Run rid;
 		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
 		private String key;
@@ -70,33 +59,39 @@ public class DBResultLogger extends ResultLogger{
 		private String value;
 		@Key(name="location", length=255)
 		private String location;
-		public Option(Run result, String key, String value, String location){
+		private Option(Run result, String key, String value, String location){
 			this.rid = result;
 			this.key = key;
 			this.value = value;
 			this.location = location;
 		}
+		private Option(){}
+		public String key(){ return key; }
+		public String value(){ return value; }
 	}
 	@SuppressWarnings("unused")
 	@Table(name="GLOBAL_RESULT")
-	private static final class GlobalResult extends DatabaseObject{
+	public static final class GlobalResult extends DatabaseObject{
 		@PrimaryKey(name="gid", autoIncrement=true)
 		private int gid;
 		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
 		private String key;
 		@Key(name="value", length=127)
 		private String value;
-		@Parent(localField="rid", parentField = "rid")
+		@Parent(localField="rid", parentField = "rid", indexType = Index.Type.BTREE)
 		private Run rid;
 		private GlobalResult(Run run, String key, String value){
 			this.rid = run;
 			this.key = key;
 			this.value = value;
 		}
+		private GlobalResult(){}
+		public String key(){ return key; }
+		public String value(){ return value; }
 	}
 	@SuppressWarnings("unused")
 	@Table(name="EXAMPLE")
-	private static final class Instance extends DatabaseObject{
+	public static final class Instance extends DatabaseObject{
 		@PrimaryKey(name="eid", autoIncrement=true)
 		private int eid;
 		@Key(name="example_index")
@@ -115,7 +110,7 @@ public class DBResultLogger extends ResultLogger{
 	}
 	@SuppressWarnings("unused")
 	@Table(name="LOCAL_RESULT")
-	private static final class LocalResult extends DatabaseObject{
+	public static final class LocalResult extends DatabaseObject{
 		@PrimaryKey(name="lid", autoIncrement=true)
 		private int lid;
 		@Key(name="key", length=63)@Index(type=Index.Type.HASH)
@@ -166,14 +161,6 @@ public class DBResultLogger extends ResultLogger{
 			db.emptyObject(Option.class, run, name, value, location).flush();
 		} catch (DatabaseException e){
 			warn("DB_LOGGER", "Could not log option: " + name + " (" + e.getMessage() + ")");
-		}
-	}
-	
-	public void logParameter(String name, String value){
-		try{
-			db.emptyObject(Param.class, run, name, value).flush();
-		} catch (DatabaseException e){
-			warn("DB_LOGGER", "Could not log param: " + name + " (" + e.getMessage() + ")");
 		}
 	}
 
