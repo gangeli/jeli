@@ -2106,6 +2106,21 @@ class CKYParser (
 		}
 	}
 	def lexLogProb(rule:CKYUnary,w:Int,normalizeTo:Double=1.0):Double = safeLn(lexProb(rule,w,normalizeTo))
+
+	def lexProbs(rule:CKYUnary):Array[Double] = {
+		lexProbDomain
+				.zipWithIndex
+				.map{ case (rule:CKYUnary,w:Int) =>
+			lexProb(rule,w)
+		}
+	}
+
+	def sortedLexProbs(rule:CKYUnary):Array[(Double,Int)] = {
+		lexProbs(rule).zipWithIndex.sortWith{ case ((pA:Double,iA:Int), (pB:Double,iB:Int)) =>
+			pB < pA
+		}
+	}
+
 	def parameters(
 			w2str:Int=>String = _.toString,
 			r2str:CKYRule=>String= _.toString):String = {
