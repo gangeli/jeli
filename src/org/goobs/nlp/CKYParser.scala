@@ -15,6 +15,7 @@ import scala.collection.mutable.HashSet
 
 import org.goobs.stats._
 import org.goobs.util.SingletonIterator
+import ref.WeakReference
 
 //------------------------------------------------------------------------------
 // NODES
@@ -949,6 +950,7 @@ object CKYParser {
 				}
 			}
 			override def totalCount:Double = totalCnt
+			override def domainSize:Double = capacity
 		}
 	}
 
@@ -1159,8 +1161,8 @@ object CKYParser {
 	*/
 	def apply(numWords:Int, grammar:Iterable[(GrammarRule,Double)],
 			factory:NodeTypeFactory=NodeType.defaultFactory,
-			lexPrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0),
-			rulePrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => Dirichlet.symmetric(0.0),
+			lexPrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => new MLEPrior[Int,Multinomial[Int]],
+			rulePrior:NodeType=>Prior[Int,Multinomial[Int]] = (parent:NodeType) => new MLEPrior[Int,Multinomial[Int]],
 			paranoid:Boolean=false,algorithm:Int=3):CKYParser = {
 		//--Binarize Grammar
 		//(binarize)
@@ -2170,12 +2172,20 @@ class CKYParser (
 	//-----
 	/**
 		Chart creation / cache function
+	 	Each thread gets its own chart, for simplicity
 	*/
 	@transient lazy val makeChart:Long=>((Int,Int)=>Chart) = {
-		val chartMap = new HashMap[Long,(Int,Int)=>Chart]
-		(thread:Long) =>
-			if(chartMap.contains(thread)){
-				chartMap(thread)
+		//(variables)
+		val chartMap = new HashMap[Long,WeakReference[(Int,Int)=>Chart]]
+		val chartLock = new scala.concurrent.Lock
+		//(function)
+		(thread:Long) => {
+			chartLock.acquire()
+			val contains = chartMap.contains(thread);
+			val fnCached = if(!contains){ chartMap.remove(thread); None } else { chartMap(thread).get }
+			chartLock.release()
+			if(fnCached.isDefined){
+				fnCached.get
 			} else {
 				var largestChart = new Chart(0)
 				var largestBeam = 0
@@ -2222,8 +2232,11 @@ class CKYParser (
 					//--Return
 					chart
 					}
-			chartMap(thread) = fn
-			fn
+				chartLock.acquire()
+				chartMap(thread) = new WeakReference(fn)
+				chartLock.release()
+				fn
+			}
 		}
 	}
 	

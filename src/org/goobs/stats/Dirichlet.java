@@ -96,11 +96,12 @@ public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Dec
 		return new CountStore<D>() {
 			@Override public double totalCount(){ return count; }
 			@Override public double getCount(D key) {return count; }
-			@Override public void setCount(D key, double count) { throw new RuntimeException("NOT IMPLEMENTED");	}
+			@Override public void setCount(D key, double count) { throw new RuntimeException("Symmetric Dirichlet is immutable");	}
 			@Override public CountStore<D> emptyCopy() { return symmetricStore(0);	}
 			@SuppressWarnings({"CloneDoesntCallSuperClone"})
 			@Override public CountStore<D> clone() throws CloneNotSupportedException { return this; }
-			@Override public CountStore<D> clear() { throw new RuntimeException("NOT IMPLEMENTED"); }
+			@Override public CountStore<D> clear() { throw new RuntimeException("Symmetric Dirichlet is immutable"); }
+			@Override public double domainSize() { return Double.POSITIVE_INFINITY; }
 			@Override public Iterator<D> iterator() {
 				return new Iterator<D>(){
 					boolean returned = false;
@@ -115,7 +116,7 @@ public class Dirichlet<DOMAIN> implements Prior<DOMAIN,Multinomial<DOMAIN>>, Dec
 					}
 					@Override
 					public void remove() {
-						throw new RuntimeException("NOT IMPLEMENTED");
+						throw new RuntimeException("Symmetric Dirichlet is immutable");
 					}
 				};
 			}

@@ -9,5 +9,6 @@ public interface CountStore<D> extends Iterable<D>, Cloneable, Serializable {
 	public CountStore<D> emptyCopy();
 	public CountStore<D> clone() throws CloneNotSupportedException;
 	public CountStore<D> clear();
+	public double domainSize();
 	public double totalCount();
 }

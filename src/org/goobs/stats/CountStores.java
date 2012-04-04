@@ -42,6 +42,10 @@ public class CountStores {
 				totalCount = 0.0;
 				return this;
 			}
+			@Override
+			public double domainSize() {
+				return Double.POSITIVE_INFINITY;
+			}
 
 			@Override
 			public Iterator<D> iterator() {
@@ -79,6 +83,11 @@ public class CountStores {
 					counts[i] = 0.0;
 				}
 				return this;
+			}
+
+			@Override
+			public double domainSize() {
+				return counts.length;
 			}
 
 			@Override

@@ -57,7 +57,11 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 	public void normalize(){
 		assert verifyTotal();
 		for(DOMAIN key : this){
-			this.counts.setCount(key, this.getCount(key) / totalCount);
+			if(totalCount == 0.0){
+				this.counts.setCount(key, 1.0 / this.counts.domainSize());
+			} else {
+				this.counts.setCount(key, this.getCount(key) / totalCount);
+			}
 		}
 		assert sumsTo1();
 		this.totalCount = 1.0;
@@ -66,7 +70,9 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 	public Multinomial<DOMAIN> initUniform(){
 		for(DOMAIN key : counts){
 			setCount(key, 0.0);
+			assert !Double.isNaN(counts.getCount(key));
 		}
+		assert totalCount == 0.0;
 		return this;
 	}
 
@@ -74,6 +80,7 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 		Random r = new Random();
 		for(DOMAIN key : counts){
 			setCount(key, r.nextDouble());
+			assert !Double.isNaN(counts.getCount(key));
 		}
 		return this;
 	}
@@ -108,7 +115,13 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 	 */
 	@Override
 	public double prob(DOMAIN key){
-		return counts.getCount(key) / totalCount;
+		if(totalCount == 0.0){
+			assert counts.getCount(key) == 0.0;
+			assert counts.domainSize() > 0;
+			return 1.0 / this.counts.domainSize();
+		} else {
+			return counts.getCount(key) / totalCount;
+		}
 	}
 
 
@@ -265,15 +278,7 @@ public class Multinomial <DOMAIN> extends DiscreteDistribution<DOMAIN> implement
 
 		@Override
 		public Multinomial<D> distribution() {
-			if(mle.totalCount == 0.0){
-				try {
-					return this.prior.posterior(mle.clone().initUniform());
-				} catch (CloneNotSupportedException e) {
-					throw new RuntimeException(e);
-				}
-			} else {
-				return this.prior.posterior(mle);
-			}
+			return this.prior.posterior(mle);
 		}
 
 		@Override public boolean equals(Object o){
