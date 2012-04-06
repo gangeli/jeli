@@ -1,11 +1,11 @@
 package org.goobs.stanford;
 
 import edu.stanford.nlp.util.logging.Redwood;
+import edu.stanford.nlp.util.logging.Redwood.Util;
 import edu.stanford.nlp.util.logging.StanfordRedwoodConfiguration;
 import org.goobs.exec.Execution;
 import org.goobs.exec.ExitCode;
-
-import edu.stanford.nlp.util.logging.Redwood.Util;
+import org.goobs.exec.Log;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -31,7 +31,9 @@ public class StanfordExecutionLogInterface extends Execution.LogInterface {
 		//(init stanford)
 		StanfordRedwoodConfiguration.apply(props);
 		//(tweaks)
-		Redwood.hideOnlyChannels(Redwood.DBG);
+		if(!Log.logDebug){
+			Redwood.hideOnlyChannels(Redwood.DBG);
+		}
 	}
 
 	@Override

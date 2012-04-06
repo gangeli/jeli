@@ -3,14 +3,14 @@
  */
 package org.goobs.exec;
 
+import org.goobs.util.Stopwatch;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Stack;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.io.IOException;
-import java.io.FileWriter;
-import java.io.File;
-
-import org.goobs.util.Stopwatch;
 
 public final class Log {
 	
@@ -130,7 +130,7 @@ public final class Log {
 
 	
 	@Option(gloss="Print debugging log entries")
-	private static boolean logDebug = false;
+	public static boolean logDebug = false;
 	
 	private static final Stack <LogInfo> levels = new Stack<LogInfo>();
 	private static LogInfo currentInfo = null;

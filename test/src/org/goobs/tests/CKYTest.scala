@@ -8,7 +8,7 @@ import org.scalatest.Spec
 import org.scalatest.matchers.ShouldMatchers
 import org.goobs.nlp._
 import java.io._
-import org.goobs.util.{TrackedObjectOutputStream, SingletonIterator}
+import org.goobs.util.{TrackedObjectOutputStream, SingletonIterator, Stopwatch}
 import org.goobs.stats._
 
 object Grammars {
@@ -581,7 +581,6 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 			val dir = Dirichlet.fromMap(lexPrior)
 			val mult = dir.posterior( new Multinomial[java.lang.Integer](CountStores.ARRAY(mathtyp2str.length)).initUniform().asInstanceOf[Multinomial[Int]] )
 			mult.prob(0) should be (1.0 / 13.0)
-			println(mult)
 			val fixedParser = CKYParser(mathtyp2str.length, MATH_TYPE.map{ (_, 0.0) }, NodeType.defaultFactory,
 				(n:NodeType) => Dirichlet.fromMap(lexPrior))
 			//(test lexProb)
@@ -826,5 +825,65 @@ class CKYParserSpec extends Spec with ShouldMatchers {
 				candParses.zip(parsesReloaded).map{ case (a,b) => a == b}.forall{ a => a } should be (true)
 			}
 		}
+	}
+	
+	describe("Long Sentences"){
+		it("[9] should parse < 0.005s"){
+			//(variables)
+			val s9 = MSent("1 + 2 + 3 + 4 + 5")
+			var parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) });
+			//(parse)
+			val watch = Stopwatch.time()
+			for( i <- 0 until 10){
+				val parse = parser.parse(s9);
+				watch.lap.toInt should be < 5
+			}
+		}
+		it("[19] should parse < 0.02s"){
+			//(variables)
+			val s19 = MSent("1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10")
+			var parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) });
+			//(parse)
+			val watch = Stopwatch.time()
+			for( i <- 0 until 10){
+				val parse = parser.parse(s19);
+				watch.lap.toInt should be < 20
+			}
+		}
+		it("[29] should parse < 0.1s"){
+			//(variables)
+			val s29 = MSent("1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 + 13 + 14 + 15")
+			var parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) });
+			//(parse)
+			val watch = Stopwatch.time()
+			for( i <- 0 until 10){
+				val parse = parser.parse(s29);
+				watch.lap.toInt should be < 100
+			}
+		}
+		it("[39] should parse < 0.2s"){
+			//(variables)
+			val s39 = MSent("1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 + 13 + 14 + 15 + 16 + 17 + 18 + 19 + 20")
+			var parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) });
+			//(parse)
+			val watch = Stopwatch.time()
+			for( i <- 0 until 10){
+				val parse = parser.parse(s39);
+				watch.lap.toInt should be < 200
+			}
+		}
+		it("[49] should parse < 0.5s"){
+			//(variables)
+			val s49 = MSent("1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 + 13 + 14 + 15 + 16 + 17 + 18 + 19 + 20 + 21 + 22 + 23 + 24 + 25")
+			var parser = CKYParser.apply(math2str.length, MATH.map{ (_,0.0) });
+			//(parse)
+			val watch = Stopwatch.time()
+			for( i <- 0 until 10){
+				val parse = parser.parse(s49);
+				watch.lap.toInt should be < 500
+			}
+		}
+
+
 	}
 }

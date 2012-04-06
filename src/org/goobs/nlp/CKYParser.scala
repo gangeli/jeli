@@ -1332,13 +1332,21 @@ class CKYParser (
 	//-----
 	// Values
 	//-----
-	private val binaryRules:Array[CKYRule] 
-		= ruleProbIndex.keys.filter{ !_.isUnary }.toArray
-	private val unaryRules:Array[CKYUnary]  
+	private val binaryRules:Array[(CKYBinary,(Int,Int),Int,Int)] 
+		= ruleProbIndex.keys
+			.filter{ !_.isUnary }
+			.map{ case (r:CKYBinary) => 
+				(r,ruleProbIndex(r), nodeTypeIndex(r.leftChild), nodeTypeIndex(r.rightChild)) }
+			.toArray
+	private val unaryRules:Array[(CKYUnary,(Int,Int),Int)]  
 		= ruleProbIndex.keys
 				.filter{ _.isUnary }
-				.map{ _.asInstanceOf[CKYUnary] }
+				.map{ case (r:CKYUnary) =>
+					(r,ruleProbIndex(r), nodeTypeIndex(r.child)) }
 				.toArray
+	private val closureRules:Array[(CKYUnary,Array[(Int,Int)],Int)]  
+		= closures.map{ case (r:CKYClosure) => 
+			(r, r.chain.map{ u => ruleProbIndex(u) }.toArray, nodeTypeIndex(r.child)) }
 
 	
 	//-----
@@ -2094,10 +2102,13 @@ class CKYParser (
 	}
 	def ruleProb(rule:CKYRule):Double = {
 		val (head,index) = ruleProbIndex(rule)
+		ruleProb(head,index)
+	}
+	def ruleProb(head:Int,index:Int):Double = {
 		assert(!ruleProb(head).prob(index).isNaN,"NaN rule probability")
 		ruleProb(head).prob(index)
 	}
-	def ruleLogProb(rule:CKYRule):Double = safeLn(ruleProb(rule))
+	def ruleLogProb(head:Int,index:Int):Double = safeLn(ruleProb(head,index))
 	def lexProb(rule:CKYUnary,w:Int,normalizeTo:Double=1.0):Double = {
 		if(w >= 0 && w < numWords) {
 			assert(!lexProb(lexProbIndex(rule)).prob(w).isNaN, "NaN lex probability")
@@ -2110,11 +2121,9 @@ class CKYParser (
 	def lexLogProb(rule:CKYUnary,w:Int,normalizeTo:Double=1.0):Double = safeLn(lexProb(rule,w,normalizeTo))
 
 	def lexProbs(rule:CKYUnary):Array[Double] = {
-		lexProbDomain
-				.zipWithIndex
-				.map{ case (rule:CKYUnary,w:Int) =>
+		(0 until numWords).map{ (w:Int) =>
 			lexProb(rule,w)
-		}
+		}.toArray
 	}
 
 	def sortedLexProbs(rule:CKYUnary):Array[(Double,Int)] = {
@@ -2243,10 +2252,11 @@ class CKYParser (
 	/**
 		Access a chart element
 	*/
-	private def gram(chart:Chart,begin:Int,end:Int,parent:NodeType,t:Int
+	private def gram(chart:Chart,begin:Int,end:Int,parent:NodeType,t:Int):Beam
+		= gram(chart,begin,end, nodeTypeIndex(parent), t)
+	private def gram(chart:Chart,begin:Int,end:Int,head:Int,t:Int
 			):Beam = {
-		val head:Int = nodeTypeIndex(parent)
-		if(end == begin+1){ return lex(chart,begin,parent,t) }
+		if(end == begin+1){ return lex(chart,begin,head,t) }
 		//(asserts)
 		assert(end > begin+1, "Chart access error: bad end: " + begin + ", " + end)
 		assert(begin >= 0, "Chart access error: negative values: " + begin)
@@ -2256,13 +2266,20 @@ class CKYParser (
 		//(access)
 		chart(begin)(end-begin-1)(t)(head)
 	}
+	private def gram(chart:Chart,begin:Int,end:Int,parent:NodeType):Array[ChartElem] = {
+		Array.concat(
+			gram(chart,begin,end,parent,CKYParser.UNARY).toArray,
+			gram(chart,begin,end,parent,CKYParser.BINARY).toArray
+		).sortWith{ (a:ChartElem,b:ChartElem) => a.logProb > b.logProb }
+	}
+
 	/**
 		Access a lexical element
 	*/
-	private def lex(chart:Chart,elem:Int,parent:NodeType,t:Int=CKYParser.BINARY
-			):Beam = {
-		val head:Int = nodeTypeIndex(parent)
-		//(asserts)
+	private def lex(chart:Chart,elem:Int,parent:NodeType,t:Int=CKYParser.BINARY):Beam = {
+		lex(chart,elem,nodeTypeIndex(parent),t);
+	}
+	private def lex(chart:Chart,elem:Int,head:Int,t:Int):Beam = {
 		assert(elem >= 0, "Chart access error: negative value: " + elem)
 		assert(head >= 0, "Chart access error: bad head: " + head)
 		assert(head < index2NodeType.length, "Chart access error: bad head: "+head)
@@ -2273,7 +2290,7 @@ class CKYParser (
 	/**
 		k-best CKY Algorithm implementation
 	*/
-	def parse(sent:Sentence, beam:Int):Array[EvalTree[Any]] = {
+	private def cky(sent:Sentence, beam:Int):Chart = {
 		//--Asserts
 		assert(sent.length > 0, "Sentence of length 0 cannot be parsed")
 		//--Get Lexical Entries
@@ -2308,41 +2325,44 @@ class CKYParser (
 				lastLogProb = logProb
 			}
 		}
+		//--Indexing
 		//--Grammar
 		for(length <- 1 to sent.length) {                      // length
 			for(begin <- 0 to sent.length-length) {              // begin
 				//(overhead)
 				val end:Int = begin+length
 				assert(end <= sent.length, "end is out of bounds")
-				def addUnary(term:CKYUnary, ruleLProb:Double){
+				def addUnary(term:CKYUnary, child:Int, ruleLProb:Double){
 					assert(ruleLProb <= 0.0, "Log probability of >0: " + ruleLProb)
 					assert(term.isUnary, "Unary rule should be unary")
-					val child:Beam = gram(chart,begin,end,term.child,CKYParser.BINARY)
-					gram(chart,begin,end,term.parent,CKYParser.UNARY).combine(term,child,
+					val childBeam:Beam = gram(chart,begin,end,child,CKYParser.BINARY)
+					gram(chart,begin,end,term.parent,CKYParser.UNARY).combine(term,childBeam,
 						(left:ChartElem,right:ChartElem) => { ruleLProb })
 				}
 				//(unaries)
 				if(length == 1){
-					unaryRules.foreach{ u => addUnary(u,ruleLogProb(u)) }
-					closures.foreach{ c => addUnary(c,c.logProb(ruleLogProb(_))) }
+					unaryRules.foreach{ case (term,(head,index),child) => 
+						addUnary(term, child,ruleLogProb(head,index)) 
+					}
+					closureRules.foreach{ case (term,chain,child) => 
+						addUnary( term, child, chain.map{ case (h,i) => ruleLogProb(h,i) }.sum ) 
+					}
 				}
 				//(binaries)
-				binaryRules.foreach{ (term:CKYRule) =>             // rules [binary]
-					val ruleLProb:Double = ruleLogProb(term)
+				binaryRules.foreach{ case (term,(parent,index),childLeft,childRight) =>   // rules [binary]
+					val ruleLProb:Double = ruleLogProb(parent,index)
 					assert(ruleLProb <= 0.0, "Log probability of >0: " + ruleLProb)
 					assert(!term.isUnary, "Binary rule should be binary")
-					val ruleLeft = term.leftChild
-					val ruleRight = term.rightChild
 					for(split <- (begin+1) to (end-1)){              // splits
 						//((get variables))
 						val leftU:Beam
-							= gram(chart, begin,split,ruleLeft, CKYParser.UNARY)
+							= gram(chart, begin,split,childLeft, CKYParser.UNARY)
 						val rightU:Beam
-							= gram(chart,split,end,   ruleRight,CKYParser.UNARY)
+							= gram(chart,split,end,   childRight,CKYParser.UNARY)
 						val leftB:Beam
-							= gram(chart, begin,split,ruleLeft, CKYParser.BINARY)
+							= gram(chart, begin,split,childLeft, CKYParser.BINARY)
 						val rightB:Beam
-							= gram(chart,split,end,   ruleRight,CKYParser.BINARY)
+							= gram(chart,split,end,   childRight,CKYParser.BINARY)
 						assert(leftU != leftB && rightU != rightB, ""+begin+" to "+end)
 						val output = gram(chart,begin,end,term.parent,CKYParser.BINARY)
 						val score = (left:ChartElem,right:ChartElem) => { ruleLProb }
@@ -2361,8 +2381,12 @@ class CKYParser (
 				}
 				//(unaries)
 				if(length > 1){
-					unaryRules.foreach{ u => addUnary(u,ruleLogProb(u)) }
-					closures.foreach{ c => addUnary(c,c.logProb(ruleLogProb(_))) }     
+					unaryRules.foreach{ case (term,(head,index),child) => 
+						addUnary(term, child,ruleLogProb(head,index)) 
+					}
+					closureRules.foreach{ case (term,chain,child) => 
+						addUnary( term, child, chain.map{ case (h,i) => ruleLogProb(h,i) }.sum ) 
+					}
 				}
 				//(post-update tasks)
 				if(kbestCKYAlgorithm < 3) {
@@ -2374,10 +2398,14 @@ class CKYParser (
 			}
 		}
 		//--Return
-		Array.concat(
-			gram(chart,0,sent.length,factory.ROOT,CKYParser.UNARY).toArray,
-			gram(chart,0,sent.length,factory.ROOT,CKYParser.BINARY).toArray
-			).map{ x => x.deepclone(sent) }
+		chart
+	}
+
+	def parse(sent:Sentence,beam:Int):Array[EvalTree[Any]] = {
+		//--Fill Chart
+		val chart = cky(sent,beam);
+		//--Return
+		gram(chart,0,sent.length,factory.ROOT).map{ x => x.deepclone(sent) }
 	}
 	
 	def parse(sent:Sentence):EvalTree[Any] = {
@@ -2393,6 +2421,31 @@ class CKYParser (
 	}
 
 	def apply(sent:Sentence):EvalTree[Any] = parse(sent)
+	
+	def chart(sent:Sentence, b:Int=0, e:Int=Int.MaxValue, nodes:Iterable[NodeType]=Nil
+							 ):scala.collection.immutable.Map[(NodeType,Int,Int),Double] = {
+		//--Fill Chart
+		val crt = cky(sent,1);
+		//--Create Return
+		val nodesToReturn:Iterable[NodeType] = if(nodes.isEmpty){ factory.all } else { nodes }
+		//(for each begin)
+		(b until math.min(sent.length,e)).flatMap{ (begin:Int) =>
+			//(for each end)
+			(begin+1 to math.min(sent.length,e)).flatMap{ (end:Int) =>
+				//(for each node type)
+				nodesToReturn.map{ (node:NodeType) =>
+					val cands:Array[ChartElem] = gram(crt,begin,end,node);
+					if(cands.length > 0){
+						//(case: have entry)
+						Some(((node,begin,end),cands(0).logProb))
+					} else {
+						//(case: no entry)
+						None
+					}
+				}.filter{ _.isDefined }.map{ _.get }
+			}
+		}.toMap
+	}
 	
 	//-----
 	// EM
