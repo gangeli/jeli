@@ -1291,7 +1291,7 @@ object CKYParser {
 //------------------------------------------------------------------------------
 // PARSER
 //------------------------------------------------------------------------------
-@SerialVersionUID(1L)
+@SerialVersionUID(2L)
 class CKYParser (
 		//(sizes)
 		val numWords:Int,
