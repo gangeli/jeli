@@ -6,91 +6,91 @@
 Contents:
 ----------
 org.goobs.database
-	An annotation based object relational mapping. For example, defining
-		a table "table_name" with fields "f_a INT" and "f_b VARCHAR(15)"
-		entails adding '@Table(name="table_name")' to the class, extending 
-		'extends DatabaseObject,' and adding '@Key(name="f_a")' and 
-		'@Key(name="f_b", length=16).' Now you can create new instances via
-		Database.createEmptyObject([args]), read objects via Database.[method],
-		or write objects via [object].flush().
+  An annotation based object relational mapping. For example, defining
+    a table "table_name" with fields "f_a INT" and "f_b VARCHAR(15)"
+    entails adding '@Table(name="table_name")' to the class, extending 
+    'extends DatabaseObject,' and adding '@Key(name="f_a")' and 
+    '@Key(name="f_b", length=16).' Now you can create new instances via
+    Database.createEmptyObject([args]), read objects via Database.[method],
+    or write objects via [object].flush().
 
 org.goobs.exec
-	A research management framework, making extensive use of annotations.
-		Adding @Option(name="command_line_name", gloss="optional_gloss") to
-		any static field will make it into a command line option, which is
-		then populated by calling Execution.exec(Runnable, String[]). Results
-		can be saved to a database by specifying the "execData" option
-		(see org.goobs.database.Database.decode() for valid formats).
+  A research management framework, making extensive use of annotations.
+    Adding @Option(name="command_line_name", gloss="optional_gloss") to
+    any static field will make it into a command line option, which is
+    then populated by calling Execution.exec(Runnable, String[]). Results
+    can be saved to a database by specifying the "execData" option
+    (see org.goobs.database.Database.decode() for valid formats).
 
 org.goobs.graphics
-	A simple vector graphics toolkit, where you can draw graphics at an arbitrary
-		scale and resize then dynamically. Supports basic shapes and writing
-		to various files.
+  A simple vector graphics toolkit, where you can draw graphics at an arbitrary
+    scale and resize then dynamically. Supports basic shapes and writing
+    to various files.
 
 org.goobs.io
-	Some utilties for input/output; kind of outdated.
+  Some utilties for input/output; kind of outdated.
 
 org.goobs.net
-	A lightweight web server, which can serve either static pages, simple
-		GET queries, or JSON queries. To use, implement WebServerHandler,
-		add the handler to a WebServer, and call WebServer.start().
-		Some handlers (e.g., FileHandler) are provided here as well.
-		A dummy server can be started with '. rc && server.'
+  A lightweight web server, which can serve either static pages, simple
+    GET queries, or JSON queries. To use, implement WebServerHandler,
+    add the handler to a WebServer, and call WebServer.start().
+    Some handlers (e.g., FileHandler) are provided here as well.
+    A dummy server can be started with '. rc && server.'
 
 org.goobs.nlp
-	Research code for NLP applications, which is really code covering NLP+AI+ML.
-	Notably:
-		-CKYParser.scala: a fast k-best CKY implementation with special care taken
-		 for being able to easily define custom grammars, and easily being able
-		 to run EM updates for grammar induction.
-		-Convex: simple convex solvers, more for fun than for actual use.
-		-Search: a clean interface to most types of searches (BFS,DFS,A*,UCS,etc).
-		 Supports limiting the size of the set of seen nodes, among other useful
-		 features.
+  Research code for NLP applications, which is really code covering NLP+AI+ML.
+  Notably:
+    -CKYParser.scala: a fast k-best CKY implementation with special care taken
+     for being able to easily define custom grammars, and easily being able
+     to run EM updates for grammar induction.
+    -Convex: simple convex solvers, more for fun than for actual use.
+    -Search: a clean interface to most types of searches (BFS,DFS,A*,UCS,etc).
+     Supports limiting the size of the set of seen nodes, among other useful
+     features.
 
 org.goobs.qry
-	A run management viewer, to go in line with org.goobs.exec. For now this is
-		largely a work-in-progress.
+  A run management viewer, to go in line with org.goobs.exec. For now this is
+    largely a work-in-progress.
 
 aux/qry
-	The html/javascript for the run management viewer. This is likewise a
-		work-in-progress.
+  The html/javascript for the run management viewer. This is likewise a
+    work-in-progress.
 
 org.goobs.scheme
-	A scheme interpreter, with optional multithreading support. Can be started
-		directly via '. rc && scheme' or '. rc && pscheme.'
+  A scheme interpreter, with optional multithreading support. Can be started
+    directly via '. rc && scheme' or '. rc && pscheme.'
 
 org.goobs.stanford
-	A collection of classes which require JavaNLP to be included in the
-		classpath.
-		These are mostly an interface to org.goobs.exec to use CoreMaps and the
-		Redwood logger
+  A collection of classes which require JavaNLP to be included in the
+    classpath.
+    These are mostly an interface to org.goobs.exec to use CoreMaps and the
+    Redwood logger
 
 org.goobs.stats
-	A library for working with probabilities, with a particular emphasis on
-		Bayesian EM. This should hopefully expand over time.
-	Currently supports inference and learning on:
-		-Multinomials (+ Dirichlet, Uniform prior)
-		-Gaussian     (+ Gaussian prior on mu)
-		-Uniform
-		-MLE prior (no prior)
-		-Null prior (squashes any learned distribution)
+  A library for working with probabilities, with a particular emphasis on
+    Bayesian EM. This should hopefully expand over time.
+  Currently supports inference and learning on:
+    -Multinomials (+ Dirichlet, Uniform prior)
+    -Gaussian     (+ Gaussian prior on mu)
+    -Uniform
+    -MLE prior (no prior)
+    -Null prior (squashes any learned distribution)
 
-org.goobs.testing	
-	Classes for reporting results, or handling/evaluating data. Goes hand
-	in hand with org.goobs.exec
+org.goobs.testing  
+  Classes for reporting results, or handling/evaluating data. Goes hand
+  in hand with org.goobs.exec
 
 org.goobs.util
-	All sorts of utility classes. Classes of note include:
-		-Intersect: find the intersection of two sequences of ranges on a line
-		-MetaClass: the closest I could get to Java's object construction
-		 algorithm but using reflection (I think it matches more or less exactly).
-		-StatCalc: Calculate min/mean/etc of a dataset
-		-Stopwatch: time things!
-		-Utils: wish a certain function existed in Java? Likely, so have I!
-		 And I may even have implemented it, in which case it lives here.
-		 Also, useful tidbits like casting strings into objects, sorting two
-		 arrays simultaneously, etc live here.
+  All sorts of utility classes. Classes of note include:
+    -Intersect: find the intersection of two sequences of ranges on a line
+    -MetaClass: the closest I could get to Java's object construction
+     algorithm but using reflection (I think it matches more or less exactly).
+    -StatCalc: Calculate min/mean/etc of a dataset
+    -Stopwatch: time things!
+    -Utils: wish a certain function existed in Java? Likely, so have I!
+     And I may even have implemented it, in which case it lives here.
+     Also, useful tidbits like casting strings into objects, sorting two
+     arrays simultaneously, etc live here.
 
 ----------
 TODO:
@@ -102,10 +102,10 @@ TODO:
 ----------
 Licensing:
 ----------
-	I claim no license on this code. Anything found here that is not licensed
+  I claim no license on this code. Anything found here that is not licensed
 elsewhere is free to use, so long as the name of the project is changed.
 The exceptions are (a) the libraries that have been borrowed from elsewhere. 
 This includes most of the things in the /etc directory; and (b) anything
 that Stanford claims a license on, which I don't think is much if anything.
-	In conclusion, please don't sue me, and I'll try my hardest not to sue you. 
+  In conclusion, please don't sue me, and I'll try my hardest not to sue you. 
 I very much like not being sued.
