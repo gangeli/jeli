@@ -1,12 +1,12 @@
 package org.goobs.database;
 
-import java.lang.reflect.Array;
-import java.lang.reflect.Field;
-import java.util.*;
-
 import org.goobs.database.Database.DBClassInfo;
 import org.goobs.exec.Log;
 import org.goobs.util.MetaClass;
+
+import java.lang.reflect.Array;
+import java.lang.reflect.Field;
+import java.util.*;
 
 public abstract class DatabaseObject {
 
@@ -39,7 +39,7 @@ public abstract class DatabaseObject {
 	}
 
 	private Field[] getDeclaredFields(){
-		return MetaClass.getDeclaredFields(this.getClass());
+		return MetaClass.getFields(this.getClass());
 	}
 	
 	@SuppressWarnings({"rawtypes", "unchecked"})
