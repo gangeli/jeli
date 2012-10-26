@@ -38,7 +38,7 @@ public abstract class DatabaseObject {
 		}
 	}
 
-	private Field[] getDeclaredFields(){
+	protected Field[] getDeclaredFields(){
 		return MetaClass.getDeclaredFields(this.getClass());
 	}
 	

@@ -10,6 +10,11 @@ import java.util.HashMap;
  */
 public abstract class JsonHandler implements WebServerHandler {
   public abstract String handleJSON(HashMap<String,String> values, WebServer.HttpInfo info);
+  
+  public String handleNonJSON(HashMap<String,String> values, WebServer.HttpInfo info) {
+    return "Invalid JSON Query: no callback specified";
+  }
+
   @Override
   public final String handle(HashMap<String, String> values, WebServer.HttpInfo info) {
     String callback = null;
@@ -20,7 +25,7 @@ public abstract class JsonHandler implements WebServerHandler {
       callback = values.get("jsoncallback");
       values.remove("jsoncallback");
     } else {
-      throw new IllegalArgumentException("No callback specified");
+      return handleNonJSON(values, info);
     }
     return ""+callback+"(\n"+handleJSON(values, info)+"\n)";
   }

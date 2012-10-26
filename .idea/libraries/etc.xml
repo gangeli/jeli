@@ -1,0 +1,17 @@
+<component name="libraryTable">
+  <library name="etc">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/etc/scalatest.jar!/" />
+      <root url="jar://$PROJECT_DIR$/etc/jchart2d.jar!/" />
+      <root url="jar://$PROJECT_DIR$/etc/sqlite.jar!/" />
+      <root url="jar://$PROJECT_DIR$/etc/scala-compiler.jar!/" />
+      <root url="jar://$PROJECT_DIR$/etc/scala-library.jar!/" />
+      <root url="jar://$PROJECT_DIR$/etc/mysql.jar!/" />
+      <root url="jar://$PROJECT_DIR$/etc/junit.jar!/" />
+      <root url="jar://$PROJECT_DIR$/etc/postgresql.jar!/" />
+      <root url="jar://$PROJECT_DIR$/etc/scalala.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
