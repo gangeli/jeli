@@ -661,6 +661,19 @@ public class Execution {
 		fillOptions(props, new String[0]);
 	}
 
+  public static final void usingOptions(Class<?>[] classes,
+                                        String[] args) {
+		Map<String,String> options = parseOptions(args); //get options
+		fillOptions(BOOTSTRAP_CLASSES, options, false); //bootstrap
+		fillOptions(classes, options);
+  }
+  public static final void usingOptions(Class<?> clazz,
+                                        String[] args) {
+    Class<?>[] classes = new Class<?>[1];
+    classes[0] = clazz;
+    usingOptions(classes, args);
+  }
+
 	public static final void exec(Runnable toRun){
 		exec(toRun, new String[0]);
 	}

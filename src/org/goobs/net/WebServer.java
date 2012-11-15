@@ -6,9 +6,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.goobs.util.Utils;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -50,8 +48,9 @@ public class WebServer {
 			@Override
 			public void handle(HttpExchange exchange) throws IOException {
 				try {
+          OutputStream responseBody = exchange.getResponseBody();
+          HashMap <String, String> values = new HashMap<String, String>();
 					if(exchange.getRequestMethod().equalsIgnoreCase("GET")){
-						OutputStream responseBody = exchange.getResponseBody();
 						//--Custom Icon
 						if(exchange.getRequestURI().getPath().matches(ICON_REGEX)){
 							exchange.getResponseHeaders().set("Content-Type", "image/x-icon");
@@ -60,32 +59,38 @@ public class WebServer {
 							responseBody.close();
 							return;
 						}
+            //--Create Values Map
 						String query = exchange.getRequestURI().getQuery();
-						HashMap <String,String> values = parseQuery(query);
-						//--Create Values Map
-						//--Create Info
-						HttpInfo info = new HttpInfo();
-						Headers responseHeaders = exchange.getResponseHeaders();
-						responseHeaders.set("Content-Type", "text/html");
-						handler.setHeaders(responseHeaders);
-						exchange.sendResponseHeaders(200, 0);
-						Headers requestHeaders = exchange.getRequestHeaders();
-						Set<String> keySet = requestHeaders.keySet();
-						Iterator<String> iter = keySet.iterator();
-						HashMap <String,List<String>> headers = new HashMap<String,List<String>>();
-						while (iter.hasNext()) {
-							String key = iter.next();
-							List <String> vals = requestHeaders.get(key);
-							headers.put(key, vals);
-						}
-						info.headers = headers;
-
-
-						responseBody.write( handler.handle(values, info).getBytes() );
-						responseBody.close();
-					} else {
+						values = parseQuery(query);
+          } else if (exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+            StringBuilder b = new StringBuilder();
+            BufferedInputStream request = new BufferedInputStream(exchange.getRequestBody());
+            while(request.available() > 0) {
+              b.append((char) request.read());
+            }
+            values.put("data", b.toString());
+          } else {
 						System.err.println("[WebServer]: Warning: unhandled request of type: " + exchange.getRequestMethod());
+            return;
 					}
+          //--Create Info
+          HttpInfo info = new HttpInfo();
+          Headers responseHeaders = exchange.getResponseHeaders();
+          responseHeaders.set("Content-Type", "text/html");
+          handler.setHeaders(responseHeaders);
+          exchange.sendResponseHeaders(200, 0);
+          Headers requestHeaders = exchange.getRequestHeaders();
+          Set<String> keySet = requestHeaders.keySet();
+          Iterator<String> iter = keySet.iterator();
+          HashMap <String,List<String>> headers = new HashMap<String,List<String>>();
+          while (iter.hasNext()) {
+            String key = iter.next();
+            List <String> vals = requestHeaders.get(key);
+            headers.put(key, vals);
+          }
+          info.headers = headers;
+          responseBody.write( handler.handle(values, info).getBytes() );
+          responseBody.close();
 				} catch(Exception e){
 					e.printStackTrace();
 				}
