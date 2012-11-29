@@ -16,6 +16,7 @@ import edu.stanford.nlp.ling.CoreAnnotations.AnswerAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation
 import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation
 import edu.stanford.nlp.util.logging.Redwood
+import edu.stanford.nlp.util.Function
 import collection.generic.CanBuildFrom
 
 
@@ -160,7 +161,11 @@ object JavaNLP {
 
 
 
-
+	implicit def fn2Function[A,B](fn:A=>_<:B):Function[A,B] = {
+		new Function[A,B](){
+			override def apply(a:A):B = fn(a).asInstanceOf[B]
+		}
+	}
 
 	def threadAndMap[A,B,That](in:Iterable[A], fn:A=>B, numThreads:Int=Runtime.getRuntime.availableProcessors(), name:String="Threaded Map")(implicit bf:CanBuildFrom[Seq[A],B,That]):That = {
 		//--Variables

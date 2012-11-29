@@ -17,6 +17,18 @@ object FakeTree {
 			override def toString:String = name
 		}
 	}
+	def wnode(name:String, childrenLst:List[WrappedSearchState[String]],
+					 p:()=>WrappedSearchState[String], s:Double=0.0,h:Double=0.0) = {
+		new WrappedSearchState[String] {
+			override def children:List[WrappedSearchState[String]] = childrenLst
+			override def isEndState:Boolean = {childrenLst.length == 0}
+			override def cost:Double = s
+			override def heuristic:Double = h
+			override def toString:String = "w"+name
+			override def value:String = name
+			override def parent:Option[WrappedSearchState[String]] = if(p == null) None else Some(p())
+		}
+	}
 	val node2:SearchState = node("node2", List[SearchState]()           , 5, 0)
 	val node4:SearchState = node("node4", List[SearchState]()           , 8, 1)
 	val node6:SearchState = node("node6", List[SearchState]()           , 6, 0)
@@ -24,6 +36,14 @@ object FakeTree {
 	val node3:SearchState = node("node3", List[SearchState](node5)      , 4, 1)
 	val node1:SearchState = node("node1", List[SearchState](node4,node3), 1, 3)
 	val node0:SearchState = node("node0", List[SearchState](node2,node1), 5, 4)
+
+	val wnode2:WrappedSearchState[String] = wnode("node2", List[WrappedSearchState[String]]()             , ()=>wnode0, 5, 0)
+	val wnode4:WrappedSearchState[String] = wnode("node4", List[WrappedSearchState[String]]()             , ()=>wnode1, 8, 1)
+	val wnode6:WrappedSearchState[String] = wnode("node6", List[WrappedSearchState[String]]()             , ()=>wnode5, 6, 0)
+	val wnode5:WrappedSearchState[String] = wnode("node5", List[WrappedSearchState[String]](wnode6)       , ()=>wnode3, 5, 0)
+	val wnode3:WrappedSearchState[String] = wnode("node3", List[WrappedSearchState[String]](wnode5)       , ()=>wnode1, 4, 1)
+	val wnode1:WrappedSearchState[String] = wnode("node1", List[WrappedSearchState[String]](wnode4,wnode3), ()=>wnode0,1, 3)
+	val wnode0:WrappedSearchState[String] = wnode("node0", List[WrappedSearchState[String]](wnode2,wnode1), null, 5, 4)
 }
 
 object Manhattan {
@@ -265,6 +285,26 @@ class SearchSpec extends Spec with ShouldMatchers{
 			//(long time)
 			val best:Manhattan = astar.best(new EuclideanManhattan(100,100))
 			best should be (new Manhattan(0,0))
+		}
+	}
+
+	describe("A Wrapped Search State"){
+		it("is searchable"){
+			val dfs:Search[WrappedSearchState[String]] = Search(DFS[WrappedSearchState[String]])
+			val results:Array[WrappedSearchState[String]] = dfs.search(FakeTree.wnode0)
+			//(test search)
+			results.length should be (3)
+			results(0).value should be ("node6")
+			//(test path)
+			results(0).parent.isDefined should be (true)
+			results(0).parent.get should be (FakeTree.wnode5)
+			results(0).path.length should be (5)
+			val path = results(0).path
+			path(0) should be ("node0")
+			path(1) should be ("node1")
+			path(2) should be ("node3")
+			path(3) should be ("node5")
+			path(4) should be ("node6")
 		}
 	}
 }

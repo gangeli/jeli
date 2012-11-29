@@ -1,7 +1,11 @@
 package org.goobs.tests;
 
-import static org.junit.Assert.*;
-import org.junit.*;
+import org.goobs.database.*;
+import org.goobs.util.Decodable;
+import org.goobs.util.MetaClass;
+import org.goobs.util.Utils;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,16 +15,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigInteger;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
-import org.goobs.database.*;
-import org.goobs.util.Decodable;
-import org.goobs.util.MetaClass;
-import org.goobs.util.Utils;
+import static org.junit.Assert.*;
 
 public class DatabaseTest{
 
@@ -884,12 +881,7 @@ public class DatabaseTest{
 			assertTrue("" + ((TablePrimaryKeyPlus) o).pk, ((TablePrimaryKeyPlus) o).pk > 0);
 			//(case: forgot to register)
 			o = new TableAllFields();
-			try{
-				d.registerObject(o);
-				assertTrue("Should not be able to register object before registering type", false);
-			}catch(DatabaseException e){
-				assertTrue(e.getCause() == null);
-			}
+			d.registerObject(o);
 		}
 	}
 
@@ -1110,7 +1102,7 @@ public class DatabaseTest{
 	}
 
 	@Test
-	public void gGetObjectsByKey() {
+	public void getObjectsByKey() {
 		for(Database d : eachType()){
 			assertTrue(d.isConnected());
 			d.clear();
@@ -1148,6 +1140,40 @@ public class DatabaseTest{
 			}
 			//--Disconnect
 			d.disconnect();
+		}
+	}
+
+	@Test
+	public void queryObject() {
+		for(Database d : eachType()){
+			assertTrue(d.isConnected());
+			d.clear();
+			d.ensureTable(TableIndices.class);
+			//(setup)
+			d.beginTransaction();
+			TableIndices x = d.emptyObject(TableIndices.class);
+			x.fieldA = -42;
+			x.fieldB = 42;
+			x.noIndex = 9;
+			x.flush();
+			Random r = new Random();
+			for(int i=0; i<10000; i++){
+				x = d.emptyObject(TableIndices.class);
+				x.fieldA = i;
+				x.fieldB = 7;
+				x.noIndex = r.nextInt();
+				x.flush();
+			}
+			d.endTransaction();
+			//(create query)
+			Database.Query<TableIndices> stmt = d.statement(TableIndices.class, "SELECT * FROM tableindices WHERE fieldA=?");
+			//(check)
+			assertTrue( stmt.queryFirst(-42) != null);
+			assertEquals( stmt.queryFirst(-42).fieldA, -42);
+			Iterator<TableIndices> iter = stmt.query(-42);
+			assertTrue( iter.hasNext() );
+			iter.next();
+			assertFalse(iter.hasNext());
 		}
 	}
 	

@@ -11,7 +11,7 @@ class SearchException(s:String,e:Throwable) extends RuntimeException(s,e) {
 
 trait SearchState{
 	//(minimal override)
-	def children:List[SearchState]
+	def children:List[_<:SearchState]
 	//(suggested overrides)
 	def isEndState:Boolean = children.length == 0
 	def cost:Double = 0.0
@@ -19,6 +19,20 @@ trait SearchState{
 	//(debug overrides)
 	def assertEnqueueable:Boolean = true
 	def assertDequeueable:Boolean = true
+}
+
+trait WrappedSearchState[T] extends SearchState {
+	//(type changes)
+	override def children:List[_<:WrappedSearchState[T]]
+	//(new methods)
+	def value:T
+	def parent:Option[WrappedSearchState[T]]
+	//(implemented methods)
+	private def reversePath:List[T] = parent match {
+		case Some(state) => this.value :: state.reversePath
+		case None => List[T](this.value)
+	}
+	def path(implicit mt:Manifest[T]):Array[T] = reversePath.reverse.toArray
 }
 
 class Search[S <: SearchState : Manifest](store:Search.Store[S]) {

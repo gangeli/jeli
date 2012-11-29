@@ -1,10 +1,12 @@
 package org.goobs.util;
 
 import java.lang.reflect.Type;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Range implements Decodable {
+public class Range implements Decodable, Iterable<Integer> {
 	
 	/*
 		Vars
@@ -138,5 +140,26 @@ public class Range implements Decodable {
 	@Override
 	public String toString(){
 		return encode();
+	}
+
+	@Override
+	public Iterator<Integer> iterator() {
+		return new Iterator<Integer>(){
+			private int value = startInclusive;
+			@Override
+			public boolean hasNext() {
+				return value < stopExclusive;
+			}
+			@Override
+			public Integer next() {
+				if(!hasNext()){ throw new NoSuchElementException(); }
+				value += 1;
+				return value-1;
+			}
+			@Override
+			public void remove() {
+				throw new RuntimeException("You're trying to do nonsense. Stop it.");
+			}
+		};
 	}
 }

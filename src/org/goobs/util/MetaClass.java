@@ -1,10 +1,9 @@
 package org.goobs.util;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Array;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
+import java.util.HashSet;
+import java.util.LinkedList;
 
 public class MetaClass implements Decodable{
 
@@ -498,20 +497,37 @@ public class MetaClass implements Decodable{
 		return new MetaClass(clazz);
 	}
 
-	public static Field[] getDeclaredFields(Class c){
-		Field[] rtn = new Field[0];
+	/**
+	 * Get all fields defined by this class. If a field is overwritten,
+	 * we return only the most specific field -- i.e., the one that is accessible.
+	 * @param c The class to get fields from
+	 * @return The fields in this an all super classes
+	 */
+	public static Field[] getFields(Class c){
+		HashSet<String> visibleNames = new HashSet<String>();
+		LinkedList<Field> fields = new LinkedList<Field>();
+		//(while is a class)
 		while(c != null){
-			rtn = Utils.concat(rtn, c.getDeclaredFields());
+			//(for each declared field)
+			for(Field f : c.getDeclaredFields()){
+				//(if private or isn't overwritten)
+				if(Modifier.isPrivate(f.getModifiers()) || !visibleNames.contains(f.getName())){
+					///(add it)
+					visibleNames.add(f.getName());
+					fields.add(f);
+				}
+			}
+			//(proceed to superclass)
 			c = c.getSuperclass();
 		}
-		return rtn;
+		return fields.toArray(new Field[fields.size()]);
 	}
 
 	public static <E> Field findField(Class<E> clazz, String field) throws NoSuchFieldException {
 		try {
 			return clazz.getField(field);
 		} catch (NoSuchFieldException e) {
-			Field[] fields = getDeclaredFields(clazz);
+			Field[] fields = getFields(clazz);
 			for(Field f : fields){
 				if(f.getName().equals(field)) {
 					return f;
