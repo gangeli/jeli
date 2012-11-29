@@ -39,7 +39,7 @@ public abstract class DatabaseObject {
 	}
 
 	protected Field[] getDeclaredFields(){
-		return MetaClass.getDeclaredFields(this.getClass());
+		return MetaClass.getFields(this.getClass());
 	}
 	
 	@SuppressWarnings({"rawtypes", "unchecked"})
