@@ -88,5 +88,15 @@
 			<version>1.9.1</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.scalanlp</groupId>
+			<artifactId>breeze-math_${scala.version.short}</artifactId>
+			<version>0.2.3</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scalanlp</groupId>
+			<artifactId>breeze-viz_${scala.version.short}</artifactId>
+			<version>0.2.3</version>
+		</dependency>
 	</dependencies>
 </project>
