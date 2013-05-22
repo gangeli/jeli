@@ -128,7 +128,7 @@ abstract class DescentOptimizer(tolerance:Double, lineStep:Double) extends Optim
 		def check(t:Double):Boolean = {
 			fn(x).flatMap{ (fnValue:Double) =>
 				fn( moveDeltaT(x,delta,t) ).flatMap{ (stepped:Double) =>
-					if(stepped <= (fnValue + safeMultiply(gradient.t * delta, tolerance, t)) ){
+					if(stepped <= (fnValue + safeMultiply(gradient dot delta, tolerance, t)) ){
 						Some(true)
 					} else {
 						None
@@ -227,7 +227,7 @@ class NewtonOptimizer(lambdaTolerance:Double,hessianInterval:Int,tolerance:Doubl
 		hessianInverseCache.get
 	}
 
-	private def lambdaSquared(grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):Double = grad.t * inv(hessian) * grad
+	private def lambdaSquared(grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):Double = grad dot (hessian() \ grad)
 	override def converged(fnValue:Double,grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):Boolean
 		= lambdaSquared(grad,hessian) / 1.0 <= lambdaTolerance
 	override def delta(fnValue:Double,grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):DenseVector[Double]
@@ -256,7 +256,7 @@ object Convex {
 		val fn:ObjectiveFn = new ObjectiveFn {
 			def cardinality:Int = n
 			def apply(x: DenseVector[Double]):Option[Double] = {
-				val value = (0 until m).map{ (i:Int) => log(1.0 - (A(i,::) * x)) }.sum +
+				val value = sum(log1p(-A * x)) +
 					x.map{ (v) => log(1-v*v) }.sum
 				if(value.isNaN){
 					None
@@ -267,8 +267,8 @@ object Convex {
 			override def gradient(x:DenseVector[Double]):Option[DenseVector[Double]] = {
 				apply(x).flatMap{ (fnValue:Double) =>
 					val termA = (0 until m).map{ (i:Int) =>
-						val numer = A(i,::).t
-						val denom = 1.0 - (A(i,::) * x)
+						val numer = A.t(::,i)
+						val denom = 1.0 - (numer dot x)
 						numer :/ denom
 					}.foldLeft(DenseVector.zeros[Double](cardinality)){
 						case (soFar:DenseVector[Double], term:DenseVector[Double]) => soFar :+ term
@@ -296,7 +296,7 @@ object Convex {
 						//--Term 1
 						val term1 = (0 until m).map{ (i:Int) =>
 							val numer1:DenseMatrix[Double] = A(i,::).t*A(i,::)
-							val denom1:Double = (1.0 - A(i,::)*x)
+							val denom1:Double = (1.0 - (A.t(::,i) dot x))
 							numer1 :/ (denom1*denom1)
 						}.foldLeft(DenseMatrix.zeros[Double](cardinality,cardinality)){
 							case (soFar:DenseMatrix[Double], term:DenseMatrix[Double]) => soFar :+ term
