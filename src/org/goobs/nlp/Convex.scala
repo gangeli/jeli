@@ -256,7 +256,7 @@ object Convex {
 		val fn:ObjectiveFn = new ObjectiveFn {
 			def cardinality:Int = n
 			def apply(x: DenseVector[Double]):Option[Double] = {
-				val value = (0 until m).map{ (i:Int) => log(-(A(i,::) * x) +: 1.0) }.sum +
+				val value = (0 until m).map{ (i:Int) => log(1.0 - (A(i,::) * x)) }.sum +
 					x.map{ (v) => log(1-v*v) }.sum
 				if(value.isNaN){
 					None
