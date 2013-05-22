@@ -93,6 +93,11 @@
 			<version>0.2.3</version>
 		</dependency>
 		<dependency>
+			<groupId>net.sf.jchart2d</groupId>
+			<artifactId>jchart2d</artifactId>
+			<version>3.3.2</version>
+		</dependency>
+		<dependency>
 			<groupId>org.scalatest</groupId>
 			<artifactId>scalatest_${scala.version.short}</artifactId>
 			<version>1.9.1</version>
