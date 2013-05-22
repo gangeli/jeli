@@ -8,7 +8,7 @@ trait ObjectiveFn extends Function1[DenseVector[Double],Option[Double]] {
 	def cardinality:Int
 
 	def gradient(x:DenseVector[Double]):Option[DenseVector[Double]] = None
-	def hessian(x:DenseVector[Double]):Option[Matrix[Double]] = None
+	def hessian(x:DenseVector[Double]):Option[DenseMatrix[Double]] = None
 	
 	def differentiableAt(x:DenseVector[Double]):Boolean =  gradient(x).isDefined
 	def twiceDifferentiableAt(x:DenseVector[Double]):Boolean =  hessian(x).isDefined
@@ -78,8 +78,8 @@ abstract class DescentOptimizer(tolerance:Double, lineStep:Double) extends Optim
 	}
 
 
-	def converged(fnValue:Double,grad:DenseVector[Double],hessian:()=>Matrix[Double]):Boolean
-	def delta(fnValue:Double,gradient:DenseVector[Double],hessian:()=>Matrix[Double]):DenseVector[Double]
+	def converged(fnValue:Double,grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):Boolean
+	def delta(fnValue:Double,gradient:DenseVector[Double],hessian:()=>DenseMatrix[Double]):DenseVector[Double]
 
 	protected def safeMultiply(v:DenseVector[Double], t:Double):DenseVector[Double] = {
 		if(t == 0.0){
@@ -164,7 +164,7 @@ abstract class DescentOptimizer(tolerance:Double, lineStep:Double) extends Optim
 				case None => throw new IllegalArgumentException("Gradient is not defined at:\n" + x)
 			}
 			//(promise hessian)
-			var hessianImpl:Option[Matrix[Double]] = None
+			var hessianImpl:Option[DenseMatrix[Double]] = None
 			val hessian = () => {
 				if(!hessianImpl.isDefined){
 					hessianImpl = fn.hessian(x);
@@ -205,19 +205,19 @@ abstract class DescentOptimizer(tolerance:Double, lineStep:Double) extends Optim
 
 class GradientDescentOptimizer(gradientTolerance:Double,tolerance:Double,lineStep:Double
 																	) extends DescentOptimizer(tolerance, lineStep) {
-	override def converged(fnValue:Double,grad:DenseVector[Double],hessian:()=>Matrix[Double]):Boolean
+	override def converged(fnValue:Double,grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):Boolean
 		= grad.forallValues{ _.abs <= gradientTolerance}
 
-	override def delta(fnValue:Double,grad:DenseVector[Double],hessian:()=>Matrix[Double]):DenseVector[Double]
+	override def delta(fnValue:Double,grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):DenseVector[Double]
 		= -grad
 }
 
 class NewtonOptimizer(lambdaTolerance:Double,hessianInterval:Int,tolerance:Double,lineStep:Double) extends DescentOptimizer(tolerance, lineStep) {
-	var hessianInverseCache:Option[Matrix[Double]] = None
-	var cacheCond:()=>Matrix[Double] = null
+	var hessianInverseCache:Option[DenseMatrix[Double]] = None
+	var cacheCond:()=>DenseMatrix[Double] = null
 	var timeSinceUpdate:Int = 0
 
-	def inv(fn:()=>Matrix[Double]):Matrix[Double] = {
+	def inv(fn:()=>DenseMatrix[Double]):DenseMatrix[Double] = {
 		if(timeSinceUpdate > hessianInterval || !hessianInverseCache.isDefined || cacheCond == null){
 			hessianInverseCache = Some(LinearAlgebra.inv(fn()))
 			cacheCond = fn
@@ -227,10 +227,10 @@ class NewtonOptimizer(lambdaTolerance:Double,hessianInterval:Int,tolerance:Doubl
 		hessianInverseCache.get
 	}
 
-	private def lambdaSquared(grad:DenseVector[Double],hessian:()=>Matrix[Double]):Double = grad.t * inv(hessian) * grad
-	override def converged(fnValue:Double,grad:DenseVector[Double],hessian:()=>Matrix[Double]):Boolean
+	private def lambdaSquared(grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):Double = grad.t * inv(hessian) * grad
+	override def converged(fnValue:Double,grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):Boolean
 		= lambdaSquared(grad,hessian) / 1.0 <= lambdaTolerance
-	override def delta(fnValue:Double,grad:DenseVector[Double],hessian:()=>Matrix[Double]):DenseVector[Double]
+	override def delta(fnValue:Double,grad:DenseVector[Double],hessian:()=>DenseMatrix[Double]):DenseVector[Double]
 		= -inv(hessian)*grad
 }
 
@@ -250,7 +250,7 @@ object Convex {
 		val eta = 1e-6
 		val alpha = 0.25
 		val beta = 0.5
-		val A:Matrix[Double] = DenseMatrix.rand(m,n, random)
+		val A:DenseMatrix[Double] = DenseMatrix.rand(m,n, random)
 
 		//--Objective Function
 		val fn:ObjectiveFn = new ObjectiveFn {
@@ -282,8 +282,8 @@ object Convex {
 					}
 				}
 			}
-			override def hessian(x:DenseVector[Double]):Option[Matrix[Double]] = {
-				val hessian:Matrix[Double] =
+			override def hessian(x:DenseVector[Double]):Option[DenseMatrix[Double]] = {
+				val hessian:DenseMatrix[Double] =
 					if(diagonal){
 						val hessian = DenseMatrix.eye[Double](x.length)
 						(0 until x.length).foreach{ (i:Int) =>
@@ -295,11 +295,11 @@ object Convex {
 					} else {
 						//--Term 1
 						val term1 = (0 until m).map{ (i:Int) =>
-							val numer1:Matrix[Double] = A(i,::).t*A(i,::)
+							val numer1:DenseMatrix[Double] = A(i,::).t*A(i,::)
 							val denom1:Double = (1.0 - A(i,::)*x)
 							numer1 :/ (denom1*denom1)
 						}.foldLeft(DenseMatrix.zeros[Double](cardinality,cardinality)){
-							case (soFar:Matrix[Double], term:Matrix[Double]) => soFar :+ term
+							case (soFar:DenseMatrix[Double], term:DenseMatrix[Double]) => soFar :+ term
 						}
 						//--Term 2
 						val term2 = x.map{ (x:Double) =>
