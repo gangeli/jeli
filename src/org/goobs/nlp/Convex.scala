@@ -256,7 +256,7 @@ object Convex {
 		val fn:ObjectiveFn = new ObjectiveFn {
 			def cardinality:Int = n
 			def apply(x: DenseVector[Double]):Option[Double] = {
-				val value = (0 until m).map{ (i:Int) => log( 1 :- (A(i,::) * x) ) }.sum +
+				val value = (0 until m).map{ (i:Int) => log(-(A(i,::) * x) +: 1.0) }.sum +
 					x.map{ (v) => log(1-v*v) }.sum
 				if(value.isNaN){
 					None
@@ -273,7 +273,7 @@ object Convex {
 					}.foldLeft(DenseVector.zeros[Double](cardinality)){
 						case (soFar:DenseVector[Double], term:DenseVector[Double]) => soFar :+ term
 					}
-					val termB = (2 :* x) :/ ( (x :^ 2) :- 1.0)
+					val termB = (x :* 2.0) :/ ( (x :^ 2.0) :- 1.0)
 					val deriv = termA :- termB
 					if(deriv.forallValues( (v:Double) => !v.isNaN )){
 						Some(deriv)
