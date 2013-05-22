@@ -319,19 +319,19 @@ object Convex {
 		//--Experiments
 		val optimal = new NewtonOptimizer(1e-15, 0, alpha, beta).minimize(fn, DenseVector.zeros[Double](fn.cardinality)).optimalValue
 		def runTest[A](name:String,file:String,vals:Array[A],fn:A=>Any){
+                        val f = breeze.plot.Figure()
+                        val plot = f.subplot(0)
 			plot.title = name
 			plot.legend = true
-			plot.hold = true
 			vals.foreach{ (v:A) =>
 				fn(v)
 				Thread.sleep(1000)
 			}
 			Thread.sleep(1000)
-			Plotting.saveas(outputDir + "/"+file)
+			f.saveas(outputDir + "/"+file)
 			Thread.sleep(1000)
-			plot.hold = false
 			Thread.sleep(1000)
-			Plotting.clf()
+			f.clear()
 			Thread.sleep(5000)
 		}
 		def changeEta(etas:Double*) {
