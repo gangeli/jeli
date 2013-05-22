@@ -2,6 +2,7 @@ package org.goobs.nlp
 
 import breeze.linalg._
 import breeze.numerics._
+import scala.util.Random
 
 trait ObjectiveFn extends Function1[Vector[Double],Option[Double]] {
 	def cardinality:Int
@@ -238,7 +239,7 @@ object Convex {
 
 	def main(args:Array[String]) {
 		//--Parameters
-		Random.mt.setSeed(42)
+		val random = new Random(42)
 		val outputDir = "/home/gabor/tmp"
 
 		val m:Int = 200
@@ -249,7 +250,7 @@ object Convex {
 		val eta = 1e-6
 		val alpha = 0.25
 		val beta = 0.5
-		val A:Matrix[Double] = DenseMatrix.rand(m,n)
+		val A:Matrix[Double] = DenseMatrix.rand(m,n, random)
 
 		//--Objective Function
 		val fn:ObjectiveFn = new ObjectiveFn {
