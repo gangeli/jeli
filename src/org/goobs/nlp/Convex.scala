@@ -26,11 +26,7 @@ trait ObjectiveFn extends Function1[DenseVector[Double],Option[Double]] {
 //		}
 //		breeze.plot.plot(x, y)
 //	}
-<<<<<<< HEAD
-	
-=======
 //	
->>>>>>> 94f7ee8c55ee2ae82baf44c2647a1c3bf6134677
 //	def plot(begin:Double,end:Double,step:Double){
 //		val dim:Int = ((end-begin)/step).toInt + 1
 //		val x = (DenseVector(Array.range(0,dim).map(_.toDouble)) :* step) :+ begin

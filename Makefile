@@ -9,7 +9,7 @@ DIST=dist
 TMP=tmp
 # (classpath)
 CP=${LIB}/jchart2d.jar:${LIB}/mysql.jar:${LIB}/postgresql.jar:${LIB}/scala-compiler.jar:${LIB}/scala-library.jar:${LIB}/sqlite.jar:${LIB}/breeze-math.jar
-JAVANLP=${LIB}/javanlp.jar
+JAVANLP=${LIB}/corenlp.jar
 #JAVANLP=${JAVANLP_HOME}/projects/core/classes:${JAVANLP_HOME}/projects/more/classes:${JAVANLP_HOME}/projects/core/lib/xom-1.2.6.jar
 # (compilers)
 SCALAC=scalac
