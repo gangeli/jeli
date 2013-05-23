@@ -13,49 +13,49 @@ trait ObjectiveFn extends Function1[DenseVector[Double],Option[Double]] {
 	def differentiableAt(x:DenseVector[Double]):Boolean =  gradient(x).isDefined
 	def twiceDifferentiableAt(x:DenseVector[Double]):Boolean =  hessian(x).isDefined
 
-	def plot(x:DenseVector[Double],hold:Boolean=false){
-		if(cardinality > 1){
-			throw new IllegalStateException("Cannot plot function of cardinality > 1")
-		}
-		val y = x.map{ (v:Double) =>
-			this(DenseVector(v)) match {
-				case Some(y) =>
-					if(y.isInfinite){ Double.NaN } else { y };
-				case None => Double.NaN
-			}
-		}
-		breeze.plot.plot(x, y)
-	}
+//	def plot(x:DenseVector[Double],hold:Boolean=false){
+//		if(cardinality > 1){
+//			throw new IllegalStateException("Cannot plot function of cardinality > 1")
+//		}
+//		val y = x.map{ (v:Double) =>
+//			this(DenseVector(v)) match {
+//				case Some(y) =>
+//					if(y.isInfinite){ Double.NaN } else { y };
+//				case None => Double.NaN
+//			}
+//		}
+//		breeze.plot.plot(x, y)
+//	}
 	
-	def plot(begin:Double,end:Double,step:Double){
-		val dim:Int = ((end-begin)/step).toInt + 1
-		val x = (DenseVector(Array.range(0,dim).map(_.toDouble)) :* step) :+ begin
-		plot(x)
-	}
+//	def plot(begin:Double,end:Double,step:Double){
+//		val dim:Int = ((end-begin)/step).toInt + 1
+//		val x = (DenseVector(Array.range(0,dim).map(_.toDouble)) :* step) :+ begin
+//		plot(x)
+//	}
 }
 
 case class OptimizerProfile(optimalX:DenseVector[Double],optimalValue:Double,guessProfile:DenseVector[Double]) {
-	def plotObjective(name:String="objective"){
-		breeze.plot.plot(
-			x=DenseVector(Array.range(0,guessProfile.length).map(_.toDouble)),
-			y=guessProfile,
-			name=name
-		)
-	}
-	def plotConvergence(name:String="convergence",optimal:Double=optimalValue){
-		breeze.plot.plot(
-			x=DenseVector(Array.range(0,guessProfile.length).map(_.toDouble)),
-			y=guessProfile :- optimal,
-			name=name
-		)
-	}
-	def plotLogConvergence(nm:String="log convergence",optimal:Double=optimalValue){
-		breeze.plot.plot(
-			x = DenseVector(Array.range(0,guessProfile.length).map(_.toDouble)),
-			y = (guessProfile :- optimal).map{ (v:Double) => if(v == 0){ Double.NaN } else { log(v) } },
-			name = nm
-		)
-	}
+//	def plotObjective(name:String="objective"){
+//		breeze.plot.plot(
+//			x=DenseVector(Array.range(0,guessProfile.length).map(_.toDouble)),
+//			y=guessProfile,
+//			name=name
+//		)
+//	}
+//	def plotConvergence(name:String="convergence",optimal:Double=optimalValue){
+//		breeze.plot.plot(
+//			x=DenseVector(Array.range(0,guessProfile.length).map(_.toDouble)),
+//			y=guessProfile :- optimal,
+//			name=name
+//		)
+//	}
+//	def plotLogConvergence(nm:String="log convergence",optimal:Double=optimalValue){
+//		breeze.plot.plot(
+//			x = DenseVector(Array.range(0,guessProfile.length).map(_.toDouble)),
+//			y = (guessProfile :- optimal).map{ (v:Double) => if(v == 0){ Double.NaN } else { log(v) } },
+//			name = nm
+//		)
+//	}
 }
 
 trait Optimizer {
@@ -234,7 +234,7 @@ class NewtonOptimizer(lambdaTolerance:Double,hessianInterval:Int,tolerance:Doubl
 		= -inv(hessian)*grad
 }
 
-
+/*
 object Convex {
 
 	def main(args:Array[String]) {
@@ -412,3 +412,4 @@ object Convex {
 
 	}
 }
+*/

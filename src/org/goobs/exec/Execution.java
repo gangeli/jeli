@@ -4,7 +4,6 @@ import org.goobs.database.Database;
 import org.goobs.database.DatabaseException;
 import org.goobs.database.DatabaseObject;
 import org.goobs.io.LazyFileIterator;
-import org.goobs.stanford.CoreMapDataset;
 import org.goobs.testing.*;
 import org.goobs.util.Marker;
 import org.goobs.util.Utils;
@@ -555,13 +554,6 @@ public class Execution {
 	}
 	public static <D extends DatabaseObject & Datum> Dataset<D> getDataset(Class<D> type, boolean lazy){
 		return new DatabaseDataset<D>(dataDB, type, lazy);
-	}
-
-	public static CoreMapDataset getDataset(String name){
-		return getDataset(name,false);
-	}
-	public static CoreMapDataset getDataset(String name, boolean lazy){
-		return new CoreMapDataset(name, dataDB, lazy);
 	}
 
 	private static String execDirFull = null;

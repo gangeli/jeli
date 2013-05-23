@@ -163,12 +163,14 @@ class Search[S <: SearchState : Manifest](store:Search.Store[S]) {
 		results.reverse.toArray
 	}
 	def best(start:S):S = {
-		var rtn:S = null.asInstanceOf[S]
-		search(start, (result:S,count:Int) => {rtn = result; false})
-		if(rtn == null){
-			throw new SearchException("No solution")
-		}
-		rtn
+		var rtn:Option[S] = None
+		search(start, (result:S,count:Int) => {
+      rtn = Some(result); false
+    })
+    rtn match {
+      case Some(x) => x
+      case None => throw new SearchException("No solution")
+    }
 	}
 }
 
@@ -252,6 +254,21 @@ object Search {
 	def DFS[S <: SearchState]:Store[S] = new scala.collection.mutable.Stack[S]{
 			def enqueue(s:S*):Unit = pushAll(s.reverse)
 			def dequeue():S = pop()
+		}
+	def GREEDY[S <: SearchState]:Store[S] = new {
+      private var element:Option[S] = None
+			def enqueue(s:S*):Unit = {
+        val cand = s.minBy( _.cost )
+        element match {
+          case Some(defender) => 
+            if (cand.cost < element.get.cost) element = Some(cand)
+          case None => element = Some(cand)
+        }
+        assert(element.isDefined)
+      }
+			def dequeue():S = { val rtn = element.get; element = None; rtn }
+      def clear():Unit = { element = None }
+      def isEmpty:Boolean = !element.isDefined
 		}
 	def BFS[S <: SearchState]:Store[S] = new scala.collection.mutable.Queue[S]
 	def UNIFORM_COST[S <: SearchState]:Store[S] = 
