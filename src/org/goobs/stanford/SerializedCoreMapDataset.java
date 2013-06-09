@@ -90,7 +90,7 @@ public class SerializedCoreMapDataset extends Dataset<CoreMapDatum> implements S
 		} else {
 			this.isPiecewise = false;
 			SerializedCoreMapDataset term = readObject(this.file);
-			this.file = term.file;
+      term.file = this.file;
 			this.maps = term.maps;
 		}
 	}
